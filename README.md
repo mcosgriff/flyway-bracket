@@ -15,6 +15,8 @@ What exists:
 
 - The game rules in `:domain`, unit-tested: time bins, county bar charts, which birds are expected and
   which are migrants, seeding, matchup decisions and pick scoring.
+- The state pack file format (`<state code>.fbpack`, gzipped JSON): a state's counties, each with its bar
+  chart and its outline, and finding the county a place is in. Nothing builds or downloads a pack yet.
 - The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen with its empty state.
   The other screens are placeholders. Every screen is screenshot-tested in light and dark and checked
   for accessibility (touch targets, contrast, labels) on each build.

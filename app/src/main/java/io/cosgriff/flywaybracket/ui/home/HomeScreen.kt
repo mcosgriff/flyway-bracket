@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -44,6 +45,7 @@ import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Constraints
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.cosgriff.flywaybracket.R
@@ -237,36 +239,68 @@ private fun PackMissingDialog(region: HomeRegion?, onGoToPacks: () -> Unit, onDi
     )
 }
 
+/**
+ * The title, the county chip and the gear in one row, the title taking what the other two leave. When
+ * that is narrower than the title's longest word, the title would break inside it (#76): then the chip
+ * goes on a line of its own below, and the title shares the first line with the gear only.
+ */
 @Composable
 private fun Header(region: HomeRegion?, onRegion: () -> Unit, onSettings: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FlywayDimens.space2)) {
-        Text(
-            text = stringResource(R.string.app_name).toUpperCase(Locale.current),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier
-                .weight(1f)
-                .semantics { heading() },
-        )
-        if (region != null) {
-            OutlinedButton(
-                onClick = onRegion,
-                modifier = Modifier.heightIn(min = FlywayDimens.tapMin),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ),
-            ) {
-                Text(
-                    text = stringResource(R.string.home_region_county, region.county, region.stateAbbreviation),
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+    Layout(
+        content = { HeaderItems(region, onRegion, onSettings) },
+        measurePolicy = { measurables, constraints ->
+            // Measured and placed as Row(spacedBy(space2), CenterVertically) with the title weighted, so
+            // the header looks as it did when everything fits.
+            val gap = FlywayDimens.space2.roundToPx()
+            val width = constraints.maxWidth
+            val natural = Constraints(maxWidth = width, maxHeight = constraints.maxHeight)
+            val title = measurables.first()
+            val gear = measurables.last().measure(natural)
+            val chip = if (measurables.size == 3) measurables[1].measure(natural) else null
+            val chipInRow = chip != null && title.minIntrinsicWidth(constraints.maxHeight) + gap + chip.width + gap + gear.width <= width
+            val chipBelow = chip.takeIf { !chipInRow }
+            val beside = listOfNotNull(chip.takeIf { chipInRow }, gear)
+            val titleWidth = (width - beside.sumOf { it.width + gap }).coerceAtLeast(0)
+            val row = listOf(title.measure(natural.copy(minWidth = titleWidth, maxWidth = titleWidth))) + beside
+            val rowHeight = row.maxOf { it.height }
+            layout(width, if (chipBelow == null) rowHeight else rowHeight + gap + chipBelow.height) {
+                var x = 0
+                row.forEach {
+                    it.placeRelative(x, Alignment.CenterVertically.align(it.height, rowHeight))
+                    x += it.width + gap
+                }
+                chipBelow?.placeRelative(0, rowHeight + gap)
             }
+        },
+    )
+}
+
+@Composable
+private fun HeaderItems(region: HomeRegion?, onRegion: () -> Unit, onSettings: () -> Unit) {
+    Text(
+        text = stringResource(R.string.app_name).toUpperCase(Locale.current),
+        style = MaterialTheme.typography.headlineMedium,
+        modifier = Modifier.semantics { heading() },
+    )
+    if (region != null) {
+        OutlinedButton(
+            onClick = onRegion,
+            modifier = Modifier.heightIn(min = FlywayDimens.tapMin),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+        ) {
+            Text(
+                text = stringResource(R.string.home_region_county, region.county, region.stateAbbreviation),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
-        IconButton(onClick = onSettings) {
-            Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.home_settings))
-        }
+    }
+    IconButton(onClick = onSettings) {
+        Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.home_settings))
     }
 }
 
@@ -509,6 +543,9 @@ internal val previewPackOffer = HomeState(
     region = HomeRegion(county = "Lark Hollow", stateAbbreviation = "ZA"),
     packOffer = PackOffer(stateCode = "US-ZA", state = "Alder", sizeBytes = 1_480_000),
 )
+
+/** A home county with a long name (made up, as is its state), too long to share the title's line (#76). */
+internal val previewLongCounty = previewState.copy(region = HomeRegion(county = "Lark Hollow and Fen Reach", stateAbbreviation = "ZA"))
 
 @Preview
 @Composable

@@ -37,6 +37,7 @@ val ServerProblem.message: Int
             ApiErrorCode.PICKS_INCOMPLETE,
             ApiErrorCode.BRACKET_NOT_READY,
             ApiErrorCode.ROUND_NOT_DECIDED,
+            ApiErrorCode.PACK_NOT_FOUND,
             null,
             -> R.string.server_problem_general
         }

@@ -337,7 +337,7 @@
     <string name="consent_seen_body">Your display name, your picks once they lock, your points, and how many birds you logged in a round.</string>
     <string name="consent_not_seen_body">Not your county, and not your sightings.</string>
     <string name="consent_delete_title">Deleting</string>
-    <string name="consent_delete_body">You can delete your account from Settings. The server then deletes your name, picks and sightings. It cannot be undone.</string>
+    <string name="consent_delete_body">You can delete your account from Settings. The server then deletes your name, picks and sightings at once, and encrypted backups drop them within 35 days. It cannot be undone.</string>
     <string name="consent_lost_body">The account lives on this phone. If you lose the phone, reset it or clear the app\'s data, the account is lost with it.</string>
     <string name="consent_continue">Continue</string>
     <string name="consent_creating">Creating your account…</string>
@@ -531,7 +531,7 @@
     <string name="settings_account_deleting">Deleting your account…</string>
     <!-- What DELETE /v1/account removes: docs/server/api.md. Change the two together. -->
     <string name="settings_delete_title">Delete your account?</string>
-    <string name="settings_delete_server">The league server deletes your account: its id and secret, your display name, your home county, and your place in any league, which you leave. Picks and sightings the server holds are deleted too. A finished season\'s results stay, under no name, as “a former player”.</string>
+    <string name="settings_delete_server">The league server deletes your account: your secret, your display name, your home county, and your place in any league, which you leave. Picks and sightings the server holds are deleted too. It keeps only your account\'s random id for 35 days, so a restore from a backup cannot bring the account back, and encrypted backups keep a copy for up to 35 days. A finished season\'s results stay, under no name, as “a former player”.</string>
     <string name="settings_delete_phone">Your outings and sightings stay on this phone, and you can go on logging them without an account.</string>
     <string name="settings_delete_continue">Continue</string>
     <string name="settings_delete_cancel">Cancel</string>

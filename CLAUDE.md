@@ -180,6 +180,8 @@ Add `:baselineprofile` once the screens settle.
     better seed. A side with fewer than `MatchupRule.MIN_ELIGIBLE` eligible players cannot win on share.
   - A player is eligible for a bird when it is expected that week in their home county or in a county
     where they logged an outing.
+  - A sighting of a bird not expected for that player that week does not count, and does not make them
+    eligible for it: it is on neither side of the share (`MatchupRule.tally`, #17).
   - Expected is yes or no: on at least 3% of the county's checklists (`CountyChart.EXPECTED_FLOOR`).
   - Packs are downloaded by state and judged by county.
   - Pick points double each round, 1 to 32; a called upset adds the seed gap.

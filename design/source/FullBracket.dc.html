@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Full bracket</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: {{c.bg}}; color: {{c.ink}}; font-family: Inter, system-ui, sans-serif">
+<header style="height: 60px; display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; flex-direction: column; width: 420px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; line-height: 1; letter-spacing: 0.5px; text-transform: uppercase">Flyway Bracket · Spring</span>
+<span style="font-size: 12px; font-weight: 600; color: {{c.hot}}">Round of 32 is live · closes Sun 6 pm</span>
+</div>
+<div style="display: flex; flex-direction: column; align-items: center; background: {{c.pri}}; color: {{c.onp}}; border-radius: 14px; padding: 8px 24px">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {{c.onpm}}">Your champion</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px; line-height: 1.1">{{ champ }}</span>
+</div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 16px; width: 420px; font-size: 12px; color: {{c.mut}}">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 14px; border-radius: 4px; background: {{c.sf}}; border: 1px solid {{c.line}}"></span>Still in</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 14px; border-radius: 4px; background: {{c.tint}}; border: 1px solid {{c.pick}}"></span>Your pick</span>
+<span>Faded: knocked out</span>
+</div>
+</header>
+<div style="display: flex; height: 808px">
+<div style="position: relative; width: 680px; display: flex">
+<div style="position: absolute; left: 486px; top: 30px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px; text-transform: uppercase; color: {{c.mut}}">Songbirds</div>
+<div style="position: absolute; left: 486px; bottom: 8px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px; text-transform: uppercase; color: {{c.mut}}">Waterbirds</div>
+<div style="width: 140px; display: flex; flex-direction: column">
+<div style="height: 22px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: {{c.mut}}">Round of 64</div>
+<div style="height: 786px; display: flex; flex-direction: column">
+<sc-for list="{{ left.r64 }}" as="s" hint-placeholder-count="32">
+<div style="flex: 1; display: flex; align-items: center">
+<div style="flex: 1; min-width: 0; box-sizing: border-box; display: flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border: 1px solid {{ s.ln }}; border-radius: 4px; background: {{ s.bg }}; color: {{ s.fg }}; font-size: 11px; font-weight: {{ s.weight }}">
+<span style="width: 14px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px">{{ s.seed }}</span>
+<span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ s.name }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+<sc-for list="{{ left.cols }}" as="col" hint-placeholder-count="5">
+<div style="display: flex">
+<div style="width: 14px; display: flex; flex-direction: column">
+<div style="height: 22px"></div>
+<div style="height: 786px; display: flex; flex-direction: column">
+<sc-for list="{{ col.joins }}" as="j" hint-placeholder-count="4">
+<div style="flex: 1; display: flex; align-items: center">
+<div style="width: 7px; height: 50%; box-sizing: border-box; border: 1px solid {{ j.ln }}; border-left: 0"></div>
+<div style="width: 7px; height: 0; border-top: 1px solid {{ j.ln }}"></div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="width: 94px; display: flex; flex-direction: column">
+<div style="height: 22px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: {{ col.lfg }}">{{ col.label }}</div>
+<div style="height: 786px; display: flex; flex-direction: column">
+<sc-for list="{{ col.slots }}" as="s" hint-placeholder-count="4">
+<div style="flex: 1; display: flex; align-items: center">
+<div style="flex: 1; min-width: 0; box-sizing: border-box; display: flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border: 1px solid {{ s.ln }}; border-radius: 4px; background: {{ s.bg }}; color: {{ s.fg }}; font-size: 11px; font-weight: {{ s.weight }}">
+<span style="width: 14px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px">{{ s.seed }}</span>
+<span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ s.name }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="width: 56px; display: flex; flex-direction: column">
+<div style="height: 22px"></div>
+<div style="height: 786px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; text-transform: uppercase; color: {{c.mut}}">Final</span>
+<div style="width: 40px; height: 0; border-top: 1px solid {{c.sline}}"></div>
+<span style="font-size: 11px; color: {{c.mut}}">30 May</span>
+</div>
+</div>
+<div style="position: relative; width: 680px; display: flex; flex-direction: row-reverse">
+<div style="position: absolute; right: 486px; top: 30px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px; text-transform: uppercase; color: {{c.mut}}">Fliers</div>
+<div style="position: absolute; right: 486px; bottom: 8px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px; text-transform: uppercase; color: {{c.mut}}">Waterfowl</div>
+<div style="width: 140px; display: flex; flex-direction: column">
+<div style="height: 22px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; text-align: right; color: {{c.mut}}">Round of 64</div>
+<div style="height: 786px; display: flex; flex-direction: column">
+<sc-for list="{{ right.r64 }}" as="s" hint-placeholder-count="32">
+<div style="flex: 1; display: flex; align-items: center">
+<div style="flex: 1; min-width: 0; box-sizing: border-box; display: flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border: 1px solid {{ s.ln }}; border-radius: 4px; background: {{ s.bg }}; color: {{ s.fg }}; font-size: 11px; font-weight: {{ s.weight }}">
+<span style="width: 14px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px">{{ s.seed }}</span>
+<span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ s.name }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+<sc-for list="{{ right.cols }}" as="col" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: row-reverse">
+<div style="width: 14px; display: flex; flex-direction: column">
+<div style="height: 22px"></div>
+<div style="height: 786px; display: flex; flex-direction: column">
+<sc-for list="{{ col.joins }}" as="j" hint-placeholder-count="4">
+<div style="flex: 1; display: flex; flex-direction: row-reverse; align-items: center">
+<div style="width: 7px; height: 50%; box-sizing: border-box; border: 1px solid {{ j.ln }}; border-right: 0"></div>
+<div style="width: 7px; height: 0; border-top: 1px solid {{ j.ln }}"></div>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="width: 94px; display: flex; flex-direction: column">
+<div style="height: 22px; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; text-align: right; color: {{ col.lfg }}">{{ col.label }}</div>
+<div style="height: 786px; display: flex; flex-direction: column">
+<sc-for list="{{ col.slots }}" as="s" hint-placeholder-count="4">
+<div style="flex: 1; display: flex; align-items: center">
+<div style="flex: 1; min-width: 0; box-sizing: border-box; display: flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border: 1px solid {{ s.ln }}; border-radius: 4px; background: {{ s.bg }}; color: {{ s.fg }}; font-size: 11px; font-weight: {{ s.weight }}">
+<span style="width: 14px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 12px">{{ s.seed }}</span>
+<span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ s.name }}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false,"tsType":"boolean"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+theme(d) {
+return d
+? {bg:"#0B1612",sf:"#14231C",sc:"#223329",ink:"#E8F0EB",mut:"#A3B3AA",line:"#2F4238",sline:"#647A6E",div:"#24352C",pri:"#0F6B56",onp:"#FFFFFF",onpm:"#D3EDE3",act:"#FF8A4C",onact:"#2B1000",pick:"#7FD8BC",tint:"#173A30",wbg:"#3A2A05",wln:"#D9A036",wtx:"#FFD58A",hot:"#FFA273",bar2:"#55685E",inv:"#E8F0EB",oninv:"#0B1612"}
+: {bg:"#F4F6F1",sf:"#FFFFFF",sc:"#DDE3D8",ink:"#14231C",mut:"#4A5A51",line:"#C9D1C6",sline:"#8A968D",div:"#E3E8DF",pri:"#0B5D4B",onp:"#FFFFFF",onpm:"#E6F3EE",act:"#C2410C",onact:"#FFFFFF",pick:"#0B5D4B",tint:"#E6F3EE",wbg:"#FFF1D6",wln:"#B77400",wtx:"#6B4100",hot:"#9A330A",bar2:"#A9B3AB",inv:"#14231C",oninv:"#FFFFFF"};
+}
+renderVals() {
+const c = this.theme(this.props.dark ?? false);
+const R = {
+W: ["N. House Wren", "Yellow Warbler", "Yellow-rumped", "C. Grackle", "L. Goldfinch", "Br-h. Cowbird", "W. Meadowlark", "Chipping Sp.", "Bullock's Oriole", "W. Tanager", "Gray Catbird", "Warbling Vireo", "Blk-h. Grosbeak", "Yel-br. Chat", "White-cr. Sp.", "Lazuli Bunting"],
+S: ["D-c. Cormorant", "Gr. Blue Heron", "Killdeer", "Ring-billed Gull", "Am. Coot", "Spotted Sandp.", "Wh. Pelican", "Snowy Egret", "Western Grebe", "Pied-b. Grebe", "Horned Grebe", "Am. Avocet", "Night Heron", "Wilson's Snipe", "G. Yellowlegs", "Franklin's Gull"],
+H: ["Broad-t. Hummer", "Say's Phoebe", "Violet-gr. Sw.", "Barn Swallow", "W. Wood-Pewee", "Tree Swallow", "W. Flycatcher", "Cliff Swallow", "W. Kingbird", "Rough-w. Sw.", "Black-ch. Hummer", "Wh-thr. Swift", "Least Flyc.", "Dusky Flyc.", "C. Nighthawk", "Olive-s. Flyc."],
+D: ["Gadwall", "N. Shoveler", "Bufflehead", "Hooded Merg.", "Green-w. Teal", "Lesser Scaup", "Blue-w. Teal", "C. Goldeneye", "Cinnamon Teal", "Ring-necked", "Am. Wigeon", "Redhead", "Ruddy Duck", "Cackling Goose", "Greater Scaup", "Red-br. Merg."]
+};
+const order = [1, 16, 8, 9, 5, 12, 4, 13, 6, 11, 3, 14, 7, 10, 2, 15];
+const upsets = { W: { "8-9": 9, "5-12": 12 }, S: { "7-10": 10 }, H: { "6-11": 11 }, D: { "8-9": 9 } };
+const mine = { W: { "4-12": 12, "3-6": 6 }, S: {}, H: { "3-11": 11 }, D: {} };
+const birds = (r) => order.map((s) => ({ seed: s, name: R[r][s - 1], r: r }));
+const adv = (list, maps) => { const o = []; for (let i = 0; i < list.length; i += 2) { const a = list[i], b = list[i + 1]; let w = a.seed <= b.seed ? a : b; if (a.r === b.r) { const m = maps[a.r][Math.min(a.seed, b.seed) + "-" + Math.max(a.seed, b.seed)]; if (m) w = a.seed === m ? a : b; } o.push(w); } return o; };
+const slot = (b, kind) => {
+const base = { seed: b.seed, name: b.name };
+if (kind === "out") return Object.assign(base, { bg: "transparent", fg: c.mut, weight: 400, ln: c.line });
+if (kind === "pick") return Object.assign(base, { bg: c.tint, fg: c.pick, weight: 600, ln: c.pick });
+return Object.assign(base, { bg: c.sf, fg: c.ink, weight: 600, ln: c.line });
+};
+const col = (label, list, kind) => ({ label: label, lfg: kind === "live" ? c.hot : c.mut, slots: list.map((b) => slot(b, kind)), joins: list.map(() => ({ ln: c.sline })) });
+const side = (r1, r2) => {
+const r64 = birds(r1).concat(birds(r2));
+const r32 = adv(r64, upsets), s16 = adv(r32, mine), e8 = adv(s16, mine), f4 = adv(e8, mine), fin = adv(f4, mine);
+return { r64: r64.map((b) => slot(b, r32.indexOf(b) >= 0 ? "won" : "out")), cols: [col("Round of 32", r32, "live"), col("Sweet 16", s16, "pick"), col("Elite 8", e8, "pick"), col("Final Four", f4, "pick"), col("Final", fin, "pick")], fin: fin[0] };
+};
+const left = side("W", "S"), right = side("H", "D");
+return { c: c, left: left, right: right, champ: "Northern House Wren" };
+}
+}
+</script>
+</body>
+</html>

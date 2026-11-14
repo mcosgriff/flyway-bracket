@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bracket, list view</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: {{c.bg}}; color: {{c.ink}}; font-family: Inter, system-ui, sans-serif">
+<header style="padding: 20px 20px 10px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; letter-spacing: 0.5px; text-transform: uppercase">Spring bracket</h1>
+<a href="BracketTree.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 14px; border: 1px solid {{c.sline}}; border-radius: 22px; font-size: 13px; font-weight: 600; color: {{c.ink}}; text-decoration: none; background: {{c.sf}}">Tree view</a>
+</div>
+<div style="display: flex; gap: 6px">
+<a href="RoundDone.dc.html" style="flex: 1; display: flex; align-items: center; justify-content: center; height: 44px; border-radius: 10px; background: {{c.sc}}; font-size: 13px; font-weight: 600; color: {{c.ink}}; text-decoration: none">64</a>
+<span aria-current="true" style="flex: 1; display: flex; align-items: center; justify-content: center; height: 44px; border-radius: 10px; background: {{c.inv}}; font-size: 13px; font-weight: 600; color: {{c.oninv}}">32</span>
+<span style="flex: 1; display: flex; align-items: center; justify-content: center; height: 44px; box-sizing: border-box; border-radius: 10px; border: 1px solid {{c.line}}; font-size: 13px; font-weight: 600; color: {{c.mut}}">16</span>
+<span style="flex: 1; display: flex; align-items: center; justify-content: center; height: 44px; box-sizing: border-box; border-radius: 10px; border: 1px solid {{c.line}}; font-size: 13px; font-weight: 600; color: {{c.mut}}">8</span>
+<span style="flex: 1; display: flex; align-items: center; justify-content: center; height: 44px; box-sizing: border-box; border-radius: 10px; border: 1px solid {{c.line}}; font-size: 13px; font-weight: 600; color: {{c.mut}}">4</span>
+<span style="flex: 1; display: flex; align-items: center; justify-content: center; height: 44px; box-sizing: border-box; border-radius: 10px; border: 1px solid {{c.line}}; font-size: 13px; font-weight: 600; color: {{c.mut}}">Final</span>
+</div>
+<div style="display: flex; gap: 8px">
+<button type="button" aria-pressed="true" style="min-height: 44px; padding: 0 14px; border: 0; border-radius: 22px; background: {{c.pri}}; font: inherit; font-size: 13px; font-weight: 600; color: {{c.onp}}">Songbirds</button>
+<button type="button" style="min-height: 44px; padding: 0 14px; border: 1px solid {{c.line}}; border-radius: 22px; background: {{c.sf}}; font: inherit; font-size: 13px; font-weight: 600; color: {{c.ink}}">Waterbirds</button>
+<button type="button" style="min-height: 44px; padding: 0 14px; border: 1px solid {{c.line}}; border-radius: 22px; background: {{c.sf}}; font: inherit; font-size: 13px; font-weight: 600; color: {{c.ink}}">Fliers</button>
+<button type="button" style="min-height: 44px; padding: 0 14px; border: 1px solid {{c.line}}; border-radius: 22px; background: {{c.sf}}; font: inherit; font-size: 13px; font-weight: 600; color: {{c.ink}}">Waterfowl</button>
+</div>
+<div style="font-size: 13px; font-weight: 600; color: {{c.hot}}">Round of 32 is live · closes Sun 6 pm</div>
+</header>
+<main style="flex-grow: 1; padding: 2px 20px 12px; display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{ games }}" as="g" hint-placeholder-count="4">
+<a href="Matchup.dc.html" style="display: flex; flex-direction: column; background: {{ g.bg }}; border: {{ g.bd }}; border-radius: 16px; overflow: hidden; text-decoration: none; color: {{ g.ink }}">
+<sc-if value="{{ g.upset }}" hint-placeholder-val="{{ false }}">
+<span style="display: flex; align-items: center; justify-content: space-between; padding: 6px 14px; background: {{ g.act }}; color: {{ g.onact }}; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase"><span>Upset watch</span><span>+8 bonus if it holds</span></span>
+</sc-if>
+<span style="display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 14px; border-bottom: 1px solid {{ g.div }}">
+<span style="width: 22px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; color: {{ g.mut }}">{{ g.a.seed }}</span>
+<span style="flex-grow: 1; font-size: 15px; font-weight: {{ g.a.weight }}; color: {{ g.a.fg }}">{{ g.a.name }}</span>
+<sc-if value="{{ g.a.pick }}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; font-weight: 600; color: {{ g.a.pk }}; border: 1px solid {{ g.a.pk }}; border-radius: 6px; padding: 2px 6px">Your pick</span></sc-if>
+<span style="width: 48px; text-align: right; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px; color: {{ g.a.sfg }}">{{ g.a.score }}</span>
+</span>
+<span style="display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 14px">
+<span style="width: 22px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; color: {{ g.mut }}">{{ g.b.seed }}</span>
+<span style="flex-grow: 1; font-size: 15px; font-weight: {{ g.b.weight }}; color: {{ g.b.fg }}">{{ g.b.name }}</span>
+<sc-if value="{{ g.b.pick }}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; font-weight: 600; color: {{ g.b.pk }}; border: 1px solid {{ g.b.pk }}; border-radius: 6px; padding: 2px 6px">Your pick</span></sc-if>
+<span style="width: 48px; text-align: right; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 24px; color: {{ g.b.sfg }}">{{ g.b.score }}</span>
+</span>
+</a>
+</sc-for>
+<p style="margin: 0; font-size: 12px; color: {{c.mut}}">Left number is the seed. Right number is the share of eligible players who logged the bird this week. Eligible means the bird is expected in your region.</p>
+</main>
+<nav aria-label="Main" style="height: 72px; display: flex; background: {{c.sf}}; border-top: 1px solid {{c.line}}">
+<a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: {{c.mut}}; text-decoration: none">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</a>
+<a href="Bracket.dc.html" aria-current="page" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 600; color: {{c.pick}}; text-decoration: none">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h5v7h5M4 19h5v-7M14 12h6"/></svg>Bracket</a>
+<a href="League.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: {{c.mut}}; text-decoration: none">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.600 2.900-6 6.500-6s6.500 2.400 6.500 6M16 4.800a3.500 3.500 0 0 1 0 6.400M18 14.500c2.200.8 3.500 2.800 3.500 5.500"/></svg>League</a>
+<a href="Packs.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: {{c.mut}}; text-decoration: none">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/></svg>Packs</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false,"tsType":"boolean"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+theme(d) {
+return d
+? {bg:"#0B1612",sf:"#14231C",sc:"#223329",ink:"#E8F0EB",mut:"#A3B3AA",line:"#2F4238",sline:"#647A6E",div:"#24352C",pri:"#0F6B56",onp:"#FFFFFF",onpm:"#D3EDE3",act:"#FF8A4C",onact:"#2B1000",pick:"#7FD8BC",tint:"#173A30",wbg:"#3A2A05",wln:"#D9A036",wtx:"#FFD58A",hot:"#FFA273",bar2:"#55685E",inv:"#E8F0EB",oninv:"#0B1612"}
+: {bg:"#F4F6F1",sf:"#FFFFFF",sc:"#DDE3D8",ink:"#14231C",mut:"#4A5A51",line:"#C9D1C6",sline:"#8A968D",div:"#E3E8DF",pri:"#0B5D4B",onp:"#FFFFFF",onpm:"#E6F3EE",act:"#C2410C",onact:"#FFFFFF",pick:"#0B5D4B",tint:"#E6F3EE",wbg:"#FFF1D6",wln:"#B77400",wtx:"#6B4100",hot:"#9A330A",bar2:"#A9B3AB",inv:"#14231C",oninv:"#FFFFFF"};
+}
+renderVals() {
+const c = this.theme(this.props.dark ?? false);
+const row = (seed, name, score, lead, pick) => ({ seed: seed, name: name, score: score, pick: pick, fg: lead ? c.ink : c.mut, sfg: lead ? c.pick : c.mut, weight: lead ? 600 : 400, pk: c.pick });
+const g = (a, b, upset) => ({ a: a, b: b, upset: upset, bg: c.sf, ink: c.ink, div: c.div, act: c.act, onact: c.onact, mut: c.mut, bd: "2px solid " + (upset ? c.act : c.sf) });
+return { c: c, games: [
+g(row(1, "Northern House Wren", "88%", true, true), row(9, "Bullock's Oriole", "31%", false, false), false),
+g(row(4, "Common Grackle", "50%", false, false), row(12, "Western Warbling Vireo", "67%", true, true), true),
+g(row(3, "Yellow-rumped Warbler", "58%", true, false), row(6, "Brown-headed Cowbird", "54%", false, true), false),
+g(row(2, "Yellow Warbler", "71%", true, true), row(7, "Western Meadowlark", "44%", false, false), false)
+] };
+}
+}
+</script>
+</body>
+</html>

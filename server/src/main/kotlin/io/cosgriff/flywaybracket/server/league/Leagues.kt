@@ -30,12 +30,14 @@ import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendar
 import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendarResult
 import io.cosgriff.flywaybracket.domain.bracket.Team
+import io.cosgriff.flywaybracket.domain.league.InviteCode
 import io.cosgriff.flywaybracket.domain.league.JoinCheck
 import io.cosgriff.flywaybracket.domain.league.LeagueLifecycle
 import io.cosgriff.flywaybracket.domain.league.LeagueName
 import io.cosgriff.flywaybracket.domain.league.LeagueNameCheck
 import io.cosgriff.flywaybracket.domain.league.LeaguePhase
 import io.cosgriff.flywaybracket.domain.league.LeagueStatus
+import io.cosgriff.flywaybracket.domain.league.LeagueTimeZone
 import io.cosgriff.flywaybracket.domain.league.SeasonStart
 import io.cosgriff.flywaybracket.domain.league.Score
 import io.cosgriff.flywaybracket.domain.league.SeasonStartCheck
@@ -762,10 +764,8 @@ class Leagues(
         /** A clash is one in hundreds of billions per league; three in a row means something else is wrong. */
         private const val INVITE_CODE_TRIES = 3
 
-        private val zoneIds: Set<String> = ZoneId.getAvailableZoneIds()
-
         /** An IANA zone id the server knows; not an offset such as `+02:00`. */
-        private fun zoneOf(text: String): ZoneId? = text.takeIf { it in zoneIds }?.let(ZoneId::of)
+        private fun zoneOf(text: String): ZoneId? = LeagueTimeZone.of(text)
 
         /** Only the form the server writes, so one league has one id text. */
         private fun parseId(text: String): UUID? = try {

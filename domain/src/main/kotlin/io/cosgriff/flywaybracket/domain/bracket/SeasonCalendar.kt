@@ -65,6 +65,9 @@ class SeasonCalendar private constructor(val startDate: LocalDate) {
     /** Whether [round] is decided at [now]: from [decidedAt] on. */
     fun isDecided(round: Round, now: LocalDateTime): Boolean = now >= decidedAt(round)
 
+    /** How many matchups are decided at [now]: those of every round [isDecided], 0 to 63. */
+    fun decidedMatchups(now: LocalDateTime): Int = Round.entries.filter { isDecided(it, now) }.sumOf { it.teams / 2 }
+
     /** The round played on [date]; null before the season and after the final. */
     fun roundOn(date: LocalDate): Round? = Round.entries.firstOrNull { date in roundDates(it) }
 
@@ -76,6 +79,12 @@ class SeasonCalendar private constructor(val startDate: LocalDate) {
      * [seasonDates]. A sighting logged before the player joined is sent when they join, if it is inside.
      */
     fun isSentForSeason(date: LocalDate): Boolean = date in seasonDates
+
+    /**
+     * The round a running season is on at [date]: the one played that day; the first before it starts, and the
+     * final after its Sunday, until the season is finished (#40).
+     */
+    fun roundOfSeason(date: LocalDate): Round = roundOn(date) ?: if (date < startDate) Round.ROUND_OF_64 else Round.FINAL
 
     /**
      * Every [TimeBin] one of the round's seven days falls in, earliest first, each once. A bird is

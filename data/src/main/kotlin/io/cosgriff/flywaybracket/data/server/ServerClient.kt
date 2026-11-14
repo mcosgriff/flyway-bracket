@@ -6,8 +6,11 @@ import io.cosgriff.flywaybracket.api.ApiPaths
 import io.cosgriff.flywaybracket.api.BracketResponse
 import io.cosgriff.flywaybracket.api.CreateAccountRequest
 import io.cosgriff.flywaybracket.api.CreateAccountResponse
-import io.cosgriff.flywaybracket.api.PackListResponse
+import io.cosgriff.flywaybracket.api.CreateLeagueRequest
+import io.cosgriff.flywaybracket.api.JoinLeagueRequest
 import io.cosgriff.flywaybracket.api.LeagueDetail
+import io.cosgriff.flywaybracket.api.LeagueSummary
+import io.cosgriff.flywaybracket.api.PackListResponse
 import io.cosgriff.flywaybracket.api.PicksResponse
 import io.cosgriff.flywaybracket.api.ProfileResponse
 import io.cosgriff.flywaybracket.api.RoundResultsResponse
@@ -101,8 +104,8 @@ sealed interface PackFetch {
 }
 
 /**
- * The league server's account endpoints, a league's dates, bracket, picks and results, the pack endpoints,
- * and the player's sightings (`docs/server/api.md`), with the messages of `:api`. Bodies are written and read
+ * The league server's account endpoints, creating, joining and leaving a league, a league's dates, bracket,
+ * picks and results, the pack endpoints, and the player's sightings (`docs/server/api.md`), with the messages of `:api`. Bodies are written and read
  * with `ApiJson`. Each call sends only what its message holds: ADR 0001's table lists every field the app
  * may send.
  *
@@ -142,6 +145,35 @@ class ServerClient(
     /** `DELETE /v1/account`. It cannot be undone. */
     suspend fun deleteAccount(credentials: Credentials): ServerResult<Unit> =
         call(HttpMethod.Delete, ApiPaths.ACCOUNT, credentials, body = null, answer = null)
+
+    /**
+     * `POST /v1/leagues`: a new league with the player as its first member (#40). It sends the league's name,
+     * whether it is open, its time zone and its start date: the rows ADR 0001 has for creating a league.
+     */
+    suspend fun createLeague(credentials: Credentials, league: CreateLeagueRequest): ServerResult<LeagueSummary> = call(
+        method = HttpMethod.Post,
+        path = ApiPaths.LEAGUES,
+        credentials = credentials,
+        body = ApiJson.encodeToString(CreateLeagueRequest.serializer(), league),
+        answer = LeagueSummary.serializer(),
+    )
+
+    /** `POST /v1/leagues/join`: the player joins the league whose invite code they typed (#40). */
+    suspend fun joinLeague(credentials: Credentials, inviteCode: String): ServerResult<LeagueSummary> = call(
+        method = HttpMethod.Post,
+        path = ApiPaths.JOIN_LEAGUE,
+        credentials = credentials,
+        body = ApiJson.encodeToString(JoinLeagueRequest.serializer(), JoinLeagueRequest(inviteCode)),
+        answer = LeagueSummary.serializer(),
+    )
+
+    /** `POST /v1/leagues/auto-join`: the server places the player in an open league with room (#40). No body. */
+    suspend fun autoJoinLeague(credentials: Credentials): ServerResult<LeagueSummary> =
+        call(HttpMethod.Post, ApiPaths.AUTO_JOIN_LEAGUE, credentials, body = null, answer = LeagueSummary.serializer())
+
+    /** `DELETE /v1/leagues/{leagueId}/membership`: the player leaves the league (#40). */
+    suspend fun leaveLeague(credentials: Credentials, leagueId: String): ServerResult<Unit> =
+        call(HttpMethod.Delete, ApiPaths.membership(leagueId), credentials, body = null, answer = null)
 
     /** `GET /v1/packs`: the packs the server holds, in order of state name. */
     suspend fun packs(credentials: Credentials): ServerResult<PackListResponse> =

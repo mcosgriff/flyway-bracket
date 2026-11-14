@@ -30,6 +30,20 @@ import io.cosgriff.flywaybracket.ui.home.previewLongCounty
 import io.cosgriff.flywaybracket.ui.home.previewPackOffer
 import io.cosgriff.flywaybracket.ui.home.previewState
 import io.cosgriff.flywaybracket.ui.home.previewToday
+import io.cosgriff.flywaybracket.ui.league.CreateLeagueState
+import io.cosgriff.flywaybracket.ui.league.LeagueContent
+import io.cosgriff.flywaybracket.ui.league.LeagueCreateContent
+import io.cosgriff.flywaybracket.ui.league.LeagueTabState
+import io.cosgriff.flywaybracket.ui.league.previewClosed
+import io.cosgriff.flywaybracket.ui.league.previewCreate
+import io.cosgriff.flywaybracket.ui.league.previewCreateInvalid
+import io.cosgriff.flywaybracket.ui.league.previewCreated
+import io.cosgriff.flywaybracket.ui.league.previewFinished
+import io.cosgriff.flywaybracket.ui.league.previewForming
+import io.cosgriff.flywaybracket.ui.league.previewJoin
+import io.cosgriff.flywaybracket.ui.league.previewLeagueToday
+import io.cosgriff.flywaybracket.ui.league.previewLeave
+import io.cosgriff.flywaybracket.ui.league.previewRunning
 import io.cosgriff.flywaybracket.ui.onboarding.OnboardingContent
 import io.cosgriff.flywaybracket.ui.onboarding.OnboardingState
 import io.cosgriff.flywaybracket.ui.onboarding.previewEmpty
@@ -301,6 +315,43 @@ class ScreensScreenshotTest(private val shade: Shade) {
 
     private fun matchup(name: String, state: MatchupState) = compose.shoot(name, shade) {
         MatchupContent(state, onBack = {})
+    }
+
+    @Test
+    fun leagueJoin() = league("league_join", previewJoin)
+
+    @Test
+    fun leagueForming() = league("league_forming", previewForming)
+
+    @Test
+    fun leagueRunning() = league("league_running", previewRunning)
+
+    @Test
+    fun leagueFinished() = league("league_finished", previewFinished)
+
+    @Test
+    fun leagueClosed() = league("league_closed", previewClosed)
+
+    @Test
+    fun leagueLeave() = compose.shootScreen("league_leave", shade) {
+        LeagueContent(previewLeave, onNavigate = {})
+    }
+
+    private fun league(name: String, state: LeagueTabState) = compose.shoot(name, shade) {
+        LeagueContent(state, onNavigate = {})
+    }
+
+    @Test
+    fun leagueCreate() = leagueCreate("league_create", previewCreate)
+
+    @Test
+    fun leagueCreateInvalidName() = leagueCreate("league_create_invalid_name", previewCreateInvalid)
+
+    @Test
+    fun leagueCreated() = leagueCreate("league_created", previewCreated)
+
+    private fun leagueCreate(name: String, state: CreateLeagueState) = compose.shoot(name, shade) {
+        LeagueCreateContent(state, previewLeagueToday, onBack = {})
     }
 
     @Test

@@ -25,11 +25,14 @@ the first-run screen (display name and home county, saved in the settings), the 
 screen, which downloads packs from the server and updates them (`PackDownloads`, #39; the `.fbpack` file
 picker is in debug builds only), and the outing
 flow: Outing, the Add sighting sheet and Summary, in the county found from the phone's approximate location
-(`CountyLocator`, #27), else the home county. Bracket and League are placeholders (`NotBuiltYetContent`)
-behind the consent page. Home reads its region from the settings and its season figures and recent outings
-from the database, and starts or continues an outing. The app's network calls are the account
-endpoints (`data/server/ServerClient`, `AccountRepository`, #38), the bracket's (#41) and the pack
-endpoints (`PackDownloads`, #39), made after the player agrees on the consent page.
+(`CountyLocator`, #27), else the home county. Bracket (#42) and League (#40: Join a league, Create a league,
+and the league forming, running, finished or closed) stand behind the consent page. Home reads its region
+from the settings, its season figures and recent outings from the database, and its league row and hero
+from the league kept on the phone (`LeagueRepository`, Room schema 5); it starts or continues an outing.
+The app's network calls are the account endpoints (`data/server/ServerClient`, `AccountRepository`, #38),
+creating, joining, auto-joining, leaving and reading a league (#40), the bracket's (#41), the pack
+endpoints (`PackDownloads`, #39) and the sighting endpoints (`SightingSync`, #43), all made after the
+player agrees on the consent page.
 `:server` starts, migrates its Postgres, answers a health check and has anonymous device accounts (create,
 read, change and delete the profile) and leagues (create, join, auto-join, leave, read); it has no pick or
 sighting endpoint yet and is hosted nowhere.
@@ -74,8 +77,9 @@ the `CODECOV_TOKEN` secret.
     `testImplementation(testFixtures(project(":domain")))`.
   - `domain/bracket` — `Round`, `Team`, `Matchup`, `Seeding`, `MatchupRule`, `PickScore`.
   - `domain/player` — `PlayerSettings` (display name, home county code), `DisplayName` (the name's rule).
-  - `domain/league` — `LeagueName`, `SeasonStart`, `LeagueLifecycle` (capacity, the postponed start,
-    `LeaguePhase`) and `Standings` (ranks).
+  - `domain/league` — `LeagueName`, `SeasonStart`, `InviteCode` (its shape), `LeagueTimeZone` (the zones
+    a league may have), `LeagueLifecycle` (capacity, the postponed start, `LeaguePhase`) and `Standings`
+    (ranks). The server and the app check with the same functions.
   - `domain/place` — `CountyTable` (states and counties to choose a home county from), `CountyTableParser`,
     `CountyCode` (the shape of a county code, which the server checks a home county against).
   - `domain/outing` — `Outing`, `Sighting`, `OutingLog`, and Home's season figures (`speciesSince`,
@@ -83,7 +87,7 @@ the `CODECOV_TOKEN` secret.
 - `:api` — pure Kotlin, no Android: the messages the app and the server exchange (`kotlinx.serialization`
   JSON, read and written with `ApiJson`), `ApiPaths` (every path, under `/v1/`), `ApiErrorCode` and
   `MatchupSlot` (a bracket's 63 matchups, numbered by round, then from the top). Depends on `:domain`.
-  The app does not call it yet; `:server` answers with it. `docs/server/api.md` lists the endpoints; change the two together. A field the app
+  The app sends and reads it through `data/server/ServerClient` in `:data`; `:server` answers with it. `docs/server/api.md` lists the endpoints; change the two together. A field the app
   sends must be in ADR 0001's table first. Test: `./gradlew :api:test`.
 - `:data` — what the app saves on the phone, mapped to and from `:domain` types. Depends on `:domain`.
   - `data/db` — `FlywayDatabase` (Room 3), its entities and DAOs. Each version's schema is exported to
@@ -105,6 +109,9 @@ the `CODECOV_TOKEN` secret.
   - `AccountRepository` — create, delete, `hasAccount()`, and the profile sent when the display name or
     home county changes. `data/account/EncryptedAccountStore` keeps the id and secret in `no_backup`,
     AES-GCM under an Android Keystore key. Provided by `data/di/ServerModule`.
+  - `LeagueRepository` — the player's league and its table, kept in Room (`league`, `league_members`) with
+    when it was fetched; create, join, find (auto-join) and leave. Sends nothing with no account, and
+    nothing the `domain/league` rules refuse.
   - Tests run on the JVM under Robolectric; Gradle resolves its Android jar (root `build.gradle.kts`).
 - `:app` — Compose UI, theme, navigation (Navigation 3, `@Serializable` `NavKey` routes in
   `ui/FlywayNavHost.kt`). Hilt: `FlywayApp` is the application, `MainActivity` an entry point.

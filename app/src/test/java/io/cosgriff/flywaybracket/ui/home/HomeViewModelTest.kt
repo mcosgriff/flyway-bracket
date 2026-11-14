@@ -8,6 +8,9 @@ import io.cosgriff.flywaybracket.data.AccountRepository
 import io.cosgriff.flywaybracket.data.BracketRepository
 import io.cosgriff.flywaybracket.data.BundledCounties
 import io.cosgriff.flywaybracket.data.CountyFix
+import io.cosgriff.flywaybracket.data.League
+import io.cosgriff.flywaybracket.data.LeagueMember
+import io.cosgriff.flywaybracket.data.LeagueRepository
 import io.cosgriff.flywaybracket.data.OutingRepository
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
@@ -20,6 +23,12 @@ import io.cosgriff.flywaybracket.data.server.serverHttpClient
 import io.cosgriff.flywaybracket.data.sync.SightingSync
 import io.cosgriff.flywaybracket.data.sync.SyncScheduler
 import io.cosgriff.flywaybracket.data.db.FlywayDatabase
+import io.cosgriff.flywaybracket.domain.bracket.Round
+import io.cosgriff.flywaybracket.domain.bracket.Season
+import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendar
+import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendarResult
+import io.cosgriff.flywaybracket.domain.league.CloseReason
+import io.cosgriff.flywaybracket.domain.league.LeaguePhase
 import io.cosgriff.flywaybracket.domain.outing.Outing
 import io.cosgriff.flywaybracket.domain.outing.OutingLog
 import io.cosgriff.flywaybracket.domain.outing.Sighting
@@ -139,6 +148,44 @@ class HomeViewModelTest {
         assertNull(homeRegion("US-ZZ-001", table))
     }
 
+    /** A made-up league starting Monday 1 March 2027 in Denver, the player third of four. */
+    private fun league(phase: LeaguePhase, closedBecause: CloseReason? = null) = League(
+        id = "test-league-1",
+        name = "Test League",
+        inviteCode = "TESTWREN",
+        players = 4,
+        capacity = 64,
+        phase = phase,
+        closedBecause = closedBecause,
+        timeZone = zone,
+        calendar = (SeasonCalendar.of(LocalDate.of(2027, 3, 1)) as SeasonCalendarResult.Valid).calendar,
+        members = listOf(
+            LeagueMember("Sora Example", points = 12, rightPicks = 10, rank = 1, you = false, memberKey = "a"),
+            LeagueMember("Noor Example", points = 9, rightPicks = 8, rank = 2, you = false, memberKey = "b"),
+            LeagueMember("Wren Example", points = 7, rightPicks = 7, rank = 3, you = true, memberKey = "c"),
+            LeagueMember("Kai Example", points = 3, rightPicks = 3, rank = 4, you = false, memberKey = "d"),
+        ),
+        fetchedAt = Instant.parse("2027-03-10T12:00:00Z"),
+    )
+
+    @Test
+    fun `a running league gives Home its row and its hero`() {
+        // Wednesday 10 March in Denver: round 2, with round 1's 32 matchups decided.
+        val (row, hero) = homeLeague(league(LeaguePhase.RUNNING), picksNotYetSeen = 4, now = Instant.parse("2027-03-10T18:00:00Z"))
+
+        assertEquals(LeagueSummary("Test League", players = 4, rank = 3), row)
+        assertEquals(TournamentSummary(Season.SPRING, Round.ROUND_OF_32, points = 7, picksRight = 7, picksDecided = 32, picksNotYetSeen = 4), hero)
+    }
+
+    @Test
+    fun `a forming or finished league gives only the row, and a closed one nothing`() {
+        val now = Instant.parse("2027-02-20T18:00:00Z")
+        assertEquals(LeagueSummary("Test League", players = 4, rank = 3) to null, homeLeague(league(LeaguePhase.FORMING), 0, now))
+        assertEquals(LeagueSummary("Test League", players = 4, rank = 3) to null, homeLeague(league(LeaguePhase.FINISHED), 0, now))
+        assertEquals(null to null, homeLeague(league(LeaguePhase.CLOSED, CloseReason.TOO_FEW_PLAYERS), 0, now))
+        assertEquals(null to null, homeLeague(null, 0, now))
+    }
+
     @Test
     fun `the region goes into Home's state beside the figures`() {
         val region = HomeRegion(county = "Heron", stateAbbreviation = "ZA")
@@ -186,6 +233,8 @@ class HomeViewModelTest {
                     { false },
                     sync(db, settings, clock, account = false),
                     RecordingScheduler(),
+                    leagues(db, settings, clock),
+                    brackets(db, settings, clock),
                 )
                     .state.first { it.recentOutings.isNotEmpty() }
             }
@@ -236,6 +285,18 @@ class HomeViewModelTest {
         }
     }
 
+    /** A server no test reaches: with no account, Home's league and bracket send nothing (ADR 0001). */
+    private val unreached = ServerClient(serverHttpClient(MockEngine { error("Home sent a request with no account") }), "https://server.example")
+
+    private fun noAccount(settings: SettingsRepository) = AccountRepository(unreached, MemoryAccountStore(null), settings)
+
+    /** The league kept on the phone, with no account: Home reads it and sends nothing (#40). */
+    private fun leagues(db: FlywayDatabase, settings: SettingsRepository, clock: Clock) =
+        LeagueRepository(unreached, noAccount(settings), db.leagues(), clock)
+
+    private fun brackets(db: FlywayDatabase, settings: SettingsRepository, clock: Clock) =
+        BracketRepository(unreached, noAccount(settings), db.brackets(), db.outings(), clock)
+
     /** The background sync over [db], with a server that is never reached: these tests make no call. */
     private fun sync(db: FlywayDatabase, settings: SettingsRepository, clock: Clock, account: Boolean): SightingSync {
         val server = ServerClient(serverHttpClient(MockEngine { error("no call is expected") }), "https://server.example")
@@ -267,7 +328,7 @@ class HomeViewModelTest {
             val server = FakePackServer(packs, settings, scope, account = false)
             fun home() = HomeViewModel(
                 outings, settings, BundledCounties(context), packs, FakeCountyLocator(), clock,
-                server.downloads, server.accounts, { false }, sync, scheduler,
+                server.downloads, server.accounts, { false }, sync, scheduler, leagues(db, settings, clock), brackets(db, settings, clock),
             )
 
             // Waiting for a day exactly: no note yet.
@@ -332,6 +393,8 @@ class HomeViewModelTest {
                     { false },
                     sync(db, settings, clock, account = false),
                     RecordingScheduler(),
+                    leagues(db, settings, clock),
+                    brackets(db, settings, clock),
                 )
                 withTimeout(10_000) { block(home, outings, settings) }
             } finally {
@@ -512,6 +575,7 @@ class HomeViewModelTest {
                 val home = HomeViewModel(
                     OutingRepository(db.outings(), clock), settings, BundledCounties(context), packs, FakeCountyLocator(), clock,
                     server.downloads, server.accounts, { false }, sync(db, settings, clock, account = false), RecordingScheduler(),
+                    leagues(db, settings, clock), brackets(db, settings, clock),
                 )
                 withTimeout(10_000) { block(home, server, packs) }
             } finally {

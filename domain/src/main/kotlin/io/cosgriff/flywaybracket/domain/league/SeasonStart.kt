@@ -23,7 +23,8 @@ object SeasonStart {
 
     /**
      * The start of a league the server opens for a player who asked to be put in one and found none with
-     * room: the second Monday after [today]. That is 8 to 14 days ahead, so it always passes [check].
+     * room: the second Monday after [today]. That is 8 to 14 days ahead, so it always passes [check]. The
+     * app's Create a league screen offers the same date first (#40).
      */
     fun forNewOpenLeague(today: LocalDate): LocalDate = today.with(TemporalAdjusters.next(DayOfWeek.MONDAY)).plusWeeks(1)
 }

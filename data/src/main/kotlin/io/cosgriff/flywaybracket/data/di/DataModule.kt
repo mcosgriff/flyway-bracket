@@ -14,6 +14,7 @@ import io.cosgriff.flywaybracket.data.OutingRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
 import io.cosgriff.flywaybracket.data.db.BracketDao
 import io.cosgriff.flywaybracket.data.db.FlywayDatabase
+import io.cosgriff.flywaybracket.data.db.LeagueDao
 import io.cosgriff.flywaybracket.data.db.OutingDao
 import io.cosgriff.flywaybracket.data.db.SyncDao
 import java.time.Clock
@@ -30,6 +31,9 @@ object DataModule {
 
     @Provides
     fun bracketDao(db: FlywayDatabase): BracketDao = db.brackets()
+
+    @Provides
+    fun leagueDao(db: FlywayDatabase): LeagueDao = db.leagues()
 
     @Provides
     fun syncDao(db: FlywayDatabase): SyncDao = db.sync()

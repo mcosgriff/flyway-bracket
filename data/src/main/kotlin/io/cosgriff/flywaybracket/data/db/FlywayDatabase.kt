@@ -26,12 +26,18 @@ import java.util.UUID
         MatchupResultEntity::class,
         SyncQueueEntity::class,
         SyncStateEntity::class,
+        LeagueEntity::class,
+        LeagueMemberEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
-    // 2 to 3: the league's bracket, the player's picks and the results arrive (#41). New tables only.
     // 3 to 4: Migration3To4.
-    autoMigrations = [AutoMigration(from = 2, to = 3)],
+    autoMigrations = [
+        // 2 to 3: the league's bracket, the player's picks and the results arrive (#41). New tables only.
+        AutoMigration(from = 2, to = 3),
+        // 4 to 5: the player's league and its table, kept for the League tab and Home (#40). New tables only.
+        AutoMigration(from = 4, to = 5),
+    ],
 )
 abstract class FlywayDatabase : RoomDatabase() {
     abstract fun outings(): OutingDao
@@ -39,6 +45,8 @@ abstract class FlywayDatabase : RoomDatabase() {
     abstract fun brackets(): BracketDao
 
     abstract fun sync(): SyncDao
+
+    abstract fun leagues(): LeagueDao
 
     /**
      * Outings get a place name and a start and end time in place of their day, and sightings arrive (#25).

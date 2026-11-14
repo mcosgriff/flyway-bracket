@@ -1,4 +1,4 @@
-package io.cosgriff.flywaybracket.server.league
+package io.cosgriff.flywaybracket.domain.league
 
 import java.security.SecureRandom
 
@@ -6,6 +6,9 @@ import java.security.SecureRandom
  * What a player types to join a league: 8 characters from an alphabet with no look-alikes (no 0, O, 1, I
  * or L), so a code read aloud or copied by hand comes out right. 31 characters to the power of 8 is about
  * 850 billion codes.
+ *
+ * The server makes the codes and looks them up; the app checks a typed code with [normalize] before it
+ * sends it (#40), so a code that cannot be one is never sent.
  */
 object InviteCode {
     const val LENGTH = 8

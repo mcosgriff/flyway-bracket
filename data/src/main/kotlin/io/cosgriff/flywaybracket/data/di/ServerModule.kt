@@ -9,11 +9,13 @@ import dagger.hilt.components.SingletonComponent
 import io.cosgriff.flywaybracket.data.AccountRepository
 import io.cosgriff.flywaybracket.data.BracketRepository
 import io.cosgriff.flywaybracket.data.BuildConfig
+import io.cosgriff.flywaybracket.data.LeagueRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
 import io.cosgriff.flywaybracket.data.account.AccountStore
 import io.cosgriff.flywaybracket.data.account.EncryptedAccountStore
 import io.cosgriff.flywaybracket.data.account.keystoreKey
 import io.cosgriff.flywaybracket.data.db.BracketDao
+import io.cosgriff.flywaybracket.data.db.LeagueDao
 import io.cosgriff.flywaybracket.data.db.OutingDao
 import io.cosgriff.flywaybracket.data.db.SyncDao
 import io.cosgriff.flywaybracket.data.server.ServerClient
@@ -29,7 +31,7 @@ import javax.inject.Provider
 import javax.inject.Singleton
 
 /**
- * The league server's client, the account kept on the phone (#38), what is fetched with it (#41), and the
+ * The league server's client, the account kept on the phone (#38), what is fetched with it (#40, #41), and the
  * background sync of sightings and results (#43).
  */
 @Module
@@ -52,6 +54,10 @@ object ServerModule {
     @Provides @Singleton
     fun bracketRepository(server: ServerClient, accounts: AccountRepository, brackets: BracketDao, outings: OutingDao, clock: Clock): BracketRepository =
         BracketRepository(server, accounts, brackets, outings, clock)
+
+    @Provides @Singleton
+    fun leagueRepository(server: ServerClient, accounts: AccountRepository, leagues: LeagueDao, clock: Clock): LeagueRepository =
+        LeagueRepository(server, accounts, leagues, clock)
 
     @Provides @Singleton
     fun sightingSync(server: ServerClient, accounts: AccountRepository, brackets: BracketRepository, sync: SyncDao, clock: Clock): SightingSync =

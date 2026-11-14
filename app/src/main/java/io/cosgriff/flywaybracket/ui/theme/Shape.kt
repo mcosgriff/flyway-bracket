@@ -43,6 +43,12 @@ object FlywayDimens {
     /** A finished matchup's points, at the end of its card (#42). */
     val resultColumn = 68.dp
 
+    /** The least width of a league table's points, so the figures line up (#40). */
+    val pointsColumn = 34.dp
+
+    /** The most a list inside a dialog grows before it scrolls, such as the time zones (#40). */
+    val dialogList = 320.dp
+
     /** A legend's colour sample. */
     val swatch = 14.dp
 

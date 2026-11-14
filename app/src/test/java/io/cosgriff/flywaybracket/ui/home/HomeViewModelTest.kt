@@ -4,12 +4,27 @@ import android.content.Context
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room3.Room
 import androidx.test.core.app.ApplicationProvider
+import io.cosgriff.flywaybracket.data.AccountRepository
+import io.cosgriff.flywaybracket.data.BracketRepository
 import io.cosgriff.flywaybracket.data.BundledCounties
 import io.cosgriff.flywaybracket.data.CountyFix
+import io.cosgriff.flywaybracket.data.League
+import io.cosgriff.flywaybracket.data.LeagueMember
+import io.cosgriff.flywaybracket.data.LeagueRepository
 import io.cosgriff.flywaybracket.data.OutingRepository
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
+import io.cosgriff.flywaybracket.data.account.AccountStore
+import io.cosgriff.flywaybracket.data.account.StoredAccount
 import io.cosgriff.flywaybracket.data.db.FlywayDatabase
+import io.cosgriff.flywaybracket.data.server.ServerClient
+import io.cosgriff.flywaybracket.data.server.serverHttpClient
+import io.cosgriff.flywaybracket.domain.bracket.Round
+import io.cosgriff.flywaybracket.domain.bracket.Season
+import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendar
+import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendarResult
+import io.cosgriff.flywaybracket.domain.league.CloseReason
+import io.cosgriff.flywaybracket.domain.league.LeaguePhase
 import io.cosgriff.flywaybracket.domain.outing.Outing
 import io.cosgriff.flywaybracket.domain.outing.OutingLog
 import io.cosgriff.flywaybracket.domain.outing.Sighting
@@ -37,6 +52,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
+import io.ktor.client.engine.mock.MockEngine
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -127,6 +143,44 @@ class HomeViewModelTest {
         assertNull(homeRegion("US-ZZ-001", table))
     }
 
+    /** A made-up league starting Monday 1 March 2027 in Denver, the player third of four. */
+    private fun league(phase: LeaguePhase, closedBecause: CloseReason? = null) = League(
+        id = "test-league-1",
+        name = "Test League",
+        inviteCode = "TESTWREN",
+        players = 4,
+        capacity = 64,
+        phase = phase,
+        closedBecause = closedBecause,
+        timeZone = zone,
+        calendar = (SeasonCalendar.of(LocalDate.of(2027, 3, 1)) as SeasonCalendarResult.Valid).calendar,
+        members = listOf(
+            LeagueMember("Sora Example", points = 12, rightPicks = 10, rank = 1, you = false, memberKey = "a"),
+            LeagueMember("Noor Example", points = 9, rightPicks = 8, rank = 2, you = false, memberKey = "b"),
+            LeagueMember("Wren Example", points = 7, rightPicks = 7, rank = 3, you = true, memberKey = "c"),
+            LeagueMember("Kai Example", points = 3, rightPicks = 3, rank = 4, you = false, memberKey = "d"),
+        ),
+        fetchedAt = Instant.parse("2027-03-10T12:00:00Z"),
+    )
+
+    @Test
+    fun `a running league gives Home its row and its hero`() {
+        // Wednesday 10 March in Denver: round 2, with round 1's 32 matchups decided.
+        val (row, hero) = homeLeague(league(LeaguePhase.RUNNING), picksNotYetSeen = 4, now = Instant.parse("2027-03-10T18:00:00Z"))
+
+        assertEquals(LeagueSummary("Test League", players = 4, rank = 3), row)
+        assertEquals(TournamentSummary(Season.SPRING, Round.ROUND_OF_32, points = 7, picksRight = 7, picksDecided = 32, picksNotYetSeen = 4), hero)
+    }
+
+    @Test
+    fun `a forming or finished league gives only the row, and a closed one nothing`() {
+        val now = Instant.parse("2027-02-20T18:00:00Z")
+        assertEquals(LeagueSummary("Test League", players = 4, rank = 3) to null, homeLeague(league(LeaguePhase.FORMING), 0, now))
+        assertEquals(LeagueSummary("Test League", players = 4, rank = 3) to null, homeLeague(league(LeaguePhase.FINISHED), 0, now))
+        assertEquals(null to null, homeLeague(league(LeaguePhase.CLOSED, CloseReason.TOO_FEW_PLAYERS), 0, now))
+        assertEquals(null to null, homeLeague(null, 0, now))
+    }
+
     @Test
     fun `the region goes into Home's state beside the figures`() {
         val region = HomeRegion(county = "Heron", stateAbbreviation = "ZA")
@@ -160,7 +214,7 @@ class HomeViewModelTest {
             outings.addOrBump(inProgress.id, "Made-up Heron")
 
             val state = withTimeout(10_000) {
-                HomeViewModel(outings, settings, counties, PackRepository(File(context.filesDir, "home_test_packs")), FakeCountyLocator(), clock)
+                homeViewModel(db, outings, settings, counties, PackRepository(File(context.filesDir, "home_test_packs")), FakeCountyLocator(), clock)
                     .state.first { it.recentOutings.isNotEmpty() }
             }
 
@@ -173,6 +227,41 @@ class HomeViewModelTest {
             scope.cancel()
             db.close()
         }
+    }
+
+    /**
+     * Home's view model with no account on the phone: its league and bracket send nothing, and a call to the
+     * server fails the test (ADR 0001).
+     */
+    private fun homeViewModel(
+        db: FlywayDatabase,
+        outings: OutingRepository,
+        settings: SettingsRepository,
+        counties: BundledCounties,
+        packs: PackRepository,
+        locator: FakeCountyLocator,
+        clock: Clock,
+    ): HomeViewModel {
+        val server = ServerClient(serverHttpClient(MockEngine { throw AssertionError("Home sent a request with no account") }), "https://server.example")
+        val accounts = AccountRepository(server, NoAccount, settings)
+        return HomeViewModel(
+            outings,
+            settings,
+            counties,
+            packs,
+            locator,
+            clock,
+            LeagueRepository(server, accounts, db.leagues(), clock),
+            BracketRepository(server, accounts, db.brackets(), db.outings(), clock),
+        )
+    }
+
+    private object NoAccount : AccountStore {
+        override suspend fun read(): StoredAccount? = null
+
+        override suspend fun write(account: StoredAccount) = Unit
+
+        override suspend fun clear() = Unit
     }
 
     /**
@@ -199,7 +288,7 @@ class HomeViewModelTest {
                 if (installTestland) packs.install(StatePackCodec.encode(testStatePack()))
                 val clock = Clock.fixed(Instant.parse("2027-04-18T18:00:00Z"), zone)
                 val outings = OutingRepository(db.outings(), clock)
-                withTimeout(10_000) { block(HomeViewModel(outings, settings, BundledCounties(context), packs, locator, clock), outings, settings) }
+                withTimeout(10_000) { block(homeViewModel(db, outings, settings, BundledCounties(context), packs, locator, clock), outings, settings) }
             } finally {
                 scope.cancel()
                 db.close()

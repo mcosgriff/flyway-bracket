@@ -3,12 +3,16 @@ package io.cosgriff.flywaybracket.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.cosgriff.flywaybracket.data.BracketRepository
 import io.cosgriff.flywaybracket.data.BundledCounties
 import io.cosgriff.flywaybracket.data.CountyFix
 import io.cosgriff.flywaybracket.data.CountyLocator
+import io.cosgriff.flywaybracket.data.League
+import io.cosgriff.flywaybracket.data.LeagueRepository
 import io.cosgriff.flywaybracket.data.OutingRepository
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
+import io.cosgriff.flywaybracket.domain.league.LeaguePhase
 import io.cosgriff.flywaybracket.domain.outing.OutingLog
 import io.cosgriff.flywaybracket.domain.outing.newLifersSince
 import io.cosgriff.flywaybracket.domain.outing.outingsSince
@@ -17,9 +21,11 @@ import io.cosgriff.flywaybracket.domain.place.CountyTable
 import io.cosgriff.flywaybracket.ui.outing.CountyFallback
 import java.time.Clock
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +33,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -37,8 +46,10 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Home's figures, from the outings saved on the phone (#25), and its region, from the home county in the
  * player's settings (#23). Start outing continues the outing in progress, or starts one (#26) in the
  * county the phone is in, found from its approximate location, else in the home county (#27). The league
- * and tournament parts stay empty until there is something to read them from.
+ * row and the tournament hero come from the league kept on the phone (#40), brought up to date when Home
+ * opens; with no account nothing is sent and both stay empty.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val outings: OutingRepository,
@@ -46,17 +57,26 @@ class HomeViewModel @Inject constructor(
     counties: BundledCounties,
     private val packs: PackRepository,
     private val locator: CountyLocator,
-    clock: Clock,
+    private val clock: Clock,
+    private val leagues: LeagueRepository,
+    brackets: BracketRepository,
 ) : ViewModel() {
     private val starting = MutableStateFlow(Starting())
     private val opened = Channel<OpenOuting>(Channel.BUFFERED)
+
+    /** The league row and the hero; the birds picked and not yet seen only count while the season runs. */
+    private val leagueParts: Flow<Pair<LeagueSummary?, TournamentSummary?>> = leagues.league().flatMapLatest { league ->
+        val notYetSeen = if (league?.phase == LeaguePhase.RUNNING) brackets.picksNotYetSeen(league.id).map { it.size } else flowOf(0)
+        notYetSeen.map { homeLeague(league, it, clock.instant()) }
+    }
 
     val state: StateFlow<HomeState> = combine(
         outings.finishedLogs(),
         settings.settings(),
         outings.inProgress(),
         starting,
-    ) { logs, player, inProgress, start ->
+        leagueParts,
+    ) { logs, player, inProgress, start, (league, tournament) ->
         homeState(
             finished = logs,
             today = LocalDate.now(clock),
@@ -67,8 +87,15 @@ class HomeViewModel @Inject constructor(
             packMissing = start.packMissing,
             askLocation = start.askLocation,
             findingCounty = start.findingCounty,
+            league = league,
+            tournament = tournament,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), HomeState())
+
+    init {
+        // With no account this sends nothing (#38).
+        viewModelScope.launch { leagues.refresh() }
+    }
 
     /** Emits once each time the Outing screen should open, with an outing in progress. */
     val openOuting: Flow<OpenOuting> = opened.receiveAsFlow()
@@ -167,6 +194,30 @@ internal fun fallbackFor(fix: CountyFix): CountyFallback? = when (fix) {
     is CountyFix.Found -> null
     CountyFix.OutsidePacks -> CountyFallback.OUTSIDE_PACKS
     CountyFix.NoLocation -> CountyFallback.NO_LOCATION
+}
+
+/**
+ * Home's league row and tournament hero for [league] at [now] (#40). The row shows a league that forms, runs
+ * or has finished; the hero only one whose season runs, with the round played in the league's zone.
+ *
+ * @param picksNotYetSeen the player's live picks in the round being played that they have not logged yet
+ */
+internal fun homeLeague(league: League?, picksNotYetSeen: Int, now: Instant): Pair<LeagueSummary?, TournamentSummary?> {
+    val you = league?.you
+    if (league == null || you == null || league.phase == LeaguePhase.CLOSED) return null to null
+    val row = LeagueSummary(name = league.name, players = league.players, rank = you.rank)
+    val calendar = league.calendar
+    val zone = league.timeZone
+    if (league.phase != LeaguePhase.RUNNING || calendar == null || zone == null) return row to null
+    val leagueNow = now.atZone(zone).toLocalDateTime()
+    return row to TournamentSummary(
+        season = calendar.season,
+        round = calendar.roundOfSeason(leagueNow.toLocalDate()),
+        points = you.points,
+        picksRight = you.rightPicks,
+        picksDecided = calendar.decidedMatchups(leagueNow),
+        picksNotYetSeen = picksNotYetSeen,
+    )
 }
 
 /** How many outings Home lists under "Recent outings". */

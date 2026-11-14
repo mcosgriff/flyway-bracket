@@ -61,8 +61,8 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 /**
- * Home, with the home county from the settings and the season figures and recent outings saved on the
- * phone. No league or tournament exists yet.
+ * Home, with the home county from the settings, the season figures and recent outings saved on the phone,
+ * and the league row and tournament hero from the league kept on the phone (#40).
  *
  * The first time an outing is started, the page that explains the use of the phone's location takes
  * Home's place until the player answers it (#27).

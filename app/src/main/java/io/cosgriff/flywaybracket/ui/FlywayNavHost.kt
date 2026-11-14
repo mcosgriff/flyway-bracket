@@ -8,15 +8,15 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import io.cosgriff.flywaybracket.R
 import io.cosgriff.flywaybracket.domain.bracket.DrawPosition
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.ui.bracket.BracketScreen
 import io.cosgriff.flywaybracket.ui.bracket.MatchupScreen
-import io.cosgriff.flywaybracket.ui.components.NotBuiltYetContent
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.consent.ConsentScreen
 import io.cosgriff.flywaybracket.ui.home.HomeScreen
+import io.cosgriff.flywaybracket.ui.league.LeagueCreateScreen
+import io.cosgriff.flywaybracket.ui.league.LeagueScreen
 import io.cosgriff.flywaybracket.ui.onboarding.OnboardingScreen
 import io.cosgriff.flywaybracket.ui.outing.CountyFallback
 import io.cosgriff.flywaybracket.ui.outing.OutingScreen
@@ -36,6 +36,9 @@ import kotlinx.serialization.Serializable
 @Serializable data object LeagueRoute : NavKey
 
 @Serializable data object PacksRoute : NavKey
+
+/** Create a league, from the League tab (#40). */
+@Serializable data object LeagueCreateRoute : NavKey
 
 /**
  * The outing in progress, with the Add sighting sheet (#26).
@@ -114,8 +117,14 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
             }
             entry<LeagueRoute> {
                 ConsentScreen(place = TopLevel.League, onNavigate = navigate) {
-                    NotBuiltYetContent(title = R.string.nav_league, place = TopLevel.League, onNavigate = navigate)
+                    LeagueScreen(
+                        onNavigate = navigate,
+                        onCreate = { if (backStack.lastOrNull() != LeagueCreateRoute) backStack.add(LeagueCreateRoute) },
+                    )
                 }
+            }
+            entry<LeagueCreateRoute> {
+                LeagueCreateScreen(onBack = back)
             }
             entry<PacksRoute> {
                 PacksScreen(onNavigate = navigate)

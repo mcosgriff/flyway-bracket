@@ -259,7 +259,7 @@
     <string name="consent_sent_title">What is sent</string>
     <string name="consent_sent_account">An anonymous account: an id and a secret the server gives this phone. No email, no password, no phone number. The secret is kept encrypted on this phone.</string>
     <string name="consent_sent_profile">Your display name and home county, when you set or change them.</string>
-    <string name="consent_sent_leagues">The leagues you create, join or leave, and your bracket picks.</string>
+    <string name="consent_sent_leagues">The leagues you create, join or leave, and your bracket picks. For a league you create: its name, whether it is open, its time zone and its start date.</string>
     <string name="consent_sent_sightings">Each bird you log: its name, the county and the date.</string>
     <string name="consent_never_sent">Never sent: your exact location, the time of day you saw a bird, or the place names you type.</string>
     <string name="consent_seen_title">What other players see</string>
@@ -417,6 +417,17 @@
     <string name="server_problem_display_name_invalid">The server did not accept your display name. Change it in Settings.</string>
     <string name="server_problem_county_unknown">The server did not accept your home county. Choose it again in Settings.</string>
     <string name="server_problem_general">Something went wrong talking to the server. Try again.</string>
+    <!-- The league endpoints' refusals (#40). -->
+    <string name="server_problem_league_not_found">The server no longer has you in that league.</string>
+    <string name="server_problem_invite_code_unknown">No league has that invite code. Check it and try again.</string>
+    <string name="server_problem_league_full">That league is full: it has 64 players.</string>
+    <string name="server_problem_already_a_member">You are already in that league.</string>
+    <string name="server_problem_already_in_a_league">You are already in a league this season. Leave it first to join another.</string>
+    <string name="server_problem_joining_closed">That league\'s season has started, so no one can join it now.</string>
+    <string name="server_problem_league_name_invalid">A league\'s name is 3 to 40 characters.</string>
+    <string name="server_problem_season_start_not_a_monday">A season starts on a Monday. Choose another date.</string>
+    <string name="server_problem_season_start_too_soon">A season starts at least a week from today. Choose a later Monday.</string>
+    <string name="server_problem_time_zone_unknown">The server does not know that time zone. Choose another.</string>
 
     <!-- Settings (#44), opened from the gear on Home -->
     <!-- The app's own licence, on Settings and on Licences. #15 changes it here, and nowhere else. -->
@@ -474,4 +485,139 @@
     <!-- A library's Maven coordinates and version: "androidx.core:core · 1.19.1". -->
     <string name="licences_library_version">%1$s · %2$s</string>
     <string name="licences_not_read">The list of libraries could not be read.</string>
+
+    <!-- An invite code, shared by League and Create a league (#40) -->
+    <string name="invite_code_label">Invite code</string>
+    <string name="invite_share">Share invite</string>
+    <string name="invite_share_title">Share the invite code</string>
+    <!-- What the share sheet sends: the league's name, then its code. -->
+    <string name="invite_share_text">Join my league on Flyway Bracket, %1$s. The invite code is %2$s.</string>
+
+    <!-- League (#40) -->
+    <string name="league_loading">Reading your league…</string>
+    <string name="league_try_again">Try again</string>
+    <!-- The overline: "League · Spring season". -->
+    <string name="league_overline">League · %1$s season</string>
+    <string name="league_overline_no_season">League</string>
+    <plurals name="league_players_of">
+        <item quantity="one">%1$d of %2$d player</item>
+        <item quantity="other">%1$d of %2$d players</item>
+    </plurals>
+    <string name="league_state_forming">Forming</string>
+    <string name="league_state_running">In season</string>
+    <string name="league_state_finished">Finished</string>
+    <string name="league_state_closed">Closed</string>
+    <!-- The league's state, then its players: "Forming · 5 of 64 players". -->
+    <string name="league_status">%1$s · %2$s</string>
+    <!-- The season's first Monday and the Sunday of the final, then the league's time zone. -->
+    <string name="league_dates">%1$s to %2$s · %3$s time</string>
+    <string name="league_more">More options</string>
+    <string name="league_leave">Leave league</string>
+    <string name="league_forming_overline">Forming</string>
+    <!-- How many players have joined, of the 8 a bracket needs: "5 of 8". -->
+    <string name="league_forming_count">%1$d of %2$d</string>
+    <plurals name="league_forming_needed">
+        <item quantity="one">players joined. %d more is needed to start.</item>
+        <item quantity="other">players joined. %d more are needed to start.</item>
+    </plurals>
+    <string name="league_forming_ready">players joined. That is enough to start.</string>
+    <!-- The season's first Monday; the count is the fewest players a bracket needs. -->
+    <plurals name="league_forming_body">
+        <item quantity="one">The season starts %1$s. With fewer than %2$d player by then, the start moves back a week.</item>
+        <item quantity="other">The season starts %1$s. With fewer than %2$d players by then, the start moves back a week.</item>
+    </plurals>
+    <string name="league_invite_hint">Share the code with friends. They type it on the League tab to join.</string>
+    <string name="league_players_title">Players</string>
+    <string name="league_standings_title">Standings</string>
+    <string name="league_you">You</string>
+    <string name="league_your_rank">Your rank</string>
+    <string name="league_final_rank">Final rank</string>
+    <!-- After the player's rank: "of 12". -->
+    <plurals name="league_rank_of">
+        <item quantity="one">of %d</item>
+        <item quantity="other">of %d</item>
+    </plurals>
+    <plurals name="league_points">
+        <item quantity="one">%d pt</item>
+        <item quantity="other">%d pts</item>
+    </plurals>
+    <string name="league_round_of">Round %1$d of %2$d</string>
+    <string name="league_season_over">Season over</string>
+    <!-- A player's right picks of the matchups decided so far: "21 of 32". -->
+    <string name="league_right_picks">%1$d of %2$d</string>
+    <string name="league_standings_key">The middle column is right picks of the matchups decided so far. Players level on points are ranked by right picks.</string>
+    <string name="league_finished_title">The season is over</string>
+    <string name="league_finished_body">Join or start a league for the next season. Your outings stay on this phone.</string>
+    <string name="league_join_again">Join a league</string>
+    <string name="league_closed_title">This league never started</string>
+    <string name="league_closed_too_few_players">It had fewer than 8 players when its start date came, even after the start moved back four weeks.</string>
+    <string name="league_closed_too_few_birds">Too few migrating birds pass through its players\' home counties to fill a bracket of 64.</string>
+    <string name="league_closed_body">You are free to join or start another league.</string>
+    <string name="league_updated">Updated %1$s</string>
+    <string name="league_leave_title">Leave %1$s?</string>
+    <string name="league_leave_forming">You leave the league, and your picks in it are deleted. You can join again with its invite code until the season starts.</string>
+    <string name="league_leave_running">Your picks stop scoring and you leave the table. You cannot come back: joining closed when the season started.</string>
+    <string name="league_leave_confirm">Leave</string>
+    <string name="league_leave_cancel">Stay</string>
+    <string name="league_leaving">Leaving…</string>
+
+    <!-- Join a league (#40) -->
+    <string name="league_join_title">Join a league</string>
+    <string name="league_join_intro">Your bracket and points live in one league each season. Members can live anywhere.</string>
+    <string name="league_join_code_title">Have an invite code?</string>
+    <string name="league_join_code_label">Invite code</string>
+    <string name="league_join_code_hint">8 letters and numbers</string>
+    <string name="league_join_code_invalid">Not an invite code. A code is 8 letters and numbers, with no 0, O, 1, I or L.</string>
+    <string name="league_join_button">Join</string>
+    <string name="league_join_joining">Joining…</string>
+    <string name="league_join_create_title">Start your own</string>
+    <string name="league_join_create_body">Invite friends. The bracket starts when 8 players have joined.</string>
+    <string name="league_join_create_button">Create a league</string>
+    <string name="league_join_solo_title">Playing solo?</string>
+    <string name="league_join_solo_body">We place you in an open league that has space.</string>
+    <string name="league_join_find">Find me a league</string>
+    <string name="league_join_finding">Finding a league…</string>
+
+    <!-- Create a league (#40) -->
+    <string name="league_create_title">New league</string>
+    <string name="league_create_name_label">League name</string>
+    <!-- The count is the second number, the most characters a name may have. -->
+    <plurals name="league_create_name_hint">
+        <item quantity="one">%1$d to %2$d character</item>
+        <item quantity="other">%1$d to %2$d characters</item>
+    </plurals>
+    <plurals name="league_create_name_too_short">
+        <item quantity="one">At least %d character</item>
+        <item quantity="other">At least %d characters</item>
+    </plurals>
+    <plurals name="league_create_name_too_long">
+        <item quantity="one">At most %d character</item>
+        <item quantity="other">At most %d characters</item>
+    </plurals>
+    <string name="league_create_season">Season</string>
+    <!-- The season, then its first Monday: "Spring · starts Mon, Mar 1". -->
+    <string name="league_create_season_value">%1$s · starts %2$s</string>
+    <string name="league_create_change_start">Change the start date</string>
+    <string name="league_create_time_zone">Time zone</string>
+    <string name="league_create_change_time_zone">Change the time zone</string>
+    <string name="league_create_players">Players</string>
+    <!-- The fewest players a bracket needs, then the most a league holds. -->
+    <string name="league_create_players_value">%1$d to start · %2$d maximum</string>
+    <string name="league_create_open">Open to solo players</string>
+    <string name="league_create_open_body">Empty spots go to players with no league.</string>
+    <string name="league_create_field_title">How the field is built</string>
+    <string name="league_create_field_body">The 64 birds are migrants expected in your members\' home counties. Seeds follow how common each bird is there.</string>
+    <string name="league_create_field_fair">A bird wins on the share of players who could see it and did. Nobody loses because a bird skips their county.</string>
+    <string name="league_create_button">Create league</string>
+    <string name="league_create_creating">Creating…</string>
+    <string name="league_create_next">You get an invite code to share next.</string>
+    <string name="league_create_start_title">Start date</string>
+    <string name="league_create_start_rule">A Monday at least a week from today. Picks lock when it begins.</string>
+    <string name="league_create_ok">OK</string>
+    <string name="league_create_cancel">Cancel</string>
+    <string name="league_create_zone_search">Search time zones</string>
+    <string name="league_create_zone_none">No time zone matches.</string>
+    <string name="league_created_title">League created</string>
+    <string name="league_created_body">Share the code with friends. The bracket starts when 8 players have joined.</string>
+    <string name="league_created_done">Done</string>
 </resources>

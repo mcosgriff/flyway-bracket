@@ -103,6 +103,11 @@ You can delete your account from Settings in the app. You do not have to ask any
 
 The server then deletes your name, your picks and your sightings.
 
+Deleting your account removes it from the live database at once. Encrypted nightly backups keep a copy for
+up to 35 days, after which it is gone everywhere. If the server ever has to be restored from a backup,
+accounts deleted since that backup are deleted again. For that, the server keeps a deleted account's random
+ID, and nothing else about it, for those 35 days.
+
 Deleting cannot be undone.
 
 ## If you lose your phone

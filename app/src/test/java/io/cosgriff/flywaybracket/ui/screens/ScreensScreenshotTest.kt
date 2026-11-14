@@ -13,6 +13,12 @@ import io.cosgriff.flywaybracket.ui.onboarding.OnboardingState
 import io.cosgriff.flywaybracket.ui.onboarding.previewEmpty
 import io.cosgriff.flywaybracket.ui.onboarding.previewFilledIn
 import io.cosgriff.flywaybracket.ui.onboarding.previewNameTooShort
+import io.cosgriff.flywaybracket.ui.packs.PacksContent
+import io.cosgriff.flywaybracket.ui.packs.PacksState
+import io.cosgriff.flywaybracket.ui.packs.previewHomePack
+import io.cosgriff.flywaybracket.ui.packs.previewNoPacks
+import io.cosgriff.flywaybracket.ui.packs.previewRejected
+import io.cosgriff.flywaybracket.ui.packs.previewTwoPacks
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -53,6 +59,22 @@ class ScreensScreenshotTest(private val shade: Shade) {
 
     private fun onboarding(name: String, state: OnboardingState) = compose.shoot(name, shade) {
         OnboardingContent(state, onName = {}, onState = {}, onCounty = {}, onContinue = {})
+    }
+
+    @Test
+    fun packsNoPacks() = packs("packs_no_packs", previewNoPacks)
+
+    @Test
+    fun packsHomePack() = packs("packs_home_pack", previewHomePack)
+
+    @Test
+    fun packsTwoPacks() = packs("packs_two_packs", previewTwoPacks)
+
+    @Test
+    fun packsRejected() = packs("packs_rejected", previewRejected)
+
+    private fun packs(name: String, state: PacksState) = compose.shoot(name, shade) {
+        PacksContent(state, onNavigate = {}, onAddPack = {}, onRemove = {})
     }
 
     @Test

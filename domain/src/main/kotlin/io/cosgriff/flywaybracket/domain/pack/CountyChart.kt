@@ -59,6 +59,13 @@ data class CountyChart(
         species.filter { it.at(bin) >= floor }.sortedByDescending { it.at(bin) }
 
     /**
+     * The birds expected here at some time of year: reported on at least [floor] of checklists in at
+     * least one bin. The Packs screen counts them for the home county (#24).
+     */
+    fun expectedAnyTime(floor: Double = EXPECTED_FLOOR): List<SpeciesFrequency> =
+        species.filter { bird -> bird.frequency.any { it >= floor } }
+
+    /**
      * The birds that come and go: common enough at their peak to play for, and nearly absent at some
      * other time of year. Residents, steady all year, are left out, so a bracket's matchups move with
      * migration.

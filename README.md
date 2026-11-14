@@ -48,8 +48,9 @@ What exists:
 - The [user guide](https://mcosgriff.github.io/flyway-bracket/), a small website built from `site/` and
   served by GitHub Pages. Its pages about things the app cannot do yet are marked "Coming in the beta".
 
-- The league server (`server/`, [`docs/server/api.md`](docs/server/api.md)): anonymous accounts, and
-  creating, joining, auto-joining and leaving leagues. The app does not talk to it yet.
+- The league server (`server/`, [`docs/server/api.md`](docs/server/api.md)): anonymous accounts,
+  creating, joining, auto-joining and leaving leagues, and listing and downloading the state packs it is
+  given (to signed-in players only). The app does not talk to it yet.
 
 What does not exist yet: downloading bird packs, finding the county of an outing by GPS, the bracket
 screens, the League screen, and the app's side of the server.

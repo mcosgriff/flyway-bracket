@@ -56,6 +56,7 @@ To go on, tap "Settings" in the warning. Turn on "Allow from this source". Then 
 
 ## What the app asks for
 
-Today the app asks for no permissions at all.
+Today the app asks for one permission: your approximate location, the first time you start an outing, to
+find the county you are in. Saying no is fine. Your location never leaves your phone and is not kept.
 
 That will change as the app grows. [Your privacy](privacy.html) says what is planned and why.

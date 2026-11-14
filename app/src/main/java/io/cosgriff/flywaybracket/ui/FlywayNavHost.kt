@@ -13,6 +13,7 @@ import io.cosgriff.flywaybracket.ui.components.NotBuiltYetContent
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.home.HomeScreen
 import io.cosgriff.flywaybracket.ui.onboarding.OnboardingScreen
+import io.cosgriff.flywaybracket.ui.packs.PacksScreen
 import kotlinx.serialization.Serializable
 
 /** The first run: asks for a display name and a home county (#23). */
@@ -76,7 +77,7 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
                 NotBuiltYetContent(title = R.string.nav_league, place = TopLevel.League, onNavigate = navigate)
             }
             entry<PacksRoute> {
-                NotBuiltYetContent(title = R.string.nav_packs, place = TopLevel.Packs, onNavigate = navigate)
+                PacksScreen(onNavigate = navigate)
             }
             entry<OutingRoute> {
                 NotBuiltYetContent(title = R.string.outing_title, onBack = back)

@@ -84,6 +84,48 @@
         <item quantity="other">%d species</item>
     </plurals>
 
+    <!-- Packs -->
+    <string name="packs_title">Bird packs</string>
+    <string name="packs_subtitle">A pack is one state: every county\'s birds, week by week, saved for offline use.</string>
+    <string name="packs_add">Add a pack</string>
+    <string name="packs_add_hint">Choose a pack file saved on this phone. Its name ends in .fbpack.</string>
+    <!-- Why a chosen file was not added. -->
+    <string name="packs_problem_not_a_pack">That file was not added. It is not a pack file.</string>
+    <string name="packs_problem_damaged">That file was not added. It is a pack file, but part of it is missing or damaged.</string>
+    <string name="packs_problem_too_new">That file was not added. It was made for a newer version of this app. Update the app, then try again.</string>
+    <string name="packs_problem_too_large">That file was not added. It is too large to be a pack file.</string>
+    <string name="packs_problem_not_read">That file was not added. The phone could not open it.</string>
+    <string name="packs_problem_not_saved">That pack was not added. The phone could not save it. Free some space, then try again.</string>
+    <string name="packs_home_title">Home state</string>
+    <string name="packs_extra_title">Extra packs</string>
+    <string name="packs_empty">No packs on this phone yet.</string>
+    <plurals name="packs_counties">
+        <item quantity="one">%d county</item>
+        <item quantity="other">%d counties</item>
+    </plurals>
+    <!-- The day the pack was built, then the size of its file: "Built Apr 2, 2027 · 1.4 MB". -->
+    <string name="packs_built">Built %1$s · %2$s</string>
+    <!-- The number of counties, the day the pack was built, the size of its file: "23 counties · built Apr 2, 2027 · 1.4 MB". -->
+    <string name="packs_extra_details">%1$s · built %2$s · %3$s</string>
+    <string name="packs_remove">Remove</string>
+    <!-- What a screen reader calls a pack's Remove button: "Remove Wyoming". -->
+    <string name="packs_remove_named">Remove %1$s</string>
+    <string name="packs_remove_off">This pack holds your home county, so it cannot be removed.</string>
+    <string name="packs_home_county_overline">Your home county</string>
+    <string name="packs_home_county">%1$s County</string>
+    <string name="packs_home_county_species_caption">Birds expected here at some time of year</string>
+    <plurals name="packs_home_county_species">
+        <item quantity="one">%d species</item>
+        <item quantity="other">%d species</item>
+    </plurals>
+    <!-- The name of the home county's state. -->
+    <string name="packs_home_county_no_pack">No pack for %1$s on this phone yet. Add it to see this county\'s birds.</string>
+    <string name="packs_remove_dialog_title">Remove %1$s?</string>
+    <string name="packs_remove_dialog_body">Birds from %1$s can no longer be logged until you add its pack again.</string>
+    <string name="packs_remove_dialog_cancel">Cancel</string>
+    <!-- Where a pack's figures came from, in the words the pack file gives. -->
+    <string name="packs_source">Source: %1$s</string>
+
     <!-- Outing -->
     <string name="outing_title">Outing</string>
 </resources>

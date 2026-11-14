@@ -513,8 +513,8 @@
     <string name="download_metered_cancel">Not now</string>
 
     <!-- Settings (#44), opened from the gear on Home -->
-    <!-- The app's own licence, on Settings and on Licences. #15 changes it here, and nowhere else. -->
-    <string name="app_licence">No licence has been chosen for Flyway Bracket yet, so all rights are reserved for now.</string>
+    <!-- The app's own licence (#15), on Settings and on Licences. The text is LICENSE at the repo root. -->
+    <string name="app_licence">Flyway Bracket is free software. You can read, change and share its source code under the GPL-3.0. It comes with no warranty.</string>
     <string name="home_settings">Settings</string>
     <string name="settings_title">Settings</string>
     <string name="settings_profile_title">Profile</string>

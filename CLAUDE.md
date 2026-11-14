@@ -61,8 +61,9 @@ settle.
   (`.github/scripts/exodus-scan.sh`): a tracker fails, and so does a permission not in
   `.github/privacy/permissions.txt` (or one listed that the APK no longer asks for). A new permission means
   updating that list and explaining it in the app.
-- **Network: none yet.** Leagues need a server, and sightings will leave the phone to reach it. Write an
-  ADR in `docs/adr/` before the first network call, saying what is sent and when.
+- **Network: none yet; the plan is `docs/adr/0001-server-and-network.md`.** One server, the project's own,
+  over HTTPS; anonymous device accounts; nothing sent before the player says yes. The ADR lists every
+  field sent: change it before sending anything else.
 - **eBird data never goes in the repo** (eBird's terms of use). Tests and previews use made-up figures.
   Local downloads go in `packs-local/`, which is ignored. Shipping data derived from eBird needs the
   Cornell Lab's permission, not yet obtained.

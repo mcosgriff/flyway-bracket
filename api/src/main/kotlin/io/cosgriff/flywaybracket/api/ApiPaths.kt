@@ -23,6 +23,9 @@ object ApiPaths {
     /** @param stateCode a state's region code, such as `US-CO`, or the server's route parameter. */
     fun pack(stateCode: String): String = "$PACKS/$stateCode"
 
+    /** @param clientId a sighting's [SightingUpload.clientId], or the server's route parameter. */
+    fun sighting(clientId: String): String = "$SIGHTINGS/$clientId"
+
     fun membership(leagueId: String): String = "${league(leagueId)}/membership"
 
     fun bracket(leagueId: String): String = "${league(leagueId)}/bracket"

@@ -16,8 +16,8 @@ android {
     }
 
     // The league server's address (#38), with no slash at the end. -PflywayServerUrl=… sets a release
-    // build's, -PflywayDebugServerUrl=… a debug build's. A release build talks only HTTPS: the CIO engine
-    // opens its own sockets, so Android's cleartext setting would not stop a plain-HTTP address.
+    // build's, -PflywayDebugServerUrl=… a debug build's. A release build's must be HTTPS: the app's network
+    // security config allows no cleartext outside debug builds, so an http:// address would never connect.
     buildFeatures {
         buildConfig = true
     }
@@ -26,7 +26,6 @@ android {
             // The emulator's name for the developer's own machine, where `./gradlew :server:run` listens.
             val url = findProperty("flywayDebugServerUrl") as String? ?: "http://10.0.2.2:8080"
             buildConfigField("String", "SERVER_URL", "\"${url.trimEnd('/')}\"")
-            buildConfigField("boolean", "CLEARTEXT_ALLOWED", "true")
         }
         release {
             // Where the server is hosted is not decided yet (#16). Until it is, the default is a name that
@@ -34,7 +33,6 @@ android {
             val url = findProperty("flywayServerUrl") as String? ?: "https://server.flywaybracket.invalid"
             require(url.startsWith("https://")) { "flywayServerUrl must be an https:// address: $url" }
             buildConfigField("String", "SERVER_URL", "\"${url.trimEnd('/')}\"")
-            buildConfigField("boolean", "CLEARTEXT_ALLOWED", "false")
         }
     }
 
@@ -82,10 +80,10 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
-    // The league server's client (#38): the messages of :api, sent with Ktor's own CIO engine.
+    // The league server's client (#38): the messages of :api, sent with Ktor on OkHttp.
     api(project(":api"))
     implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.okhttp)
 
     testImplementation(libs.junit)
     testImplementation(libs.ktor.client.mock)

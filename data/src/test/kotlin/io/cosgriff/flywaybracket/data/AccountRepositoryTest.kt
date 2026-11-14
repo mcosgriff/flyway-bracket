@@ -24,8 +24,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import java.io.File
+import java.net.UnknownHostException
 import java.util.Collections
-import java.nio.channels.UnresolvedAddressException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -79,7 +79,7 @@ class AccountRepositoryTest {
                             next.status,
                             JSON,
                         )
-                        Answer.NoNetwork -> throw UnresolvedAddressException()
+                        Answer.NoNetwork -> throw UnknownHostException("server.example")
                     }
                 },
             ),

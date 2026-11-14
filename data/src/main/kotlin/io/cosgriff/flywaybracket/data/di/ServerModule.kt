@@ -13,8 +13,8 @@ import io.cosgriff.flywaybracket.data.account.AccountStore
 import io.cosgriff.flywaybracket.data.account.EncryptedAccountStore
 import io.cosgriff.flywaybracket.data.account.keystoreKey
 import io.cosgriff.flywaybracket.data.server.ServerClient
+import io.cosgriff.flywaybracket.data.server.serverEngine
 import io.cosgriff.flywaybracket.data.server.serverHttpClient
-import io.ktor.client.engine.cio.CIO
 import java.io.File
 import javax.inject.Singleton
 
@@ -25,7 +25,7 @@ object ServerModule {
     /** Making the client makes no call: nothing is sent until the player agrees (ADR 0001). */
     @Provides @Singleton
     fun serverClient(): ServerClient =
-        ServerClient(serverHttpClient(CIO.create()), BuildConfig.SERVER_URL, cleartextAllowed = BuildConfig.CLEARTEXT_ALLOWED)
+        ServerClient(serverHttpClient(serverEngine()), BuildConfig.SERVER_URL)
 
     /** In `no_backup`: the account stays on this phone, whatever a backup takes. */
     @Provides @Singleton

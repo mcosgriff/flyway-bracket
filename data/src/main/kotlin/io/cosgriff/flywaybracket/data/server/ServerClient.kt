@@ -9,8 +9,8 @@ import io.cosgriff.flywaybracket.api.ProfileResponse
 import io.cosgriff.flywaybracket.api.UpdateProfileRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
@@ -26,7 +26,10 @@ import io.ktor.http.isSuccess
 import java.io.IOException
 import java.net.NoRouteToHostException
 import java.net.UnknownHostException
-import java.nio.channels.UnresolvedAddressException
+import java.net.UnknownServiceException
+import java.security.cert.CertificateException
+import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLPeerUnverifiedException
 import java.util.Base64
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.KSerializer
@@ -34,6 +37,18 @@ import kotlinx.serialization.SerializationException
 
 /** How long a call may take before it counts as the server not answering. */
 data class ServerTimeouts(val connectMillis: Long = 10_000, val socketMillis: Long = 15_000, val requestMillis: Long = 20_000)
+
+/**
+ * The engine on the phone: OkHttp, so the platform's TLS and certificate checks and the app's network
+ * security config (no cleartext outside debug builds) apply. OkHttp is told not to follow redirects
+ * itself, as the client is ([serverHttpClient]).
+ */
+fun serverEngine(): HttpClientEngine = OkHttp.create {
+    config {
+        followRedirects(false)
+        followSslRedirects(false)
+    }
+}
 
 /**
  * The Ktor client the app talks to the server with. Redirects are not followed: the app talks to one
@@ -59,14 +74,10 @@ class Credentials(val playerId: String, val secret: String) {
  * written and read with `ApiJson`. Each call sends only what its message holds: ADR 0001's table lists
  * every field the app may send.
  *
- * @param baseUrl the server's address with no path and no slash at the end, such as `https://example.org`
- * @param cleartextAllowed whether a plain `http://` address is allowed: a debug build talking to a server
- *   on the developer's machine. A release build never is.
+ * @param baseUrl the server's address with no path and no slash at the end, such as `https://example.org`.
+ *   Whether a plain `http://` one may connect is the network security config's to say, not this class's.
  */
-class ServerClient(private val http: HttpClient, private val baseUrl: String, cleartextAllowed: Boolean = false) {
-    init {
-        require(baseUrl.startsWith("https://") || cleartextAllowed) { "The server's address must be https://" }
-    }
+class ServerClient(private val http: HttpClient, private val baseUrl: String) {
 
     /** `POST /v1/accounts`. The request carries nothing about the player: it is `{}`. */
     suspend fun createAccount(): ServerResult<CreateAccountResponse> = call(
@@ -111,11 +122,9 @@ class ServerClient(private val http: HttpClient, private val baseUrl: String, cl
         read(response, answer)
     } catch (e: CancellationException) {
         throw e
-    } catch (e: UnresolvedAddressException) {
-        // The CIO engine's "could not look the name up": with no network there is no DNS.
-        ServerResult.Failed(problemOf(e))
     } catch (e: IOException) {
-        // Timeouts (Ktor's are IOExceptions), a refused or broken connection, a failed TLS handshake.
+        // What OkHttp and Ktor throw: a name not found, timeouts (Ktor's are IOExceptions), a refused or
+        // broken connection, a failed TLS handshake, a policy refusal.
         ServerResult.Failed(problemOf(e))
     }
 
@@ -161,8 +170,19 @@ class ServerClient(private val http: HttpClient, private val baseUrl: String, cl
     }
 }
 
-/** No network when the server's name could not be looked up or no route led to it; otherwise no answer. */
-internal fun problemOf(e: Throwable): ServerProblem = when (e) {
-    is UnresolvedAddressException, is UnknownHostException, is NoRouteToHostException -> ServerProblem.NoNetwork
+/**
+ * What a failed call means to the player:
+ * - no network when the server's name could not be looked up (OkHttp's [UnknownHostException], which is
+ *   what a phone with no connection gives) or no route led to it;
+ * - a general failure when trying again cannot help: the network security config refused the address
+ *   ([UnknownServiceException], cleartext), or the server's certificate was not accepted;
+ * - otherwise no answer: a timeout, a refused or broken connection, a handshake cut short.
+ */
+internal fun problemOf(e: Throwable): ServerProblem = when {
+    e is UnknownHostException || e is NoRouteToHostException -> ServerProblem.NoNetwork
+    e is UnknownServiceException || e is SSLPeerUnverifiedException -> ServerProblem.Refused(code = null)
+    e is SSLHandshakeException && e.causes().any { it is CertificateException } -> ServerProblem.Refused(code = null)
     else -> ServerProblem.NoAnswer
 }
+
+private fun Throwable.causes(): Sequence<Throwable> = generateSequence(cause) { it.cause.takeIf { next -> next !== it } }

@@ -90,7 +90,7 @@ the `CODECOV_TOKEN` secret.
     `countyAt(longitude, latitude)`. The files are parsed once and kept in memory.
   - `data/di/DataModule` — Hilt: provides the database, its DAOs, the DataStore and the repositories.
   - `data/server/ServerClient` — the league server's account endpoints, with `:api`'s messages and
-    `ApiJson` (no content negotiation), on Ktor's CIO engine. Results are `ServerResult`; a failure is a
+    `ApiJson` (no content negotiation), on Ktor's OkHttp engine. Results are `ServerResult`; a failure is a
     `ServerProblem`: `NoNetwork`, `NoAnswer` or `Refused(ApiErrorCode?)`. The address is the build
     setting `BuildConfig.SERVER_URL` (`-PflywayServerUrl`, `-PflywayDebugServerUrl`; a debug build
     defaults to `http://10.0.2.2:8080`). Tests use Ktor's mock engine; none reaches a server.
@@ -143,8 +143,9 @@ Add `:baselineprofile` once the screens settle.
   `.github/privacy/permissions.txt` (or one listed that the APK no longer asks for). A new permission means
   updating that list and explaining it in the app.
 - **Network: the account calls only, as `docs/adr/0001-server-and-network.md` decides.** One server, the
-  project's own, over HTTPS (Ktor's CIO engine in `:data`; a release build refuses a plain-HTTP address and
-  the manifest's network security config allows none); anonymous device accounts, their id and secret
+  project's own, over HTTPS (Ktor on OkHttp in `:data`, so the platform's TLS and certificate checks
+  apply; the network security config allows no cleartext outside debug builds, and the build refuses a
+  release `flywayServerUrl` that is not `https://`); anonymous device accounts, their id and secret
   encrypted under an Android Keystore key; nothing sent before the player says yes on the consent page,
   whose words follow the ADR. The ADR lists every field sent: change it, and the consent page, before
   sending anything else. Errors reach the screen as words from `strings.xml` by `ApiError` code, never the

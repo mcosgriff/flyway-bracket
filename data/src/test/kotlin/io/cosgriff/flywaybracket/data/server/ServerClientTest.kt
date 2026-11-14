@@ -18,8 +18,13 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketTimeoutException
 import java.net.UnknownHostException
-import java.nio.channels.UnresolvedAddressException
+import java.net.UnknownServiceException
+import java.security.cert.CertificateException
+import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLPeerUnverifiedException
 import java.util.Base64
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -149,17 +154,39 @@ class ServerClientTest {
 
     @Test
     fun `no network is its own problem`() = runBlocking {
-        listOf(UnresolvedAddressException(), UnknownHostException("server.example")).forEach { thrown ->
+        listOf(UnknownHostException("server.example"), NoRouteToHostException("No route to host")).forEach { thrown ->
             val server = client { throw thrown }
             assertEquals("$thrown", ServerResult.Failed(ServerProblem.NoNetwork), server.createAccount())
         }
     }
 
     @Test
-    fun `a refused connection is no answer`() = runBlocking {
-        val server = client { throw ConnectException("Connection refused") }
+    fun `a refused or broken connection is no answer`() = runBlocking {
+        val failures = listOf(
+            ConnectException("Connection refused"),
+            SocketTimeoutException("timeout"),
+            SSLHandshakeException("Connection closed during handshake"),
+        )
+        failures.forEach { thrown ->
+            val server = client { throw thrown }
+            assertEquals("$thrown", ServerResult.Failed(ServerProblem.NoAnswer), server.profile(credentials))
+        }
+    }
 
-        assertEquals(ServerResult.Failed(ServerProblem.NoAnswer), server.profile(credentials))
+    @Test
+    fun `a failure trying again cannot fix is a general refusal`() = runBlocking {
+        val certificateRefused = SSLHandshakeException("Trust anchor for certification path not found")
+            .apply { initCause(CertificateException("not trusted")) }
+        val failures = listOf(
+            // OkHttp on Android, when the network security config allows no cleartext to the host.
+            UnknownServiceException("CLEARTEXT communication to server.example not permitted by network security policy"),
+            SSLPeerUnverifiedException("Hostname server.example not verified"),
+            certificateRefused,
+        )
+        failures.forEach { thrown ->
+            val server = client { throw thrown }
+            assertEquals("$thrown", ServerResult.Failed(ServerProblem.Refused(code = null)), server.profile(credentials))
+        }
     }
 
     @Test
@@ -172,21 +199,24 @@ class ServerClientTest {
         assertEquals(ServerResult.Failed(ServerProblem.NoAnswer), server.createAccount())
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun `a plain http address is refused unless cleartext is allowed`() {
-        ServerClient(serverHttpClient(MockEngine { respond("") }), "http://10.0.2.2:8080")
-    }
-
     @Test
-    fun `a plain http address is taken when cleartext is allowed`() = runBlocking {
+    fun `the address is used as given, a debug build's plain http one included`() = runBlocking {
         val engine = MockEngine { request ->
             requests += request
             respond("", HttpStatusCode.NoContent)
         }
-        val server = ServerClient(serverHttpClient(engine), "http://10.0.2.2:8080", cleartextAllowed = true)
+        val server = ServerClient(serverHttpClient(engine), "http://10.0.2.2:8080")
 
         assertEquals(ServerResult.Ok(Unit), server.deleteAccount(credentials))
         assertEquals("http://10.0.2.2:8080/v1/account", requests.single().url.toString())
+    }
+
+    @Test
+    fun `a redirect is not followed`() = runBlocking {
+        val server = client { respond("", HttpStatusCode.Found, headersOf(HttpHeaders.Location, "https://elsewhere.example/v1/account")) }
+
+        assertEquals(ServerResult.Failed(ServerProblem.Refused(code = null)), server.deleteAccount(credentials))
+        assertEquals(listOf("$BASE_URL/v1/account"), requests.map { it.url.toString() })
     }
 
     @Test

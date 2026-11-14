@@ -15,6 +15,7 @@ import io.cosgriff.flywaybracket.data.PackListing
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
 import io.cosgriff.flywaybracket.data.packVersion
+import io.cosgriff.flywaybracket.data.server.ServerActivity
 import io.cosgriff.flywaybracket.data.server.ServerProblem
 import io.cosgriff.flywaybracket.ui.FakePackServer
 import io.cosgriff.flywaybracket.ui.components.MeteredAsk
@@ -161,7 +162,7 @@ class PacksViewModelTest {
     private var metered = false
 
     private fun viewModel(server: FakePackServer = this.server) =
-        PacksViewModel(packs, settings, BundledCounties(context), server.downloads, server.accounts, { metered }, context)
+        PacksViewModel(packs, settings, BundledCounties(context), server.downloads, server.accounts, { metered }, context, ServerActivity())
 
     /** A file the system's file picker could hand back. */
     private fun file(name: String, content: InputStream): Uri =

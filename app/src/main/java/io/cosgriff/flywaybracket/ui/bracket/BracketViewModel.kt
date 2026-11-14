@@ -11,6 +11,7 @@ import io.cosgriff.flywaybracket.data.BracketRepository
 import io.cosgriff.flywaybracket.data.LeagueBracket
 import io.cosgriff.flywaybracket.data.PickResult
 import io.cosgriff.flywaybracket.data.PicksNotice
+import io.cosgriff.flywaybracket.data.server.ServerActivity
 import io.cosgriff.flywaybracket.data.server.ServerProblem
 import io.cosgriff.flywaybracket.data.server.ServerResult
 import io.cosgriff.flywaybracket.domain.bracket.BracketPicks
@@ -42,7 +43,11 @@ class BracketViewModel @Inject constructor(
     private val accounts: AccountRepository,
     private val brackets: BracketRepository,
     private val clock: Clock,
+    activity: ServerActivity,
 ) : ViewModel() {
+    /** Whether the server is most likely waking while the tab waits on it (#93). */
+    val waking: StateFlow<Boolean> = activity.waking
+
     /** Where finding the league stands. */
     private sealed interface Lookup {
         data object Loading : Lookup

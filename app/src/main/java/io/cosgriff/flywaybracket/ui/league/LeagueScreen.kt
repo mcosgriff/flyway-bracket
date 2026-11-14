@@ -65,6 +65,7 @@ import io.cosgriff.flywaybracket.domain.league.LeagueLifecycle
 import io.cosgriff.flywaybracket.domain.league.LeaguePhase
 import io.cosgriff.flywaybracket.ui.components.FlywayBottomBar
 import io.cosgriff.flywaybracket.ui.components.InviteCodeCard
+import io.cosgriff.flywaybracket.ui.components.ServerWaking
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.components.nameRes
 import io.cosgriff.flywaybracket.ui.components.shareInvite
@@ -84,12 +85,14 @@ import java.time.format.FormatStyle
 @Composable
 fun LeagueScreen(onNavigate: (TopLevel) -> Unit, onCreate: () -> Unit, viewModel: LeagueViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val waking by viewModel.waking.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val current = state
     BackHandler(enabled = current is LeagueTabState.Join && current.join.canGoBack, onBack = viewModel::onBackFromJoin)
     LeagueContent(
         state = current,
         onNavigate = onNavigate,
+        waking = waking,
         actions = LeagueActions(
             onRetry = viewModel::refresh,
             onCode = viewModel::onCode,
@@ -126,11 +129,13 @@ class LeagueActions(
     val onCancelLeave: () -> Unit = {},
 )
 
+/** @param waking the server is most likely waking (#93): a view waiting on it says so */
 @Composable
 fun LeagueContent(
     state: LeagueTabState,
     onNavigate: (TopLevel) -> Unit,
     modifier: Modifier = Modifier,
+    waking: Boolean = false,
     actions: LeagueActions = LeagueActions(),
 ) {
     Scaffold(
@@ -149,14 +154,15 @@ fun LeagueContent(
                 LeagueTabState.Loading -> {
                     Title(stringResource(R.string.nav_league))
                     Muted(stringResource(R.string.league_loading))
+                    if (waking) ServerWaking()
                 }
                 is LeagueTabState.Failed -> {
                     Title(stringResource(R.string.nav_league))
                     Text(stringResource(state.message), style = MaterialTheme.typography.bodyLarge)
                     PrimaryButton(R.string.league_try_again, onClick = actions.onRetry)
                 }
-                is LeagueTabState.Join -> JoinView(state.join, actions)
-                is LeagueTabState.InLeague -> LeagueBody(state.league, actions)
+                is LeagueTabState.Join -> JoinView(state.join, waking, actions)
+                is LeagueTabState.InLeague -> LeagueBody(state.league, waking, actions)
             }
         }
     }
@@ -235,7 +241,7 @@ private fun Problem(@StringRes message: Int, onRetry: (() -> Unit)? = null) {
 // Join a league
 
 @Composable
-private fun JoinView(join: JoinState, actions: LeagueActions) {
+private fun JoinView(join: JoinState, waking: Boolean, actions: LeagueActions) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (join.canGoBack) {
             IconButton(onClick = actions.onBackFromJoin) {
@@ -245,6 +251,8 @@ private fun JoinView(join: JoinState, actions: LeagueActions) {
         Title(stringResource(R.string.league_join_title))
     }
     Muted(stringResource(R.string.league_join_intro))
+    // Above the cards, where it is seen: the button that says Joining… may be further down.
+    if (join.busy != null && waking) ServerWaking()
     join.problem?.let { Problem(it) }
     CodeCard(join, actions)
     Card {
@@ -324,7 +332,7 @@ private fun CodeCard(join: JoinState, actions: LeagueActions) {
 // The league
 
 @Composable
-private fun LeagueBody(league: LeagueView, actions: LeagueActions) {
+private fun LeagueBody(league: LeagueView, waking: Boolean, actions: LeagueActions) {
     Header(league, actions.onLeave)
     if (league.leaving) {
         Text(
@@ -333,6 +341,7 @@ private fun LeagueBody(league: LeagueView, actions: LeagueActions) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         )
+        if (waking) ServerWaking()
     }
     league.problem?.let { Problem(it, onRetry = actions.onRetry) }
     when (league.phase) {

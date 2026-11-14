@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.cosgriff.flywaybracket.data.LeagueRepository
+import io.cosgriff.flywaybracket.data.server.ServerActivity
 import io.cosgriff.flywaybracket.data.server.ServerResult
 import io.cosgriff.flywaybracket.domain.league.LeagueName
 import io.cosgriff.flywaybracket.domain.league.LeagueNameCheck
@@ -55,7 +56,14 @@ data class CreateLeagueState(
  * the server uses (`domain/league`), then sent. Only reached from the League tab, so the phone has an account.
  */
 @HiltViewModel
-class LeagueCreateViewModel @Inject constructor(private val leagues: LeagueRepository, private val clock: Clock) : ViewModel() {
+class LeagueCreateViewModel @Inject constructor(
+    private val leagues: LeagueRepository,
+    private val clock: Clock,
+    activity: ServerActivity,
+) : ViewModel() {
+    /** Whether the server is most likely waking while the league is being created (#93). */
+    val waking: StateFlow<Boolean> = activity.waking
+
     private val mutableState = MutableStateFlow(
         // The phone's zone, unless it is one the server would refuse, such as a bare offset.
         (LeagueTimeZone.of(clock.zone.id)?.id ?: FALLBACK_ZONE).let { zone ->

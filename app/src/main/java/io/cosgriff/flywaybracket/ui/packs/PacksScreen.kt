@@ -54,6 +54,7 @@ import io.cosgriff.flywaybracket.ui.components.DownloadProgressLine
 import io.cosgriff.flywaybracket.ui.components.FlywayBottomBar
 import io.cosgriff.flywaybracket.ui.components.MeteredAsk
 import io.cosgriff.flywaybracket.ui.components.MeteredDownloadDialog
+import io.cosgriff.flywaybracket.ui.components.ServerWaking
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.components.failureMessage
 import io.cosgriff.flywaybracket.ui.components.fileSizeText
@@ -72,12 +73,14 @@ import java.time.format.FormatStyle
 @Composable
 fun PacksScreen(onNavigate: (TopLevel) -> Unit, onGetAccount: () -> Unit, viewModel: PacksViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val waking by viewModel.waking.collectAsStateWithLifecycle()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { file ->
         if (file != null) viewModel.onFileChosen(file)
     }
     PacksContent(
         state = state,
         onNavigate = onNavigate,
+        waking = waking,
         onRemove = viewModel::onRemove,
         onDownload = viewModel::onDownload,
         onGetAccount = onGetAccount,
@@ -97,6 +100,8 @@ private const val ANY_FILE = "*/*"
  * @param onGetAccount the player wants packs and the phone has no account
  * @param onRetry asks the server for its list again
  * @param onAddFile opens the file picker; null outside debug builds, and the button is not shown
+ * @param waking the server is most likely waking (#93): the list being asked for, and a download not yet
+ *   started, say so
  */
 @Composable
 fun PacksContent(
@@ -104,6 +109,7 @@ fun PacksContent(
     onNavigate: (TopLevel) -> Unit,
     onRemove: (String) -> Unit,
     modifier: Modifier = Modifier,
+    waking: Boolean = false,
     onDownload: (String) -> Unit = {},
     onGetAccount: () -> Unit = {},
     onRetry: () -> Unit = {},
@@ -129,7 +135,7 @@ fun PacksContent(
             Header()
             if (state.home != null || state.homePack != null) {
                 Section(R.string.packs_home_title) {
-                    state.homePack?.let { HomePackCard(it, failure.of(it.stateCode), onUpdate = { onDownload(it.stateCode) }) }
+                    state.homePack?.let { HomePackCard(it, failure.of(it.stateCode), waking, onUpdate = { onDownload(it.stateCode) }) }
                     state.home?.let { HomeCountyCard(it) }
                 }
             }
@@ -139,6 +145,7 @@ fun PacksContent(
                         ExtraPackRow(
                             pack = pack,
                             failure = failure.of(pack.stateCode),
+                            waking = waking,
                             onUpdate = { onDownload(pack.stateCode) },
                             onRemove = { asking = pack.stateCode },
                         )
@@ -146,7 +153,7 @@ fun PacksContent(
                 }
             }
             Section(R.string.packs_add) {
-                ServerSection(state.server, failure, onDownload, onGetAccount, onRetry)
+                ServerSection(state.server, failure, waking, onDownload, onGetAccount, onRetry)
             }
             if (onAddFile != null) AddFile(state.problem, onAddFile)
             // With a home county, its card says that the pack is missing.
@@ -166,6 +173,9 @@ fun PacksContent(
     }
     state.askMetered?.let { MeteredDownloadDialog(it, onConfirm = onConfirmMetered, onDismiss = onDismissMetered) }
 }
+
+/** No byte of the file has come yet: the server may still be waking (#93). */
+private val DownloadProgress.notStarted: Boolean get() = receivedBytes == 0L
 
 /** Why the last download of this state installed nothing, or null. */
 private fun FailedDownload?.of(stateCode: String): PackDownload? = this?.takeIf { it.stateCode == stateCode }?.outcome
@@ -191,13 +201,17 @@ private fun Header() {
 private fun ServerSection(
     server: ServerPacks,
     failure: FailedDownload?,
+    waking: Boolean,
     onDownload: (String) -> Unit,
     onGetAccount: () -> Unit,
     onRetry: () -> Unit,
 ) {
     when (server) {
         ServerPacks.NeedsAccount -> NeedsAccountCard(onGetAccount)
-        ServerPacks.Loading -> Caption(stringResource(R.string.packs_server_loading))
+        ServerPacks.Loading -> {
+            Caption(stringResource(R.string.packs_server_loading))
+            if (waking) ServerWaking(style = MaterialTheme.typography.bodySmall)
+        }
         is ServerPacks.Failed -> {
             Warning(stringResource(server.problem.message))
             OutlinedButton(
@@ -216,7 +230,7 @@ private fun ServerSection(
             server.onServer == 0 -> Caption(stringResource(R.string.packs_server_none))
             server.available.isEmpty() -> Caption(stringResource(R.string.packs_server_all_installed))
             else -> server.available.forEach { pack ->
-                ServerPackCard(pack, failure.of(pack.stateCode), onDownload = { onDownload(pack.stateCode) })
+                ServerPackCard(pack, failure.of(pack.stateCode), waking, onDownload = { onDownload(pack.stateCode) })
             }
         }
     }
@@ -244,7 +258,7 @@ private fun NeedsAccountCard(onGetAccount: () -> Unit) {
 
 /** A pack the server has and the phone does not: its Download button, or how far its download has come. */
 @Composable
-private fun ServerPackCard(pack: ServerPackRow, failure: PackDownload?, onDownload: () -> Unit) {
+private fun ServerPackCard(pack: ServerPackRow, failure: PackDownload?, waking: Boolean, onDownload: () -> Unit) {
     val colors = FlywayTheme.colors
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -271,7 +285,10 @@ private fun ServerPackCard(pack: ServerPackRow, failure: PackDownload?, onDownlo
                     PrimaryButton(stringResource(R.string.packs_download), stringResource(R.string.packs_download_named, pack.state), onDownload)
                 }
             }
-            pack.progress?.let { DownloadProgressLine(it, color = colors.pick, trackColor = colors.surfaceMuted, textColor = colors.inkMuted) }
+            pack.progress?.let {
+                DownloadProgressLine(it, color = colors.pick, trackColor = colors.surfaceMuted, textColor = colors.inkMuted)
+                if (waking && it.notStarted) ServerWaking(style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
+            }
             failure?.failureMessage?.let { DownloadFailureText(it, color = colors.danger) }
         }
     }
@@ -369,7 +386,7 @@ private fun Caption(text: String, modifier: Modifier = Modifier) {
  * the server has another version, the card offers it.
  */
 @Composable
-private fun HomePackCard(pack: PackRow, failure: PackDownload?, onUpdate: () -> Unit) {
+private fun HomePackCard(pack: PackRow, failure: PackDownload?, waking: Boolean, onUpdate: () -> Unit) {
     val colors = FlywayTheme.colors
     val whyOff = stringResource(R.string.packs_remove_off)
     val label = pack.removeLabel
@@ -400,6 +417,7 @@ private fun HomePackCard(pack: PackRow, failure: PackDownload?, onUpdate: () -> 
                     pack = pack,
                     update = update,
                     failure = failure,
+                    waking = waking,
                     onUpdate = onUpdate,
                     textColor = colors.onPrimary,
                     buttonContainer = colors.onPrimary,
@@ -447,6 +465,7 @@ private fun UpdateLine(
     pack: PackRow,
     update: PackUpdate,
     failure: PackDownload?,
+    waking: Boolean,
     onUpdate: () -> Unit,
     textColor: Color,
     buttonContainer: Color,
@@ -457,6 +476,7 @@ private fun UpdateLine(
     val progress = update.progress
     if (progress != null) {
         DownloadProgressLine(progress, color = bar, trackColor = track, textColor = textColor)
+        if (waking && progress.notStarted) ServerWaking(style = MaterialTheme.typography.bodySmall, color = textColor)
     } else {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FlywayDimens.space3)) {
             Text(
@@ -519,7 +539,7 @@ private fun HomeCountyCard(home: HomeCountyLine) {
 }
 
 @Composable
-private fun ExtraPackRow(pack: PackRow, failure: PackDownload?, onUpdate: () -> Unit, onRemove: () -> Unit) {
+private fun ExtraPackRow(pack: PackRow, failure: PackDownload?, waking: Boolean, onUpdate: () -> Unit, onRemove: () -> Unit) {
     val colors = FlywayTheme.colors
     // The ink is named: left to Material, text on the surface colour takes the error role's red.
     Surface(
@@ -566,6 +586,7 @@ private fun ExtraPackRow(pack: PackRow, failure: PackDownload?, onUpdate: () -> 
                     pack = pack,
                     update = update,
                     failure = failure,
+                    waking = waking,
                     onUpdate = onUpdate,
                     textColor = colors.pick,
                     buttonContainer = colors.primary,
@@ -672,6 +693,25 @@ internal val previewDownloading = previewNoPacks.copy(
         onServer = 3,
     ),
     failedDownload = FailedDownload("US-ZD", PackDownload.Failed(ServerProblem.NoNetwork)),
+)
+
+/** The server's list being asked for; with `waking`, while the server starts (#93). */
+internal val previewServerLoading = previewHomePack.copy(server = ServerPacks.Loading)
+
+/** A download asked for, no byte of it come yet; with `waking`, while the server starts (#93). */
+internal val previewDownloadStarting = previewNoPacks.copy(
+    server = ServerPacks.Listed(
+        available = listOf(
+            ServerPackRow(
+                "US-ZA",
+                "Alder",
+                sizeBytes = 1_480_000,
+                builtOn = LocalDate.of(2027, 4, 2),
+                progress = DownloadProgress(receivedBytes = 0, totalBytes = 1_480_000),
+            ),
+        ),
+        onServer = 2,
+    ),
 )
 internal val previewUpdateAvailable = previewTwoPacks.copy(
     homePack = previewAlder.copy(update = PackUpdate(sizeBytes = 1_520_000)),

@@ -34,6 +34,7 @@ import io.cosgriff.flywaybracket.R
 import io.cosgriff.flywaybracket.data.server.ServerProblem
 import io.cosgriff.flywaybracket.ui.components.FlywayBottomBar
 import io.cosgriff.flywaybracket.ui.components.PrivacyList
+import io.cosgriff.flywaybracket.ui.components.ServerWaking
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.components.message
 import io.cosgriff.flywaybracket.ui.theme.FlywayDimens
@@ -56,6 +57,7 @@ fun ConsentScreen(
 ) {
     val hasAccount by viewModel.hasAccount.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val waking by viewModel.waking.collectAsStateWithLifecycle()
     when (hasAccount) {
         true -> content()
         false -> ConsentContent(
@@ -64,6 +66,7 @@ fun ConsentScreen(
             onNavigate = onNavigate,
             onContinue = viewModel::onContinue,
             onNotNow = onNotNow,
+            waking = waking,
         )
         // The store is read in a moment; nothing is drawn until then, so the page doesn't flash.
         null -> Unit
@@ -73,6 +76,8 @@ fun ConsentScreen(
 /**
  * What is sent, what others see and how to delete, in the words of ADR 0001; then Continue and Not now.
  * Built in the first-run screen's style: the canvas has no board for it.
+ *
+ * @param waking the server is most likely waking (#93): while the account is asked for, the page says so
  */
 @Composable
 fun ConsentContent(
@@ -82,6 +87,7 @@ fun ConsentContent(
     onContinue: () -> Unit,
     onNotNow: () -> Unit,
     modifier: Modifier = Modifier,
+    waking: Boolean = false,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -114,6 +120,8 @@ fun ConsentContent(
                 )
             }
             state.problem?.let { Problem(it) }
+            // Just above Continue, whose words say the account is being created.
+            if (state.creating && waking) ServerWaking()
             Buttons(state, onContinue, onNotNow)
         }
     }

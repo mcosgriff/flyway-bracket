@@ -88,22 +88,23 @@ class SyncWorkerTest {
         fixture.outing(ROUND_1, "Test Warbler", "Sample Sparrow")
         fixture.outing(IN_SEASON, "Example Thrush")
         // The first run fetches the league, so the second has nothing but the batch to send.
-        fixture.loseAnswers = 1
+        // Two: the client tries a lost answer once more by itself (#93), and that answer is lost too.
+        fixture.loseAnswers = 2
 
         assertEquals(ListenableWorker.Result.retry(), run())
         assertEquals(3, fixture.db.sync().uploads().size)
 
         assertEquals(ListenableWorker.Result.success(), run(refresh = false))
         val sent = fixture.uploads()
-        assertEquals(2, sent.size)
-        // The same ids both times: the server keeps one sighting per id.
-        assertEquals(sent[0].sightings.map { it.clientId }.toSet(), sent[1].sightings.map { it.clientId }.toSet())
+        assertEquals(3, sent.size)
+        // The same ids each time: the server keeps one sighting per id.
+        assertEquals(1, sent.map { upload -> upload.sightings.map { it.clientId }.toSet() }.distinct().size)
         assertEquals(3, fixture.stored.size)
         assertEquals(emptyList<Any>(), fixture.db.sync().uploads())
 
-        // And nothing is sent a third time.
+        // And nothing is sent again.
         assertEquals(ListenableWorker.Result.success(), run(refresh = false))
-        assertEquals(2, fixture.uploads().size)
+        assertEquals(3, fixture.uploads().size)
     }
 
     @Test

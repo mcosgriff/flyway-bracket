@@ -111,7 +111,7 @@ class SyncFixture(name: String, withAccount: Boolean = true) : AutoCloseable {
     val requests: MutableList<HttpRequestData> = Collections.synchronizedList(mutableListOf())
 
     private val accountStore = MemoryAccountStore(StoredAccount(PLAYER_ID, SECRET).takeIf { withAccount })
-    private val server = ServerClient(serverHttpClient(MockEngine { request -> answer(request) }), "https://server.example")
+    private val server = ServerClient(serverHttpClient(MockEngine { request -> answer(request) }), "https://server.example", retryWaitMillis = 0)
     val accounts = AccountRepository(
         server = server,
         store = accountStore,

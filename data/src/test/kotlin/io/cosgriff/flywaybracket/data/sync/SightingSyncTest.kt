@@ -131,7 +131,8 @@ class SightingSyncTest {
         fixture.online = true
         val learned = Instant.parse("2027-03-11T09:00:00Z")
         fixture.clock.now = learned
-        fixture.loseAnswers = 1
+        // Two: the client tries a lost answer once more by itself (#93).
+        fixture.loseAnswers = 2
         fixture.sync.run(refresh = true)
 
         assertEquals(SyncQueueState(due = 1, waitingSince = learned), fixture.sync.queueState().first())

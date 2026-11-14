@@ -68,6 +68,7 @@ import io.cosgriff.flywaybracket.domain.bracket.Side
 import io.cosgriff.flywaybracket.domain.bracket.Tally
 import io.cosgriff.flywaybracket.domain.bracket.Team
 import io.cosgriff.flywaybracket.ui.components.FlywayBottomBar
+import io.cosgriff.flywaybracket.ui.components.ServerWaking
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.components.nameRes
 import io.cosgriff.flywaybracket.ui.components.quarterNameRes
@@ -90,6 +91,7 @@ fun BracketScreen(
     viewModel: BracketViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val waking by viewModel.waking.collectAsStateWithLifecycle()
     var layout by rememberSaveable { mutableStateOf(BracketLayout.LIST) }
     var round by rememberSaveable { mutableStateOf<Round?>(null) }
     var quarter by rememberSaveable { mutableStateOf(Field.quarters.first()) }
@@ -99,6 +101,7 @@ fun BracketScreen(
         round = round,
         quarter = quarter,
         onNavigate = onNavigate,
+        waking = waking,
         actions = BracketActions(
             onLayout = { layout = it },
             onRound = { round = it },
@@ -131,6 +134,7 @@ class BracketActions(
 /**
  * @param round the round the list shows; null for the round the bracket opens on ([BracketState.firstRound])
  * @param quarter the quarter the list and the tree show, by its name in a [Team]
+ * @param waking the server is most likely waking (#93): while the bracket is read, the tab says so
  */
 @Composable
 fun BracketContent(
@@ -140,6 +144,7 @@ fun BracketContent(
     quarter: String,
     onNavigate: (TopLevel) -> Unit,
     modifier: Modifier = Modifier,
+    waking: Boolean = false,
     actions: BracketActions = BracketActions(),
 ) {
     Scaffold(
@@ -151,6 +156,7 @@ fun BracketContent(
             when (state) {
                 BracketScreenState.Loading -> Message(title = R.string.nav_bracket) {
                     Text(stringResource(R.string.bracket_loading), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (waking) ServerWaking()
                 }
                 is BracketScreenState.NoLeague -> NoLeague(state.forming, onGoToLeague = { onNavigate(TopLevel.League) })
                 is BracketScreenState.Failed -> Message(title = R.string.nav_bracket) {

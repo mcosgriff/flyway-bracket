@@ -36,6 +36,7 @@ import io.cosgriff.flywaybracket.ui.home.previewPackOffer
 import io.cosgriff.flywaybracket.ui.home.previewState
 import io.cosgriff.flywaybracket.ui.home.previewToday
 import io.cosgriff.flywaybracket.ui.league.CreateLeagueState
+import io.cosgriff.flywaybracket.ui.league.JoinBusy
 import io.cosgriff.flywaybracket.ui.league.LeagueContent
 import io.cosgriff.flywaybracket.ui.league.LeagueCreateContent
 import io.cosgriff.flywaybracket.ui.league.LeagueTabState
@@ -72,11 +73,13 @@ import io.cosgriff.flywaybracket.ui.outing.previewSummary
 import io.cosgriff.flywaybracket.ui.packs.PacksContent
 import io.cosgriff.flywaybracket.ui.packs.PacksState
 import io.cosgriff.flywaybracket.ui.packs.previewAskMetered
+import io.cosgriff.flywaybracket.ui.packs.previewDownloadStarting
 import io.cosgriff.flywaybracket.ui.packs.previewDownloading
 import io.cosgriff.flywaybracket.ui.packs.previewHomePack
 import io.cosgriff.flywaybracket.ui.packs.previewNoPacks
 import io.cosgriff.flywaybracket.ui.packs.previewRejected
 import io.cosgriff.flywaybracket.ui.packs.previewServerList
+import io.cosgriff.flywaybracket.ui.packs.previewServerLoading
 import io.cosgriff.flywaybracket.ui.packs.previewTwoPacks
 import io.cosgriff.flywaybracket.ui.packs.previewUpdateAvailable
 import io.cosgriff.flywaybracket.ui.settings.LicencesContent
@@ -222,8 +225,14 @@ class ScreensScreenshotTest(private val shade: Shade) {
         PacksContent(previewAskMetered, onNavigate = {}, onRemove = {})
     }
 
-    private fun packs(name: String, state: PacksState, debug: Boolean = false) = compose.shoot(name, shade) {
-        PacksContent(state, onNavigate = {}, onRemove = {}, onAddFile = if (debug) ({}) else null)
+    @Test
+    fun packsServerLoadingWaking() = packs("packs_server_loading_waking", previewServerLoading, waking = true)
+
+    @Test
+    fun packsDownloadWaking() = packs("packs_download_waking", previewDownloadStarting, waking = true)
+
+    private fun packs(name: String, state: PacksState, debug: Boolean = false, waking: Boolean = false) = compose.shoot(name, shade) {
+        PacksContent(state, onNavigate = {}, onRemove = {}, waking = waking, onAddFile = if (debug) ({}) else null)
     }
 
     @Test
@@ -277,8 +286,11 @@ class ScreensScreenshotTest(private val shade: Shade) {
     @Test
     fun consentNoNetwork() = consent("consent_no_network", previewNoNetwork, TopLevel.Bracket)
 
-    private fun consent(name: String, state: ConsentState, place: TopLevel) = compose.shoot(name, shade) {
-        ConsentContent(state, place, onNavigate = {}, onContinue = {}, onNotNow = {})
+    @Test
+    fun consentCreatingWaking() = consent("consent_creating_waking", ConsentState(creating = true), TopLevel.League, waking = true)
+
+    private fun consent(name: String, state: ConsentState, place: TopLevel, waking: Boolean = false) = compose.shoot(name, shade) {
+        ConsentContent(state, place, onNavigate = {}, onContinue = {}, onNotNow = {}, waking = waking)
     }
 
     @Test
@@ -338,9 +350,12 @@ class ScreensScreenshotTest(private val shade: Shade) {
     @Test
     fun bracketNoLeague() = bracket("bracket_no_league", BracketScreenState.NoLeague(forming = false))
 
-    private fun bracket(name: String, state: BracketScreenState, round: Round? = null, layout: BracketLayout = BracketLayout.LIST) =
+    @Test
+    fun bracketLoadingWaking() = bracket("bracket_loading_waking", BracketScreenState.Loading, waking = true)
+
+    private fun bracket(name: String, state: BracketScreenState, round: Round? = null, layout: BracketLayout = BracketLayout.LIST, waking: Boolean = false) =
         compose.shoot(name, shade) {
-            BracketContent(state, layout, round, Field.quarters.first(), onNavigate = {})
+            BracketContent(state, layout, round, Field.quarters.first(), onNavigate = {}, waking = waking)
         }
 
     @Test
@@ -376,8 +391,15 @@ class ScreensScreenshotTest(private val shade: Shade) {
         LeagueContent(previewLeave, onNavigate = {})
     }
 
-    private fun league(name: String, state: LeagueTabState) = compose.shoot(name, shade) {
-        LeagueContent(state, onNavigate = {})
+    @Test
+    fun leagueLoadingWaking() = league("league_loading_waking", LeagueTabState.Loading, waking = true)
+
+    @Test
+    fun leagueJoiningWaking() =
+        league("league_joining_waking", LeagueTabState.Join(previewJoin.join.copy(busy = JoinBusy.JOINING)), waking = true)
+
+    private fun league(name: String, state: LeagueTabState, waking: Boolean = false) = compose.shoot(name, shade) {
+        LeagueContent(state, onNavigate = {}, waking = waking)
     }
 
     @Test
@@ -389,8 +411,11 @@ class ScreensScreenshotTest(private val shade: Shade) {
     @Test
     fun leagueCreated() = leagueCreate("league_created", previewCreated)
 
-    private fun leagueCreate(name: String, state: CreateLeagueState) = compose.shoot(name, shade) {
-        LeagueCreateContent(state, previewLeagueToday, onBack = {})
+    @Test
+    fun leagueCreatingWaking() = leagueCreate("league_creating_waking", previewCreate.copy(creating = true), waking = true)
+
+    private fun leagueCreate(name: String, state: CreateLeagueState, waking: Boolean = false) = compose.shoot(name, shade) {
+        LeagueCreateContent(state, previewLeagueToday, onBack = {}, waking = waking)
     }
 
     @Test

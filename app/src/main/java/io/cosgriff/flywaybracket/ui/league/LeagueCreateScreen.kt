@@ -72,6 +72,7 @@ import io.cosgriff.flywaybracket.domain.league.LeagueTimeZone
 import io.cosgriff.flywaybracket.domain.league.SeasonStart
 import io.cosgriff.flywaybracket.domain.league.SeasonStartCheck
 import io.cosgriff.flywaybracket.ui.components.InviteCodeCard
+import io.cosgriff.flywaybracket.ui.components.ServerWaking
 import io.cosgriff.flywaybracket.ui.components.nameRes
 import io.cosgriff.flywaybracket.ui.components.shareInvite
 import io.cosgriff.flywaybracket.ui.components.weekdayText
@@ -88,11 +89,13 @@ import java.time.ZoneOffset
 @Composable
 fun LeagueCreateScreen(onBack: () -> Unit, viewModel: LeagueCreateViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val waking by viewModel.waking.collectAsStateWithLifecycle()
     val context = LocalContext.current
     LeagueCreateContent(
         state = state,
         today = viewModel.today(),
         onBack = onBack,
+        waking = waking,
         actions = CreateLeagueActions(
             onName = viewModel::onName,
             onOpen = viewModel::onOpen,
@@ -116,13 +119,17 @@ class CreateLeagueActions(
     val onDone: () -> Unit = {},
 )
 
-/** @param today today in the league's zone, which the start date is judged from */
+/**
+ * @param today today in the league's zone, which the start date is judged from
+ * @param waking the server is most likely waking (#93): while the league is created, the footer says so
+ */
 @Composable
 fun LeagueCreateContent(
     state: CreateLeagueState,
     today: LocalDate,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    waking: Boolean = false,
     actions: CreateLeagueActions = CreateLeagueActions(),
 ) {
     var pickingStart by rememberSaveable { mutableStateOf(false) }
@@ -132,7 +139,7 @@ fun LeagueCreateContent(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = { TopBar(if (created == null) R.string.league_create_title else R.string.league_created_title, onBack) },
-        bottomBar = { if (created == null) Footer(state, actions.onCreate) },
+        bottomBar = { if (created == null) Footer(state, waking, actions.onCreate) },
     ) { insets ->
         Column(
             modifier = Modifier
@@ -350,7 +357,7 @@ private fun Problem(message: Int) {
 }
 
 @Composable
-private fun Footer(state: CreateLeagueState, onCreate: () -> Unit) {
+private fun Footer(state: CreateLeagueState, waking: Boolean, onCreate: () -> Unit) {
     val colors = FlywayTheme.colors
     Column(
         modifier = Modifier.padding(start = FlywayDimens.space5, end = FlywayDimens.space5, top = FlywayDimens.space3, bottom = FlywayDimens.space5),
@@ -362,6 +369,7 @@ private fun Footer(state: CreateLeagueState, onCreate: () -> Unit) {
             enabled = state.canCreate,
             onClick = onCreate,
         )
+        if (state.creating && waking) ServerWaking(style = MaterialTheme.typography.bodySmall)
         Text(stringResource(R.string.league_create_next), style = MaterialTheme.typography.bodySmall, color = colors.inkMuted)
     }
 }

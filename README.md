@@ -220,6 +220,10 @@ download bird packs. Sightings are sent in the background.
 - For 7 days, Cloudflare also keeps a record of each request, so the project can see how the server is
   doing: what was asked for, whether it worked, how long it took, and the country, region and city your
   internet address is in. It never holds your secret, what you sent, or the address itself.
+- The server sleeps when no one has used it for a while, and the first request after that waits a few
+  seconds while it starts. Screens that wait on it then say "Waking the server". A request the server most
+  likely never got is tried once more after two seconds; one it may already have done, such as creating
+  an account or joining a league, is not.
 - Nothing is sent before you say yes. Outings work with no account. When you open League or Bracket, or
   ask for bird packs, without an account, a page says what will be sent and asks. "Not now" sends nothing.
 - Downloading a bird pack asks the server for its list of packs and for the pack of one state. To update a

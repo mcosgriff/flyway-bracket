@@ -57,7 +57,8 @@
     <!-- Home -->
     <!-- The home county and its state's abbreviation: "Jefferson Co., CO". -->
     <string name="home_region_county">%1$s Co., %2$s</string>
-    <string name="home_tournament_overline">%1$s tournament · Round %2$d of %3$d</string>
+    <!-- No-break spaces keep "Round 2 of 6" on one line when the overline wraps. -->
+    <string name="home_tournament_overline">%1$s tournament · Round\u00A0%2$d\u00A0of\u00A0%3$d</string>
     <!-- Follows the points figure. The count is the second number: picks decided so far. -->
     <plurals name="home_points_caption">
         <item quantity="one">bracket points · %1$d of %2$d pick right</item>
@@ -71,6 +72,42 @@
     <string name="home_no_league_title">No league yet</string>
     <string name="home_no_league_body">Join a league to fill in a bracket. You can log outings without one.</string>
     <string name="home_find_league">Find a league</string>
+    <!-- Home's card while the league forms (#45): "Spring tournament · Forming". -->
+    <string name="home_forming_overline">%1$s tournament · Forming</string>
+    <string name="home_forming_overline_no_season">Forming</string>
+    <!-- Follows the number of players who have joined; the count is the fewest a bracket needs: "5" "of 8 players joined". -->
+    <plurals name="home_forming_players">
+        <item quantity="one">of %d player joined</item>
+        <item quantity="other">of %d players joined</item>
+    </plurals>
+    <!-- Follows the number of players who have joined, once it is at least the 8 a bracket needs. -->
+    <plurals name="home_forming_players_ready">
+        <item quantity="one">player joined · enough to start</item>
+        <item quantity="other">players joined · enough to start</item>
+    </plurals>
+    <!-- The matchups the player has picked, of the bracket's 63: "20 of 63 picks made". The count is the second number. -->
+    <plurals name="home_forming_picks">
+        <item quantity="one">%1$d of %2$d pick made</item>
+        <item quantity="other">%1$d of %2$d picks made</item>
+    </plurals>
+    <!-- When picks lock, a date and time on the phone's clock: "Picks lock Mar 1, 2027, 12:00 AM". -->
+    <string name="home_forming_lock">Picks lock %1$s</string>
+    <string name="home_make_picks">Make your picks</string>
+    <!-- Home's card once the final is decided (#45): "Spring tournament · Season over". -->
+    <string name="home_finished_overline">%1$s tournament · Season over</string>
+    <string name="home_finished_overline_no_season">Season over</string>
+    <!-- Follows the player's final place, "3rd"; the count is the league's players. -->
+    <plurals name="home_finished_rank">
+        <item quantity="one">final rank of %d player</item>
+        <item quantity="other">final rank of %d players</item>
+    </plurals>
+    <string name="home_finished_title">The season is over</string>
+    <string name="home_finished_body">Join a league on the League tab for the next season.</string>
+    <!-- Home's card when the league's season never started (#45). The league's name. -->
+    <string name="home_closed_title">%1$s never started</string>
+    <string name="home_closed_too_few_players">It had fewer than 8 players when its start date came, even after the start moved back four weeks.</string>
+    <string name="home_closed_too_few_birds">Too few migrating birds pass through its players\' home counties to fill a bracket of 64.</string>
+    <string name="home_closed_body">You are free to join or start another league.</string>
     <string name="home_start_outing">Start outing</string>
     <plurals name="home_league_caption">
         <item quantity="one">Your league · %d player</item>

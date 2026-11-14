@@ -163,7 +163,8 @@ Add `:baselineprofile` once the screens settle.
   (`.github/scripts/exodus-scan.sh`): a tracker fails, and so does a permission not in
   `.github/privacy/permissions.txt` (or one listed that the APK no longer asks for). A new permission means
   updating that list and explaining it in the app.
-- **Network: the account calls only, as `docs/adr/0001-server-and-network.md` decides.** One server, the
+- **Network: the league server only, as `docs/adr/0001-server-and-network.md` decides: the account,
+  leagues, the bracket, bird packs and sightings.** One server, the
   project's own, over HTTPS (Ktor on OkHttp in `:data`, so the platform's TLS and certificate checks
   apply; the network security config allows no cleartext outside debug builds, and the build refuses a
   release `flywayServerUrl` that is not `https://`); anonymous device accounts, their id and secret

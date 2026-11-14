@@ -21,6 +21,8 @@ import io.cosgriff.flywaybracket.data.SettingsRepository
 import io.cosgriff.flywaybracket.data.asksBeforeDownload
 import io.cosgriff.flywaybracket.data.sync.SightingSync
 import io.cosgriff.flywaybracket.data.sync.SyncScheduler
+import io.cosgriff.flywaybracket.domain.bracket.BracketView
+import io.cosgriff.flywaybracket.domain.league.LeagueLifecycle
 import io.cosgriff.flywaybracket.domain.league.LeaguePhase
 import io.cosgriff.flywaybracket.domain.outing.OutingLog
 import io.cosgriff.flywaybracket.domain.outing.newLifersSince
@@ -88,10 +90,17 @@ class HomeViewModel @Inject constructor(
     private val offered = MutableStateFlow<PackSummary?>(null)
     private val askMetered = MutableStateFlow<MeteredAsk?>(null)
 
-    /** The league row and the hero; the birds picked and not yet seen only count while the season runs. */
-    private val leagueParts: Flow<Pair<LeagueSummary?, TournamentSummary?>> = leagues.league().flatMapLatest { league ->
-        val notYetSeen = if (league?.phase == LeaguePhase.RUNNING) brackets.picksNotYetSeen(league.id).map { it.size } else flowOf(0)
-        notYetSeen.map { homeLeague(league, it, clock.instant()) }
+    /**
+     * The league row and the hero. The birds picked and not yet seen count while the season runs; the picks
+     * made, from the bracket kept on the phone, while the league forms (#45). Neither asks the server.
+     */
+    private val leagueParts: Flow<Pair<LeagueSummary?, LeagueHero?>> = leagues.league().flatMapLatest { league ->
+        val counts: Flow<BracketCounts> = when (league?.phase) {
+            LeaguePhase.RUNNING -> brackets.picksNotYetSeen(league.id).map { BracketCounts(picksNotYetSeen = it.size) }
+            LeaguePhase.FORMING -> brackets.bracket(league.id).map { BracketCounts(picksMade = it?.view?.picks ?: 0) }
+            else -> flowOf(BracketCounts())
+        }
+        counts.map { homeLeague(league, it, clock.instant(), clock.zone) }
     }
 
     val state: StateFlow<HomeState> = combine(
@@ -101,7 +110,7 @@ class HomeViewModel @Inject constructor(
             outings.inProgress(),
             starting,
             leagueParts,
-        ) { logs, player, inProgress, start, (league, tournament) ->
+        ) { logs, player, inProgress, start, (league, hero) ->
             homeState(
                 finished = logs,
                 today = LocalDate.now(clock),
@@ -113,7 +122,7 @@ class HomeViewModel @Inject constructor(
                 askLocation = start.askLocation,
                 findingCounty = start.findingCounty,
                 league = league,
-                tournament = tournament,
+                hero = hero,
             )
         },
         offered,
@@ -268,27 +277,59 @@ internal fun fallbackFor(fix: CountyFix): CountyFallback? = when (fix) {
 }
 
 /**
- * Home's league row and tournament hero for [league] at [now] (#40). The row shows a league that forms, runs
- * or has finished; the hero only one whose season runs, with the round played in the league's zone.
+ * What Home counts in the player's bracket kept on the phone, for the hero.
  *
- * @param picksNotYetSeen the player's live picks in the round being played that they have not logged yet
+ * @property picksNotYetSeen while the season runs, the player's live picks in the round being played that
+ *   they have not logged yet
+ * @property picksMade while the league forms, the matchups the player has picked
  */
-internal fun homeLeague(league: League?, picksNotYetSeen: Int, now: Instant): Pair<LeagueSummary?, TournamentSummary?> {
-    val you = league?.you
-    if (league == null || you == null || league.phase == LeaguePhase.CLOSED) return null to null
-    val row = LeagueSummary(name = league.name, players = league.players, rank = you.rank)
+internal data class BracketCounts(val picksNotYetSeen: Int = 0, val picksMade: Int = 0)
+
+/**
+ * Home's league row and hero for [league] at [now] (#40, #45). The row shows a league that forms, runs or has
+ * finished, with the player's rank once the season has started. The hero has a kind for each phase: forming
+ * (players joined of the 8 needed, picks made of 63, when picks lock, in [phoneZone]), running (the round
+ * played in the league's zone), finished (the final rank) and closed (why). A running league whose dates or
+ * table were not fetched has the row and no hero.
+ */
+internal fun homeLeague(league: League?, counts: BracketCounts, now: Instant, phoneZone: ZoneId): Pair<LeagueSummary?, LeagueHero?> {
+    if (league == null) return null to null
+    if (league.phase == LeaguePhase.CLOSED) return null to LeagueHero.Closed(league.name, league.closedBecause)
+    val you = league.you
     val calendar = league.calendar
     val zone = league.timeZone
-    if (league.phase != LeaguePhase.RUNNING || calendar == null || zone == null) return row to null
-    val leagueNow = now.atZone(zone).toLocalDateTime()
-    return row to TournamentSummary(
-        season = calendar.season,
-        round = calendar.roundOfSeason(leagueNow.toLocalDate()),
-        points = you.points,
-        picksRight = you.rightPicks,
-        picksDecided = calendar.decidedMatchups(leagueNow),
-        picksNotYetSeen = picksNotYetSeen,
-    )
+    // Before the season no one has a point, so a rank would say nothing.
+    val row = LeagueSummary(name = league.name, players = league.players, rank = you?.rank?.takeIf { league.phase != LeaguePhase.FORMING })
+    val hero = when (league.phase) {
+        LeaguePhase.FORMING -> LeagueHero.Forming(
+            season = calendar?.season,
+            players = league.players,
+            needed = LeagueLifecycle.MIN_PLAYERS,
+            picksMade = counts.picksMade,
+            matchups = BracketView.MATCHUPS,
+            picksLockAt = if (calendar != null && zone != null) {
+                calendar.picksLockOn.atStartOfDay(zone).withZoneSameInstant(phoneZone).toLocalDateTime()
+            } else {
+                null
+            },
+        )
+        LeaguePhase.RUNNING -> if (calendar == null || zone == null || you == null) {
+            null
+        } else {
+            val leagueNow = now.atZone(zone).toLocalDateTime()
+            TournamentSummary(
+                season = calendar.season,
+                round = calendar.roundOfSeason(leagueNow.toLocalDate()),
+                points = you.points,
+                picksRight = you.rightPicks,
+                picksDecided = calendar.decidedMatchups(leagueNow),
+                picksNotYetSeen = counts.picksNotYetSeen,
+            )
+        }
+        LeaguePhase.FINISHED -> LeagueHero.Finished(season = calendar?.season, rank = you?.rank, players = league.players)
+        LeaguePhase.CLOSED -> error("handled above")
+    }
+    return row to hero
 }
 
 /** The state a county code names: `US-CO` of `US-CO-059`, as eBird's region codes go. */

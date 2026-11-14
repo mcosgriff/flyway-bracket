@@ -113,6 +113,9 @@ enum class Shade(val dark: Boolean) { LIGHT(false), DARK(true) }
  */
 const val PHONE = "w411dp-h1100dp-xhdpi"
 
+/** A narrow phone, the 360dp a layout must still fit. */
+const val NARROW_PHONE = "w360dp-h1100dp-xhdpi"
+
 /** Where the references live, relative to `app/`. */
 private fun reference(name: String, shade: Shade) = "src/test/screenshots/${name}_${shade.name.lowercase()}.png"
 

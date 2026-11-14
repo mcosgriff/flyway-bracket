@@ -6,15 +6,18 @@ import io.cosgriff.flywaybracket.data.PackDownload
 import io.cosgriff.flywaybracket.ui.components.MeteredAsk
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.domain.bracket.Season
+import io.cosgriff.flywaybracket.domain.league.CloseReason
 import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 /** What Home shows. A part that is `null` or empty has nothing yet, and Home says so. */
 @Immutable
 data class HomeState(
     /** The player's home county. */
     val region: HomeRegion? = null,
-    val tournament: TournamentSummary? = null,
+    /** The card at the top, by where the player's league is (#45); null with no league. */
+    val hero: LeagueHero? = null,
     val league: LeagueSummary? = null,
     val season: SeasonStats = SeasonStats(),
     val recentOutings: List<OutingRow> = emptyList(),
@@ -55,6 +58,43 @@ data class PackOffer(
 @Immutable
 data class HomeRegion(val county: String, val stateAbbreviation: String)
 
+/**
+ * Home's top card for the player's league, one kind for each of its phases (#45): [Forming],
+ * [TournamentSummary] while the season runs, [Finished] and [Closed]. With no league Home has none and asks
+ * the player to find one.
+ */
+@Immutable
+sealed interface LeagueHero {
+    /**
+     * The league forms: the players who have joined, of the [needed] a bracket needs; the player's picks made,
+     * of the bracket's [matchups]; and when picks lock.
+     *
+     * @property season null when only the league's summary was fetched, without its dates
+     * @property picksLockAt when picks lock, in the phone's zone; null when the league's dates were not fetched
+     */
+    @Immutable
+    data class Forming(
+        val season: Season?,
+        val players: Int,
+        val needed: Int,
+        val picksMade: Int,
+        val matchups: Int,
+        val picksLockAt: LocalDateTime?,
+    ) : LeagueHero
+
+    /**
+     * The final is decided.
+     *
+     * @property rank the player's final rank, of [players]; null when the league's table was not fetched
+     */
+    @Immutable
+    data class Finished(val season: Season?, val rank: Int?, val players: Int) : LeagueHero
+
+    /** The league's season never started, and why; [reason] is null only in an older phone's copy. */
+    @Immutable
+    data class Closed(val leagueName: String, val reason: CloseReason?) : LeagueHero
+}
+
 /** Where the player's bracket stands in the tournament being played. */
 @Immutable
 data class TournamentSummary(
@@ -65,10 +105,11 @@ data class TournamentSummary(
     val picksDecided: Int,
     /** Birds the player picked this round and hasn't logged yet. */
     val picksNotYetSeen: Int,
-)
+) : LeagueHero
 
+/** @property rank the player's place in the table; null before the season, when no one has points, or with no table */
 @Immutable
-data class LeagueSummary(val name: String, val players: Int, val rank: Int)
+data class LeagueSummary(val name: String, val players: Int, val rank: Int?)
 
 @Immutable
 data class SeasonStats(val species: Int = 0, val lifers: Int = 0, val outings: Int = 0)

@@ -26,7 +26,12 @@ import io.cosgriff.flywaybracket.ui.consent.previewNoNetwork
 import io.cosgriff.flywaybracket.ui.home.HomeContent
 import io.cosgriff.flywaybracket.ui.home.HomeState
 import io.cosgriff.flywaybracket.ui.home.LocationExplainContent
+import io.cosgriff.flywaybracket.ui.home.previewHomeClosed
+import io.cosgriff.flywaybracket.ui.home.previewHomeFinished
+import io.cosgriff.flywaybracket.ui.home.previewHomeForming
+import io.cosgriff.flywaybracket.ui.home.previewHomeFormingReady
 import io.cosgriff.flywaybracket.ui.home.previewLongCounty
+import io.cosgriff.flywaybracket.ui.home.previewWidestChip
 import io.cosgriff.flywaybracket.ui.home.previewPackOffer
 import io.cosgriff.flywaybracket.ui.home.previewState
 import io.cosgriff.flywaybracket.ui.home.previewToday
@@ -136,6 +141,40 @@ class ScreensScreenshotTest(private val shade: Shade) {
     @Test
     fun homeLongCountyLargeText() = compose.shoot("home_long_county_font_1_3", shade, fontScale = 1.3f) {
         HomeContent(previewLongCounty, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    // At 360dp, with the beta's longest county chip: the title stays on one line, the chip below it (#45).
+    @Test
+    @Config(qualifiers = NARROW_PHONE)
+    fun homeNarrow() = compose.shoot("home_narrow", shade) {
+        HomeContent(previewWidestChip, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    // With large text the title may wrap between its words; the overline keeps "Round 2 of 6" together.
+    @Test
+    @Config(qualifiers = NARROW_PHONE)
+    fun homeNarrowLargeText() = compose.shoot("home_narrow_font_1_3", shade, fontScale = 1.3f) {
+        HomeContent(previewWidestChip, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
+    fun homeForming() = compose.shoot("home_forming", shade) {
+        HomeContent(previewHomeForming, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
+    fun homeFormingReady() = compose.shoot("home_forming_ready", shade) {
+        HomeContent(previewHomeFormingReady, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
+    fun homeFinished() = compose.shoot("home_finished", shade) {
+        HomeContent(previewHomeFinished, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
+    fun homeClosed() = compose.shoot("home_closed", shade) {
+        HomeContent(previewHomeClosed, previewToday, onNavigate = {}, onStartOuting = {})
     }
 
     @Test

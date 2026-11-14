@@ -1,5 +1,6 @@
 package io.cosgriff.flywaybracket.server.league
 
+import io.cosgriff.flywaybracket.api.MatchupSlot
 import io.cosgriff.flywaybracket.domain.bracket.BirdGroup
 import io.cosgriff.flywaybracket.domain.bracket.Field
 import io.cosgriff.flywaybracket.domain.bracket.FieldResult
@@ -34,8 +35,9 @@ data class StoredLeague(
  * A player in a league.
  *
  * @property homeCounty the county code the player set, or null while it is not set
+ * @property key what names the member to the other players in place of [playerId] (`Standing.memberKey`)
  */
-data class StoredMember(val playerId: UUID, val displayName: String, val homeCounty: String? = null)
+data class StoredMember(val playerId: UUID, val displayName: String, val homeCounty: String? = null, val key: UUID)
 
 /** What a locked player has that a league needs. */
 data class LockedPlayer(val displayName: String?)
@@ -50,8 +52,8 @@ data class LockedPlayer(val displayName: String?)
 data class StoredField(val seasonStart: LocalDate, val fixed: Boolean, val result: FieldResult)
 
 /**
- * The `leagues`, `league_members`, `league_fields` and `league_field_teams` tables. Every call blocks;
- * call it off the request threads.
+ * The `leagues`, `league_members`, `league_fields`, `league_field_teams` and `league_picks` tables. Every
+ * call blocks; call it off the request threads.
  */
 interface LeagueStore {
     /** Runs [block] in one transaction: commits when it returns, rolls back when it throws. */
@@ -89,6 +91,9 @@ interface LeagueTransaction {
     /** The players in the league who have not left it. */
     fun members(leagueId: UUID): List<StoredMember>
 
+    /** The player in the league with this [StoredMember.key], unless they have left it. */
+    fun memberByKey(leagueId: UUID, key: UUID): StoredMember?
+
     /** The open leagues stored as forming, earliest start first, then earliest made. */
     fun openFormingLeagues(): List<UUID>
 
@@ -117,6 +122,15 @@ interface LeagueTransaction {
 
     /** Stores the league's field in place of any it had. Only for a locked league. */
     fun saveField(leagueId: UUID, field: StoredField)
+
+    /** The player's picks in the league, by slot; empty when they have none. */
+    fun picks(leagueId: UUID, playerId: UUID): Map<MatchupSlot, String>
+
+    /** The picks of every player in the league who has any, left or not. */
+    fun leaguePicks(leagueId: UUID): Map<UUID, Map<MatchupSlot, String>>
+
+    /** Stores [picks] in place of every pick the player had in the league. Only for a member of a locked league. */
+    fun savePicks(leagueId: UUID, playerId: UUID, picks: Map<MatchupSlot, String>)
 }
 
 /** Teams in the order a [StoredField] holds them: by quarter from the top of the bracket, then by seed. */
@@ -175,14 +189,15 @@ private class PostgresLeagueTransaction(private val connection: Connection) : Le
         playerId,
     ) { }.isNotEmpty()
 
-    override fun members(leagueId: UUID): List<StoredMember> = query(
-        """
-        SELECT m.player_id, COALESCE(p.display_name, ''), p.home_county FROM league_members m
-        JOIN players p ON p.id = m.player_id
-        WHERE m.league_id = ? AND m.left_at IS NULL
-        """.trimIndent(),
+    override fun members(leagueId: UUID): List<StoredMember> =
+        query("$SELECT_MEMBER WHERE m.league_id = ? AND m.left_at IS NULL", leagueId, read = ::readMember)
+
+    override fun memberByKey(leagueId: UUID, key: UUID): StoredMember? = query(
+        "$SELECT_MEMBER WHERE m.league_id = ? AND m.member_key = ? AND m.left_at IS NULL",
         leagueId,
-    ) { StoredMember(it.getObject(1, UUID::class.java), it.getString(2), it.getString(3)) }
+        key,
+        read = ::readMember,
+    ).firstOrNull()
 
     override fun openFormingLeagues(): List<UUID> = query(
         "SELECT id FROM leagues WHERE open AND phase = 'FORMING' ORDER BY season_start, created_at, id",
@@ -265,6 +280,36 @@ private class PostgresLeagueTransaction(private val connection: Connection) : Le
         }
     }
 
+    override fun picks(leagueId: UUID, playerId: UUID): Map<MatchupSlot, String> = query(
+        "SELECT slot, common_name FROM league_picks WHERE league_id = ? AND player_id = ? ORDER BY slot",
+        leagueId,
+        playerId,
+    ) { MatchupSlot(it.getInt(1)) to it.getString(2) }.toMap()
+
+    override fun leaguePicks(leagueId: UUID): Map<UUID, Map<MatchupSlot, String>> = query(
+        "SELECT player_id, slot, common_name FROM league_picks WHERE league_id = ? ORDER BY player_id, slot",
+        leagueId,
+    ) { Triple(it.getObject(1, UUID::class.java), MatchupSlot(it.getInt(2)), it.getString(3)) }
+        .groupBy({ it.first }, { it.second to it.third })
+        .mapValues { (_, picks) -> picks.toMap() }
+
+    override fun savePicks(leagueId: UUID, playerId: UUID, picks: Map<MatchupSlot, String>) {
+        update("DELETE FROM league_picks WHERE league_id = ? AND player_id = ?", leagueId, playerId)
+        if (picks.isEmpty()) return
+        connection.prepareStatement(
+            "INSERT INTO league_picks (league_id, player_id, slot, common_name) VALUES (?, ?, ?, ?)",
+        ).use { insert ->
+            picks.toSortedMap().forEach { (slot, commonName) ->
+                insert.setObject(1, leagueId)
+                insert.setObject(2, playerId)
+                insert.setShort(3, slot.index.toShort())
+                insert.setString(4, commonName)
+                insert.addBatch()
+            }
+            insert.executeBatch()
+        }
+    }
+
     override fun addMember(leagueId: UUID, playerId: UUID) {
         update("INSERT INTO league_members (league_id, player_id) VALUES (?, ?)", leagueId, playerId)
     }
@@ -294,6 +339,13 @@ private class PostgresLeagueTransaction(private val connection: Connection) : Le
         statement.executeUpdate()
     }
 
+    private fun readMember(row: ResultSet) = StoredMember(
+        playerId = row.getObject("player_id", UUID::class.java),
+        displayName = row.getString("display_name"),
+        homeCounty = row.getString("home_county"),
+        key = row.getObject("member_key", UUID::class.java),
+    )
+
     private fun readLeague(row: ResultSet) = StoredLeague(
         id = row.getObject("id", UUID::class.java),
         name = row.getString("name"),
@@ -312,6 +364,11 @@ private class PostgresLeagueTransaction(private val connection: Connection) : Le
     private companion object {
         /** The key of the advisory lock that auto-joins take; any number no other lock uses. */
         const val AUTO_JOIN_LOCK = 3_200_001L
+
+        const val SELECT_MEMBER = """
+            SELECT m.player_id, COALESCE(p.display_name, '') AS display_name, p.home_county, m.member_key
+            FROM league_members m
+            JOIN players p ON p.id = m.player_id"""
 
         const val SELECT_LEAGUE = """
             SELECT l.id, l.name, l.open, l.time_zone, l.invite_code, l.phase, l.season_start, l.postponements, l.closed_reason,

@@ -114,7 +114,11 @@ private val RefusedWith = AttributeKey<ApiError>("RefusedWith")
 
 /** Refuses the call with [code]. Routes refuse with this, so a 404 of theirs keeps its code. */
 internal suspend fun ApplicationCall.refuse(status: HttpStatusCode, code: ApiErrorCode) {
-    val error = ApiError(code)
+    refuse(status, ApiError(code))
+}
+
+/** Refuses the call with [error], such as one that names a matchup slot. */
+internal suspend fun ApplicationCall.refuse(status: HttpStatusCode, error: ApiError) {
     attributes.put(RefusedWith, error)
     respond(status, error)
 }

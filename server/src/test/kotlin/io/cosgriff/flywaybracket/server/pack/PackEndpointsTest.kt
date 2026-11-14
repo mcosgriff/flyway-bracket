@@ -15,6 +15,8 @@ import io.cosgriff.flywaybracket.server.account.InMemoryPlayerStore
 import io.cosgriff.flywaybracket.server.league.InMemoryLeagueStore
 import io.cosgriff.flywaybracket.server.league.Leagues
 import io.cosgriff.flywaybracket.server.module
+import io.cosgriff.flywaybracket.server.sighting.InMemorySightingStore
+import io.cosgriff.flywaybracket.server.sighting.Sightings
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.basicAuth
 import io.ktor.client.request.get
@@ -52,7 +54,16 @@ class PackEndpointsTest {
         val players = InMemoryPlayerStore()
         val leagues = Leagues(InMemoryLeagueStore(players))
         val packs = Packs(directory)
-        application { module(database = { true }, accounts = Accounts(players, leagues), leagues = leagues, packs = packs, version = "1.2.3") }
+        application {
+            module(
+                database = { true },
+                accounts = Accounts(players, leagues),
+                leagues = leagues,
+                packs = packs,
+                sightings = Sightings(InMemorySightingStore(players), packs),
+                version = "1.2.3",
+            )
+        }
         test()
     }
 

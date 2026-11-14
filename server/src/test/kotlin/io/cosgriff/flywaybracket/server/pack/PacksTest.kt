@@ -71,6 +71,21 @@ class PacksTest {
     }
 
     @Test
+    fun `the catalog names every county and every bird of the packs held`() {
+        writePack(directory, testland)
+        val packs = Packs(directory)
+
+        val catalog = packs.catalog()
+
+        assertEquals(setOf("XX-TS-001", "XX-TS-002", "XX-TS-003"), catalog.counties)
+        assertEquals(setOf("Test Warbler", "Test Sandpiper", "Test Sparrow", "Test Tern"), catalog.birds)
+
+        Files.delete(directory.resolve("XX-TS.fbpack"))
+        assertEquals(emptySet<String>(), packs.catalog().birds)
+        assertEquals(emptySet<String>(), packs.catalog().counties)
+    }
+
+    @Test
     fun `a file the codec rejects is skipped with its reason, and the others are still held`() {
         writePack(directory, testland)
         write(directory, "XX-OT.fbpack", "not a pack".toByteArray())

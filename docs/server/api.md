@@ -5,15 +5,16 @@ What the app and the server say to each other. The types are in the `:api` modul
 the endpoints that carry them. Change the two together.
 
 The server (`:server`, [running.md](running.md)) answers the health check, the account endpoints, the
-league endpoints and the pack endpoints, and the app calls the account endpoints, after the player agrees
-(#38). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
+league endpoints, the pack endpoints and the sighting endpoints, and the app calls the account endpoints,
+after the player agrees (#38). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
 new field sent to the server needs a change to that record first.
 
 ## Rules for every call
 
 - One host, HTTPS only. Every path starts with `/v1/` (`ApiPaths`).
 - Bodies are JSON, read and written with `ApiJson`. A reader skips a key it does not know, so a field can
-  be added without a new version. A field that is null is left out.
+  be added without a new version. A field that is null is left out. One exception: the server refuses a
+  sighting upload with any key its type does not have ([Sightings](#sightings)).
 - A date is an ISO local date (`2027-03-01`). An instant is ISO-8601 in UTC (`2027-03-01T07:00:00Z`). No
   message carries an instant today.
 - A bird is named by its common name, as in the bracket and the packs. A county is its region code
@@ -48,7 +49,9 @@ null) and must treat it as a general failure.
 | `TIME_ZONE_UNKNOWN` | 422 | The time zone is not an IANA zone the server knows |
 | `DISPLAY_NAME_INVALID` | 422 | The display name is empty, too long or not allowed |
 | `COUNTY_UNKNOWN` | 422 | A home county that is not a well-formed county code, or a sighting's county that is not a county of any pack |
-| `BIRD_UNKNOWN` | 422 | A sighting's bird is not one the server knows, or a pick is not one of its matchup's two birds |
+| `BIRD_UNKNOWN` | 422 | A sighting's bird is named in no county's chart of any pack, or a pick is not one of its matchup's two birds |
+| `SIGHTING_DATE_IN_FUTURE` | 422 | A sighting's date is more than one day after today at UTC+14 |
+| `SIGHTING_NOT_FOUND` | 404 | The player has no sighting with this id; another player's is not told apart from none |
 | `PICKS_LOCKED` | 409 | The season has started; picks can no longer change |
 | `PICKS_INCOMPLETE` | 422 | Fewer than 63 picks, or a later-round pick of a bird not picked to reach that matchup |
 | `BRACKET_NOT_READY` | 409 | The league has no bracket yet |
@@ -59,7 +62,7 @@ null) and must treat it as a general failure.
 
 A path the server does not have answers 404, a method it does not have on that path 405, and a body that
 is not JSON 415. All three carry `INVALID_REQUEST`: the status tells them apart. A 404 an endpoint gives
-itself (`LEAGUE_NOT_FOUND`, `INVITE_CODE_UNKNOWN`, `PACK_NOT_FOUND`) carries its own code. `detail` is empty for
+itself (`LEAGUE_NOT_FOUND`, `INVITE_CODE_UNKNOWN`, `PACK_NOT_FOUND`, `SIGHTING_NOT_FOUND`) carries its own code. `detail` is empty for
 these and for bad JSON, so that an error never repeats what was sent.
 
 Every endpoint can return `RATE_LIMITED` and `SERVER_ERROR`. Every endpoint except `POST /v1/accounts` and `GET /v1/health` can
@@ -112,8 +115,9 @@ list only the codes an endpoint adds to these.
   need not be a county of a pack the server holds.
 - `DELETE /v1/account` cannot be undone. The player first leaves every league they are in, as
   `DELETE …/membership` would; then their row (id, secret hash, display name, home county) is deleted, and
-  their league places with it. Once the server has picks and sightings, it also deletes those; their
-  results in a finished season stay, under no name, as "a former player". After it, the id and secret
+  their league places and their sightings with it (the tables' foreign keys are `ON DELETE CASCADE`).
+  Once the server has picks, it also deletes those; their results in a finished season stay, under no
+  name, as "a former player". After it, the id and secret
   are `UNAUTHORIZED`.
 - **A home county change and rounds.** The server stores only the current home county. A change is meant to
   count for rounds that have not started; that is for the issue that decides rounds on the server.
@@ -216,14 +220,45 @@ The rules are `domain/league` in `:domain` (#32); the server applies them.
 
 | Endpoint | Request | Response | Errors it adds |
 | --- | --- | --- | --- |
-| `POST /v1/sightings` | `UploadSightingsRequest` | 204 | `BIRD_UNKNOWN`, `COUNTY_UNKNOWN` |
+| `POST /v1/sightings` | `UploadSightingsRequest` | 204 | `COUNTY_UNKNOWN`, `BIRD_UNKNOWN`, `SIGHTING_DATE_IN_FUTURE` |
+| `DELETE /v1/sightings/{clientId}` | none | 204 | `SIGHTING_NOT_FOUND` |
 
-- A sighting is `SightingUpload(clientId, commonName, countyCode, date)` and nothing else. Coordinates,
-  the time of day and the place name the player typed never leave the phone (ADR 0001); a test in `:api`
-  fails if the type gains a field.
-- `clientId` is made by the app, one per sighting. The server keeps one sighting per id, so sending a
-  batch again after a lost reply counts nothing twice.
-- A sighting belongs to the player, not to a league: it counts in every league the player is in.
+The rules are `Sightings` in `:server` (#36).
+
+- **Nothing else is accepted or stored.** A sighting is `SightingUpload(clientId, commonName, countyCode,
+  date)` and nothing else. Coordinates, the time of day, the place name the player typed and the count
+  never leave the phone (ADR 0001); a test in `:api` fails if the type gains a field. Unlike every other
+  request, an upload with any other key, in a sighting or beside the list, is `INVALID_REQUEST` (400) and
+  stores nothing: an extra field is refused, not dropped. The server keeps no time of its own either: the
+  `sightings` table has no column for when a row was written.
+- **The id.** `clientId` is made by the app, one per sighting: a UUID in its usual text form
+  (`6f1c0d4e-…`), in either case; anything else is `INVALID_REQUEST`. The server keeps one sighting per id
+  for each player. A sighting whose id the player already has changes nothing, whatever its other fields,
+  so sending a batch again after a lost reply counts nothing twice. Of two sightings with one id in one
+  batch, the first is kept. To change a sighting, the app deletes it and sends it again. Two players'
+  ids never meet.
+- **At most 500 a request** (`UploadSightingsRequest.MAX_SIGHTINGS`); 501 or more is `INVALID_REQUEST`.
+  An empty list is 204.
+- **All or none.** Every sighting is checked before any is stored. A refusal stores nothing and gives the
+  first sighting that fails, in the order sent; within one sighting the checks are id, county, bird, date.
+- **County and bird.** The county must be a county of a pack the server holds (`COUNTY_UNKNOWN`). The bird
+  must be named in the chart of some county of some pack it holds (`BIRD_UNKNOWN`), spelled exactly; it
+  need not be in the sighting's own county's chart, so a bird seen out of its range still counts, and an
+  app holding an older pack than the server's is not refused for a bird the new pack moved.
+- **The date** is the day where the player was. A date more than one day after today is
+  `SIGHTING_DATE_IN_FUTURE`, today being the date at UTC+14, the earliest time zone on Earth. A sighting
+  belongs to the player, not to a league, so no one league's time zone applies, and a player anywhere
+  has a date no later than today there; the extra day allows for a phone's clock a little ahead. There is
+  no earliest date.
+- **A date in a round already decided** is stored like any other but does not change that round's result.
+  Deciding rounds is for #37, which must read the sightings once, when the round ends, and keep the result.
+- `DELETE /v1/sightings/{clientId}` removes one of the player's own sightings: the player removed it on the
+  phone. An id the player has no sighting with is `SIGHTING_NOT_FOUND` (404): one never sent, one already
+  deleted, another player's, or text that is not a UUID; the four are not told apart. The app can take a
+  404 to mean the sighting is gone.
+- **Who sees them.** A sighting belongs to the player, not to a league: it counts in every league the
+  player is in. No endpoint gives a player's sightings to anyone, the player included; a league will see
+  only totals (#37).
 
 ## Packs
 

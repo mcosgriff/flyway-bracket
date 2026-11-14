@@ -5,6 +5,8 @@ import io.cosgriff.flywaybracket.server.account.PostgresPlayerStore
 import io.cosgriff.flywaybracket.server.league.Leagues
 import io.cosgriff.flywaybracket.server.league.PostgresLeagueStore
 import io.cosgriff.flywaybracket.server.pack.Packs
+import io.cosgriff.flywaybracket.server.sighting.PostgresSightingStore
+import io.cosgriff.flywaybracket.server.sighting.Sightings
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
@@ -19,10 +21,11 @@ fun main() {
     database.migrate()
     val leagues = Leagues(PostgresLeagueStore(database.dataSource))
     val accounts = Accounts(PostgresPlayerStore(database.dataSource), leagues)
+    val sightings = Sightings(PostgresSightingStore(database.dataSource), packs)
 
     embeddedServer(Netty, port = config.port) {
         monitor.subscribe(ApplicationStopped) { database.close() }
-        module(database, accounts, leagues, packs, ServerVersion.current)
+        module(database, accounts, leagues, packs, sightings, ServerVersion.current)
     }.start(wait = true)
 }
 

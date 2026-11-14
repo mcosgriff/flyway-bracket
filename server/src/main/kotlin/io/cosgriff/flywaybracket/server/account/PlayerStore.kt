@@ -70,9 +70,9 @@ class PostgresPlayerStore(private val dataSource: DataSource) : PlayerStore {
     }
 
     // Deletes the player's row, and with it (ON DELETE CASCADE) their places in leagues, which
-    // Accounts.delete has already left (#32). The issues that give the server picks and sightings must
-    // extend this (#31): delete the player's picks and sightings, and keep their results in a finished
-    // season under no name, as "a former player".
+    // Accounts.delete has already left (#32), and their sightings (#36). The issue that gives the server
+    // picks must extend this (#31): delete the player's picks, and keep their results in a finished season
+    // under no name, as "a former player".
     override fun delete(id: UUID): Boolean = dataSource.connection.use { connection ->
         connection.prepareStatement("DELETE FROM players WHERE id = ?").use { delete ->
             delete.setObject(1, id)

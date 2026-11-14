@@ -55,6 +55,12 @@ enum class ApiErrorCode {
     /** The bird is not one the server knows (a sighting), or not one of the matchup's two (a pick). */
     BIRD_UNKNOWN,
 
+    /** A sighting's date is more than one day after today, wherever on Earth the player is. */
+    SIGHTING_DATE_IN_FUTURE,
+
+    /** The player has no sighting with this id. Another player's sighting is not told apart from none. */
+    SIGHTING_NOT_FOUND,
+
     /** The season has started; picks can no longer change. */
     PICKS_LOCKED,
 

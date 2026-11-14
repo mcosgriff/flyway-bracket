@@ -130,9 +130,10 @@ looking.
 
 So a Cron Trigger (`0 * * * *` in `worker/wrangler.jsonc`) calls the Worker every hour. Its `scheduled`
 handler asks the server for `/v1/health`, which starts the container if it is asleep; the server runs
-`SeasonStartJob` as soon as it starts, then every minute until it sleeps again. A league's date is settled
-at most an hour late, and 45 minutes in a time zone on the quarter hour. Each wake keeps the container up
-for 10 minutes, about four hours a day in all.
+`SeasonStartJob` as soon as it starts, then every minute until it sleeps again. In a time zone a whole
+number of hours from UTC, a league's date is settled as soon as the server has started; in one on the half
+or quarter hour, 30 or 45 minutes late. A read of the league settles it sooner. Each wake keeps the
+container up for 10 minutes, about four hours a day in all when no one is using the app.
 
 ## Packs: not served yet
 

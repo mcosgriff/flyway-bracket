@@ -57,9 +57,9 @@ export default {
   // container runs nothing. Settling fixes a league's field (Saturday 00:00, two days before the start),
   // starts its season and each round (Monday 00:00), and decides a round (Monday 12:00, 12 hours after
   // its Sunday ends): each in the league's own time zone, so at any hour in UTC, and some zones are on the
-  // half or quarter hour. So the cron in wrangler.jsonc runs every hour: a league's date is settled at
-  // most an hour late (45 minutes in the worst case, past a quarter-hour zone), or sooner by a read. Each
-  // wake keeps the container up for `sleepAfter`.
+  // half or quarter hour. So the cron in wrangler.jsonc runs every hour, on the hour: a date is settled
+  // within the server's start-up time of it in a whole-hour zone, 30 or 45 minutes late in a zone on the
+  // half or quarter hour, or sooner by a read. Each wake keeps the container up for `sleepAfter`.
   //
   // The request starts the container if it is asleep and waits for the server to listen; the server runs
   // SeasonStartJob as soon as it has started.

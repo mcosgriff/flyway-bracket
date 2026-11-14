@@ -69,6 +69,9 @@ class OutingViewModelTest {
         db.close()
     }
 
+    /** No packs on the phone. */
+    private fun packs() = PackRepository(File(context.filesDir, "outing_test_no_packs").apply { deleteRecursively() })
+
     private fun outing(endedAt: Instant? = null) = Outing(7, "Test Pond", "US-ZA-003", start, endedAt)
 
     private fun sighting(id: Long, bird: String, count: Int, minutes: Long) =
@@ -149,7 +152,7 @@ class OutingViewModelTest {
     fun `the view model shows the outing in progress and changes it`() = runBlocking {
         val id = outings.start("Test Pond", "US-ZZ-001").id
         outings.addOrBump(id, "Test Warbler")
-        val outing = OutingViewModel(outings, counties, clock)
+        val outing = OutingViewModel(outings, counties, packs(), clock)
         withTimeout(10_000) {
             val shown = outing.state.first { it.sightings.isNotEmpty() }.sightings.single()
             assertEquals(Duration.ofMinutes(42), outing.elapsed.first { it > Duration.ZERO })
@@ -173,7 +176,7 @@ class OutingViewModelTest {
     @Test
     fun `finishing ends the outing and leads to its summary`() = runBlocking {
         val id = outings.start("Test Pond", "US-ZZ-001").id
-        val outing = OutingViewModel(outings, counties, clock)
+        val outing = OutingViewModel(outings, counties, packs(), clock)
         withTimeout(10_000) {
             outing.onFinish()
             assertEquals(OutingExit.Finished(id), outing.exit.first())
@@ -185,7 +188,7 @@ class OutingViewModelTest {
     @Test
     fun `discarding deletes the outing and closes the screen`() = runBlocking {
         outings.start("Test Pond", "US-ZZ-001")
-        val outing = OutingViewModel(outings, counties, clock)
+        val outing = OutingViewModel(outings, counties, packs(), clock)
         withTimeout(10_000) {
             outing.onDiscard()
             assertEquals(OutingExit.Closed, outing.exit.first())
@@ -196,8 +199,44 @@ class OutingViewModelTest {
 
     @Test
     fun `with no outing in progress the screen closes`() = runBlocking {
-        val outing = OutingViewModel(outings, counties, clock)
+        val outing = OutingViewModel(outings, counties, packs(), clock)
         assertEquals(OutingExit.Closed, withTimeout(10_000) { outing.exit.first() })
+    }
+
+    @Test
+    fun `the county picker lists each pack's counties in alphabetical order`() {
+        assertEquals(
+            listOf(
+                StateCounties(
+                    "Testland",
+                    listOf(CountyChoice("XX-TS-002", "East Square"), CountyChoice("XX-TS-003", "Twin Islands"), CountyChoice("XX-TS-001", "West Square")),
+                ),
+            ),
+            countyChoices(listOf(testStatePack())),
+        )
+        assertEquals(emptyList<StateCounties>(), countyChoices(emptyList()))
+    }
+
+    @Test
+    fun `the outing state carries the county's code for the picker`() {
+        assertEquals("US-ZA-003", outingState(outing(), emptyList(), table, zone).countyCode)
+    }
+
+    @Test
+    fun `changing the county moves the outing in progress and lists the installed packs' counties`() = runBlocking {
+        val packs = PackRepository(File(context.filesDir, "outing_county_test_packs").apply { deleteRecursively() })
+        packs.install(StatePackCodec.encode(testStatePack()))
+        val id = outings.start("", "XX-TS-002").id
+        val outing = OutingViewModel(outings, counties, packs, clock)
+        withTimeout(10_000) {
+            val choices = outing.countyChoices.first { it.isNotEmpty() }
+            assertEquals(listOf("East Square", "Twin Islands", "West Square"), choices.single().counties.map { it.name })
+            assertEquals("XX-TS-002", outing.state.first { it.countyCode.isNotEmpty() }.countyCode)
+            outing.onChangeCounty("XX-TS-003")
+            assertEquals("XX-TS-003", outing.state.first { it.countyCode == "XX-TS-003" }.countyCode)
+        }
+        assertEquals(id, outings.inProgress().first()?.id)
+        assertEquals("XX-TS-003", outings.inProgress().first()?.countyCode)
     }
 
     @Test

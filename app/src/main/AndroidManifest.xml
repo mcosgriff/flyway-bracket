@@ -3,6 +3,13 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
+        Approximate location, read once when an outing starts to find its county (#27). Never precise, never
+        in the background, never saved or sent. The page before Android's prompt explains it:
+        ui/home/LocationExplain.kt.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
         No Android auto-backup: outings and sightings stay on this phone until the app has its own sync.
     -->
     <application

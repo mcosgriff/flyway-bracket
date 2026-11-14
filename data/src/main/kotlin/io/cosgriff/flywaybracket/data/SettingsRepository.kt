@@ -2,6 +2,7 @@ package io.cosgriff.flywaybracket.data
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import io.cosgriff.flywaybracket.domain.player.PlayerSettings
@@ -26,6 +27,16 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     /** Stores the eBird region code of the home county (`US-CO-059`) trimmed; `null` or blank clears it. */
     suspend fun setHomeCountyCode(code: String?) = set(HOME_COUNTY_CODE, code)
 
+    /**
+     * Whether the app has asked for the approximate location permission (#27), whatever the answer. It asks
+     * once, the first time an outing is started, after a page that explains why.
+     */
+    fun locationAsked(): Flow<Boolean> = store.data.map { it[LOCATION_ASKED] ?: false }
+
+    suspend fun setLocationAsked() {
+        store.edit { it[LOCATION_ASKED] = true }
+    }
+
     private suspend fun set(key: Preferences.Key<String>, value: String?) {
         val trimmed = value?.trim().orEmpty()
         store.edit { if (trimmed.isEmpty()) it.remove(key) else it[key] = trimmed }
@@ -34,5 +45,6 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     private companion object {
         val DISPLAY_NAME = stringPreferencesKey("display_name")
         val HOME_COUNTY_CODE = stringPreferencesKey("home_county_code")
+        val LOCATION_ASKED = booleanPreferencesKey("location_asked")
     }
 }

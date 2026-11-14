@@ -1,5 +1,6 @@
 package io.cosgriff.flywaybracket.ui.outing
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -76,11 +77,14 @@ import java.time.format.FormatStyle
  * The outing in progress (#26), with the Add sighting sheet over it. Leaving it with Back keeps the outing
  * in progress; Home then offers to continue it.
  *
+ * @param fallback why a new outing is in the home county (#27): the screen says so until the player picks
+ *   a county
  * @param onFinished called with the outing's id once it has ended
  * @param onClosed called once it is discarded, or when there is no outing in progress to show
  */
 @Composable
 fun OutingScreen(
+    fallback: CountyFallback?,
     onBack: () -> Unit,
     onFinished: (Long) -> Unit,
     onClosed: () -> Unit,
@@ -90,6 +94,7 @@ fun OutingScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val elapsed by viewModel.elapsed.collectAsStateWithLifecycle()
     val addState by adding.state.collectAsStateWithLifecycle()
+    val choices by viewModel.countyChoices.collectAsStateWithLifecycle()
     val finished by rememberUpdatedState(onFinished)
     val closed by rememberUpdatedState(onClosed)
     LaunchedEffect(viewModel) {
@@ -101,8 +106,10 @@ fun OutingScreen(
         }
     }
     var sheetOpen by rememberSaveable { mutableStateOf(false) }
+    var pickerOpen by rememberSaveable { mutableStateOf(false) }
+    var notice by rememberSaveable { mutableStateOf(fallback) }
     OutingContent(
-        state = state,
+        state = state.copy(fallback = notice),
         elapsed = elapsed,
         onBack = onBack,
         onRename = viewModel::onRename,
@@ -112,7 +119,19 @@ fun OutingScreen(
         onRemove = viewModel::onRemove,
         onFinish = viewModel::onFinish,
         onDiscard = viewModel::onDiscard,
+        onChangeCounty = { pickerOpen = true },
     )
+    if (pickerOpen) {
+        CountyPickerSheet(
+            states = choices,
+            currentCode = state.countyCode,
+            onPick = { code ->
+                viewModel.onChangeCounty(code)
+                notice = null
+            },
+            onDismiss = { pickerOpen = false },
+        )
+    }
     if (sheetOpen) {
         AddSightingSheet(
             state = addState,
@@ -133,6 +152,7 @@ fun OutingScreen(
  * @param onOneFewer called for a bird seen more than once; at one, the minus button asks, then calls
  *   [onRemove]
  * @param onDiscard called once the player has confirmed
+ * @param onChangeCounty opens the county picker (#27)
  */
 @Composable
 fun OutingContent(
@@ -147,6 +167,7 @@ fun OutingContent(
     onFinish: () -> Unit,
     onDiscard: () -> Unit,
     modifier: Modifier = Modifier,
+    onChangeCounty: () -> Unit = {},
 ) {
     // The id of the sighting the player is being asked about.
     var removing by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -164,6 +185,7 @@ fun OutingContent(
                 elapsed = elapsed,
                 onBack = onBack,
                 onRename = { renaming = true },
+                onChangeCounty = onChangeCounty,
                 onDiscard = { discarding = true },
             )
         },
@@ -174,6 +196,9 @@ fun OutingContent(
             contentPadding = PaddingValues(horizontal = FlywayDimens.space5, vertical = FlywayDimens.space4),
             verticalArrangement = Arrangement.spacedBy(FlywayDimens.space2),
         ) {
+            state.fallback?.let { fallback ->
+                item(key = "fallback") { FallbackNotice(fallback, onChangeCounty) }
+            }
             item(key = "title") {
                 Text(
                     text = stringResource(R.string.outing_sightings_title).toUpperCase(Locale.current),
@@ -233,7 +258,14 @@ fun OutingContent(
 }
 
 @Composable
-private fun Header(state: OutingState, elapsed: Duration, onBack: () -> Unit, onRename: () -> Unit, onDiscard: () -> Unit) {
+private fun Header(
+    state: OutingState,
+    elapsed: Duration,
+    onBack: () -> Unit,
+    onRename: () -> Unit,
+    onChangeCounty: () -> Unit,
+    onDiscard: () -> Unit,
+) {
     val colors = FlywayTheme.colors
     Surface(color = colors.primary, contentColor = colors.onPrimary) {
         Column(
@@ -255,7 +287,7 @@ private fun Header(state: OutingState, elapsed: Duration, onBack: () -> Unit, on
                         .weight(1f)
                         .semantics { heading() },
                 )
-                MoreMenu(onDiscard)
+                MoreMenu(onChangeCounty = onChangeCounty, onDiscard = onDiscard)
             }
             Row(
                 modifier = Modifier.padding(horizontal = FlywayDimens.space3),
@@ -281,13 +313,20 @@ private fun Figure(figure: Int, label: String) {
 }
 
 @Composable
-private fun MoreMenu(onDiscard: () -> Unit) {
+private fun MoreMenu(onChangeCounty: () -> Unit, onDiscard: () -> Unit) {
     var open by rememberSaveable { mutableStateOf(false) }
     Column {
         IconButton(onClick = { open = true }) {
             Icon(painterResource(R.drawable.ic_more), contentDescription = stringResource(R.string.outing_more))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = MaterialTheme.colorScheme.surface) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.outing_change_county), style = MaterialTheme.typography.labelLarge) },
+                onClick = {
+                    open = false
+                    onChangeCounty()
+                },
+            )
             DropdownMenuItem(
                 text = {
                     Text(
@@ -337,6 +376,53 @@ private fun PlaceButton(state: OutingState, onRename: () -> Unit) {
             }
         }
         Icon(painterResource(R.drawable.ic_edit), contentDescription = null, modifier = Modifier.size(FlywayDimens.space4), tint = colors.onPrimaryMuted)
+    }
+}
+
+/**
+ * Says why the outing is in the home county rather than where the phone is, in words and the warning
+ * colours, with the change-county action (#27).
+ */
+@Composable
+private fun FallbackNotice(fallback: CountyFallback, onChangeCounty: () -> Unit) {
+    val colors = FlywayTheme.colors
+    Surface(
+        color = colors.warningContainer,
+        contentColor = colors.onWarningContainer,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(FlywayDimens.border, colors.warningBorder),
+        modifier = Modifier.padding(bottom = FlywayDimens.space2),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = FlywayDimens.space4, end = FlywayDimens.space2, top = FlywayDimens.space3),
+        ) {
+            Text(
+                text = stringResource(R.string.outing_fallback_title),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(end = FlywayDimens.space2),
+            )
+            Text(
+                text = stringResource(
+                    when (fallback) {
+                        CountyFallback.NO_LOCATION -> R.string.outing_fallback_no_location
+                        CountyFallback.OUTSIDE_PACKS -> R.string.outing_fallback_outside_packs
+                    },
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(end = FlywayDimens.space2),
+            )
+            TextButton(
+                onClick = onChangeCounty,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .heightIn(min = FlywayDimens.tapMin),
+                colors = ButtonDefaults.textButtonColors(contentColor = colors.onWarningContainer),
+            ) {
+                Text(stringResource(R.string.outing_change_county), style = MaterialTheme.typography.labelLarge)
+            }
+        }
     }
 }
 
@@ -493,6 +579,9 @@ private val TIME: DateTimeFormatter = DateTimeFormatter.ofLocalizedTime(FormatSt
 // Made-up place, county, birds and times for previews and screenshot tests: no real sighting.
 internal val previewElapsed: Duration = Duration.ofMinutes(42).plusSeconds(18)
 internal val previewOutingEmpty = OutingState(place = "", county = OutingCounty("Lark Hollow", "ZA"))
+
+/** A new outing that fell back to the home county: the phone gave no location in time. */
+internal val previewOutingFallback = previewOutingEmpty.copy(countyCode = "US-ZA-003", fallback = CountyFallback.NO_LOCATION)
 internal val previewOuting = OutingState(
     place = "Sample Pond",
     county = OutingCounty("Lark Hollow", "ZA"),

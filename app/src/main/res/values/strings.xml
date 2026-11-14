@@ -134,6 +134,21 @@
     <string name="home_pack_missing_body_no_region">An outing logs the birds of your home county, and the pack for its state is not on this phone yet. Add it on the Packs screen, then start the outing.</string>
     <string name="home_pack_missing_go">Go to Packs</string>
     <string name="home_pack_missing_cancel">Not now</string>
+    <!-- The start button while a new outing waits for the phone's location. -->
+    <string name="home_finding_county">Finding your county…</string>
+
+    <!-- Location: the page before Android's location prompt, the first time an outing is started -->
+    <string name="location_overline">Before your first outing</string>
+    <string name="location_title">Find the county you\'re in</string>
+    <string name="location_once_title">Once, when an outing starts</string>
+    <string name="location_once_body">The app asks the phone roughly where it is and finds the county. A trip to another county then counts there, not in your home county.</string>
+    <string name="location_approximate_title">Approximate, not precise</string>
+    <string name="location_approximate_body">A county is far larger than the error of the phone\'s approximate location, so the app never asks for your precise location.</string>
+    <string name="location_private_title">Never kept, never sent</string>
+    <string name="location_private_body">Where you are stays on this phone and is forgotten once the county is found. Only the county is saved with the outing.</string>
+    <string name="location_declining">If you say no, outings are in your home county, and you can change an outing\'s county on the Outing screen.</string>
+    <string name="location_not_now">Not now</string>
+    <string name="location_continue">Continue</string>
 
     <!-- Outing -->
     <!-- What a screen reader announces when the outing screen opens. -->
@@ -183,6 +198,16 @@
     </plurals>
     <string name="outing_discard_confirm">Discard</string>
     <string name="outing_discard_keep">Keep outing</string>
+    <string name="outing_change_county">Change county</string>
+    <!-- Why a new outing is in the home county rather than where the phone is. -->
+    <string name="outing_fallback_title">In your home county</string>
+    <string name="outing_fallback_no_location">The phone gave no location in time, so this outing is in your home county.</string>
+    <string name="outing_fallback_outside_packs">Where you are is in no pack on this phone, so this outing is in your home county.</string>
+    <string name="outing_county_picker_title">Change county</string>
+    <string name="outing_county_picker_hint">The counties of the packs on this phone.</string>
+    <string name="outing_county_picker_empty">No packs on this phone. Add one on the Packs screen.</string>
+    <!-- Beside the county the outing is in now. -->
+    <string name="outing_county_picker_current">This outing</string>
 
     <!-- Add sighting -->
     <string name="add_sighting_title">Add sighting</string>

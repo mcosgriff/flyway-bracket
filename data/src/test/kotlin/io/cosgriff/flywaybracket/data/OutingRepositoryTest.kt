@@ -215,6 +215,15 @@ class OutingRepositoryTest {
     }
 
     @Test
+    fun `the outing in progress can move to another county, and a finished one cannot`() = runBlocking {
+        finishedOuting("Test Pond")
+        outings.start("Sample Marsh", "US-ZZ-001")
+        outings.setCounty(" US-ZZ-002 ")
+        assertEquals("US-ZZ-002", outings.inProgress().first()?.countyCode)
+        assertEquals(listOf("US-ZZ-001"), outings.finished().first().map { it.countyCode })
+    }
+
+    @Test
     fun `one outing's log has its sightings in the order first logged, and a missing outing is null`() = runBlocking {
         val pond = finishedOuting("Test Pond", "Test Warbler", "Sample Sparrow")
         val log = outings.log(pond).first()

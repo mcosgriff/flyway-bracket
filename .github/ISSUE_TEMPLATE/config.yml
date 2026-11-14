@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  # There is no user guide yet. Switch this link to the guide when #47 is done.
+  - name: How the game works
+    url: https://github.com/mcosgriff/flyway-bracket#how-the-game-works
+    about: Read the rules of the game. Your question may be answered there.
+  - name: Report a security or privacy problem
+    url: https://github.com/mcosgriff/flyway-bracket/security/advisories/new
+    about: Use this private form. Only the maintainer can read it. Please do not open a public issue.

@@ -1,0 +1,64 @@
+name: Something is broken
+description: The app crashed, froze, or did something it should not do.
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for testing Flyway Bracket.
+
+        Everyone can read what you write here. Please do not include where you live, where you were, your invite code or your account details. If you add a screenshot, check that it does not show them.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Tell us what you saw. A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: What did you do just before it happened? List each step, one per line.
+      placeholder: |
+        1. I opened the app.
+        2. I tapped Bracket.
+        3. The app closed.
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: You will find it in the app under Settings, then About. If you cannot find it, write "not sure".
+      placeholder: "Example: 0.3.1, or not sure"
+    validations:
+      required: true
+  - type: input
+    id: android-version
+    attributes:
+      label: Android version
+      description: On your phone, open Settings, then About phone. If you cannot find it, write "not sure".
+      placeholder: "Example: Android 15"
+    validations:
+      required: true
+  - type: input
+    id: phone-model
+    attributes:
+      label: Phone model
+      placeholder: "Example: Pixel 8"
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before you send
+      options:
+        - label: I have not included my location, my invite code or my account details
+          required: true

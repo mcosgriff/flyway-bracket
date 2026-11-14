@@ -1,0 +1,45 @@
+name: A result looks wrong
+description: The wrong bird won a matchup, or your points look wrong.
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for testing Flyway Bracket.
+
+        Everyone can read what you write here. Please do not post other players' names. Write "another player" instead. Do not include where you live, your invite code or your account details.
+  - type: input
+    id: league
+    attributes:
+      label: League name
+    validations:
+      required: true
+  - type: dropdown
+    id: round
+    attributes:
+      label: Round
+      options:
+        - Round of 64
+        - Round of 32
+        - Round of 16
+        - Quarterfinal
+        - Semifinal
+        - Final
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: birds
+    attributes:
+      label: The two birds
+      description: Name both birds in the matchup.
+      placeholder: "Example: Barn Swallow and Yellow Warbler"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      description: Tell us what the app shows and what you think it should show. Leave out other players' names.
+    validations:
+      required: true

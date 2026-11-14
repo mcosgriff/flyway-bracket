@@ -1,0 +1,45 @@
+// The hosted league server (#16, docs/server/hosting.md): this Worker in front, the Ktor server in one
+// Cloudflare container behind it. `wrangler deploy` builds ../server/Dockerfile (after
+// `./gradlew :server:installDist`), pushes the image to Cloudflare's registry and deploys both.
+// No secret, account id or zone id is in this file: the database values are Worker secrets, and the
+// deploy job passes the account id from a GitHub secret.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "flyway-bracket-server",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+
+  // Only the custom domain: no workers.dev address and no preview URLs, so the server has one name.
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "api.flywaybracket.cosgriff.io", "custom_domain": true }],
+
+  // Every hour, to wake the server so leagues are settled on time (src/index.ts says why hourly).
+  "triggers": { "crons": ["0 * * * *"] },
+
+  "containers": [
+    {
+      "class_name": "FlywayServer",
+      // Built with ../server as its context, where `:server:installDist` leaves build/install/server.
+      "image": "../server/Dockerfile",
+      // 1 GiB of memory and a quarter of a vCPU: enough for one JVM serving the beta.
+      "instance_type": "basic",
+      // One copy only: the rate limiter and SeasonStartJob live in the server's memory (src/index.ts).
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "SERVER", "class_name": "FlywayServer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FlywayServer"] }],
+
+  // The Worker's own log lines, in the dashboard. No invocation logs: they record details of each request,
+  // its full URL among them, and the server's own log keeps no more than a request's status, method and
+  // path (docs/server/running.md, Logs). No request body is ever logged.
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": false
+    }
+  }
+}

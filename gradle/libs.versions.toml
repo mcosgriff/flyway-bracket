@@ -20,7 +20,7 @@ hilt = "2.60.1"
 # AndroidX Hilt: hiltViewModel() for Compose.
 hilt-androidx = "1.4.0"
 
-# The server (:server). None of these is in the app.
+# Ktor: the server (:server), and the app's client to it in :data (`ktor-client-*`, #38).
 ktor = "3.6.1"
 hikari = "7.1.0"
 postgresql = "42.7.14"
@@ -85,6 +85,11 @@ ktor-server-call-logging = { module = "io.ktor:ktor-server-call-logging", versio
 ktor-server-auth = { module = "io.ktor:ktor-server-auth", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
+# The app's client to the server (:data). CIO is Ktor's own engine: no OkHttp, nothing from Google.
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+# Test only: answers the client's requests in memory, so no test needs a server.
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }

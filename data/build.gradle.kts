@@ -59,7 +59,13 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
+    // The league server's client (#38): the messages of :api, sent with Ktor's own CIO engine.
+    api(project(":api"))
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+
     testImplementation(libs.junit)
+    testImplementation(libs.ktor.client.mock)
     // The made-up state pack (testStatePack()).
     testImplementation(testFixtures(project(":domain")))
     testImplementation(libs.room.testing)

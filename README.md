@@ -28,6 +28,13 @@ the server that leagues need.
   an open one.
 - **Seasons.** Two tournaments a year, spring and fall. Each seeds its own field of 64 birds in four
   quarters of 16.
+- **Calendar.** A league's season starts on a Monday and runs six rounds, one a week, Monday through
+  Sunday. A season that starts in January through June is spring; otherwise it is fall. Picks for the
+  whole bracket, all 63 matchups, lock when the first round starts: midnight on the first Monday, in the
+  league's time zone, which is chosen when the league is created. A round is decided after its Sunday
+  ends. A round covers every time bin (four per month) that one of its seven days falls in: a bird is
+  expected for the round when it is expected in any of them, and seeding looks at the bins of all six
+  rounds.
 - **Seeding.** Birds are seeded by how often they are reported in the league members' home counties during
   the season.
 - **Picks.** A right pick scores 1, 2, 4, 8, 16 and 32 points by round. Calling an upset adds the gap

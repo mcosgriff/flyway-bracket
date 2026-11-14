@@ -84,6 +84,17 @@ Add `:baselineprofile` once the screens settle.
   - Expected is yes or no: on at least 3% of the county's checklists (`CountyChart.EXPECTED_FLOOR`).
   - Packs are downloaded by state and judged by county.
   - Pick points double each round, 1 to 32; a called upset adds the seed gap.
+  - A league season has a start date, always a Monday (`SeasonCalendar`). The six rounds are six
+    consecutive weeks, Monday through Sunday; round 1 (`ROUND_OF_64`) is the first week.
+  - Picks for the whole bracket lock when round 1 starts: the first Monday, 00:00 in the league's time
+    zone. A player picks all 63 matchups before that.
+  - A round is decided after its Sunday ends.
+  - A league has one time zone, chosen when it is created; all its dates are in that zone. `:domain`
+    works in `LocalDate`.
+  - The season is `SPRING` when the start date is in January through June, else `FALL`.
+  - A round covers every `TimeBin` that any of its seven days falls in. A bird is expected for a round
+    when it is expected in any bin the round covers.
+  - Seeding looks at every bin the six rounds cover.
 - **Round names are neutral** (`ROUND_OF_16`, `QUARTERFINAL`, `SEMIFINAL`, `FINAL`). "Sweet 16",
   "Elite 8" and "Final Four" are NCAA trademarks: not in code, strings or store text.
 - **No Android auto-backup** (`allowBackup=false`, `fullBackupContent=false`, data extraction rules exclude

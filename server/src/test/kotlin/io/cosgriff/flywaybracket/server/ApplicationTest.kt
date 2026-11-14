@@ -10,6 +10,7 @@ import io.cosgriff.flywaybracket.server.account.Accounts
 import io.cosgriff.flywaybracket.server.account.InMemoryPlayerStore
 import io.cosgriff.flywaybracket.server.league.InMemoryLeagueStore
 import io.cosgriff.flywaybracket.server.league.Leagues
+import io.cosgriff.flywaybracket.server.pack.noPacks
 import io.ktor.client.request.basicAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -38,7 +39,7 @@ class ApplicationTest {
         application {
             val players = InMemoryPlayerStore()
             val leagues = Leagues(InMemoryLeagueStore(players))
-            module(database = { databaseAnswers }, accounts = Accounts(players, leagues), leagues = leagues, version = "1.2.3")
+            module(database = { databaseAnswers }, accounts = Accounts(players, leagues), leagues = leagues, packs = noPacks(), version = "1.2.3")
             routing {
                 post(READS_A_BODY) {
                     call.receive<UpdateProfileRequest>()

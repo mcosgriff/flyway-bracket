@@ -7,6 +7,7 @@ import io.cosgriff.flywaybracket.server.account.Accounts
 import io.cosgriff.flywaybracket.server.account.PostgresPlayerStore
 import io.cosgriff.flywaybracket.server.league.Leagues
 import io.cosgriff.flywaybracket.server.league.PostgresLeagueStore
+import io.cosgriff.flywaybracket.server.pack.noPacks
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.server.testing.testApplication
@@ -113,7 +114,7 @@ class DatabaseTest {
     @Test
     fun `health says the database answers`() = testApplication {
         val leagues = Leagues(PostgresLeagueStore(database.dataSource))
-        application { module(database, Accounts(PostgresPlayerStore(database.dataSource), leagues), leagues, version = "1.2.3") }
+        application { module(database, Accounts(PostgresPlayerStore(database.dataSource), leagues), leagues, noPacks(), version = "1.2.3") }
 
         val health = ApiJson.decodeFromString<HealthResponse>(client.get(ApiPaths.HEALTH).bodyAsText())
 

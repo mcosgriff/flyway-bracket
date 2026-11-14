@@ -22,9 +22,15 @@ git config core.hooksPath .githooks
 | Command | What it runs |
 |---|---|
 | `./gradlew :domain:test` | The game rules: pure Kotlin, fast. Run it often. |
-| `./gradlew build` | Everything: unit tests and lint. Lint fails on a warning. |
+| `./gradlew build` | Everything: unit tests, screenshot and accessibility tests, lint. Lint fails on a warning. |
+| `./gradlew :app:recordRoborazziDebug` | Re-records the reference screenshots in `app/src/test/screenshots/`. Look at every image it changes before committing. |
+| `./gradlew koverHtmlReportCoverage` | Test coverage of `:domain` and `:app`, in `build/reports/kover/htmlCoverage/`. |
 
-Screenshot and accessibility tests are planned and not set up yet.
+Every screen's `…Content` composable is drawn under Robolectric in light and dark (`shoot` in
+`app/src/test/java/io/cosgriff/flywaybracket/ui/screens/Screenshots.kt`), checked with Google's
+Accessibility Test Framework (a warning fails), and compared pixel for pixel with its reference. On a
+mismatch, CI uploads the new image and the difference as the `screenshot-differences` artifact. Record
+references on Linux, as CI runs: text is drawn slightly differently on other systems.
 
 ## Bird data
 
@@ -35,7 +41,8 @@ figures (`domain/src/test/.../Charts.kt`). Put local downloads in `packs-local/`
 
 A library must carry no trackers; CI scans the APK with Exodus Privacy and fails on one, or on a
 permission that isn't in `.github/privacy/permissions.txt`. Check the dependency tree of any Google or
-Firebase library before adding it.
+Firebase library before adding it. A pull request also fails if it adds a dependency with a known
+vulnerability, or with a licence outside the permissive list in `.github/dependency-review-config.yml`.
 
 ## Wording and translations
 
@@ -47,7 +54,7 @@ All text the app shows is in `app/src/main/res/values/strings.xml`. A new langua
 - Work on a branch named `<type>/<topic>` (`feat/outing-flow`, `fix/seed-order`), never on `main`.
 - Pull requests are squash-merged, so the title becomes the commit on `main`. It must be a
   [Conventional Commit](https://www.conventionalcommits.org/) (`fix:`, `feat:`, `docs:`, …);
-  `pr-title.yml` checks it.
+  `release-please` builds the version and changelog from them, and `pr-title.yml` checks it.
 - `./gradlew build` must be green.
 - A change people would notice updates `README.md` in the same pull request.
 - Test data is made up: no real personal data and no real bird figures in the repo.

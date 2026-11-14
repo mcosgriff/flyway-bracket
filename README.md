@@ -16,7 +16,8 @@ What exists:
 - The game rules in `:domain`, unit-tested: time bins, county bar charts, which birds are expected and
   which are migrants, seeding, matchup decisions and pick scoring.
 - The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen with its empty state.
-  The other screens are placeholders.
+  The other screens are placeholders. Every screen is screenshot-tested in light and dark and checked
+  for accessibility (touch targets, contrast, labels) on each build.
 
 What does not exist yet: bird packs on the phone, outings and sightings, the bracket screens, leagues, and
 the server that leagues need.

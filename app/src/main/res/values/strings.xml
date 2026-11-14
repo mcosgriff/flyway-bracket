@@ -126,6 +126,97 @@
     <!-- Where a pack's figures came from, in the words the pack file gives. -->
     <string name="packs_source">Source: %1$s</string>
 
+    <!-- Home: starting an outing -->
+    <string name="home_continue_outing">Continue outing</string>
+    <string name="home_pack_missing_title">Add a bird pack first</string>
+    <!-- The home county and its state's abbreviation: "Jefferson Co., CO". -->
+    <string name="home_pack_missing_body">An outing logs the birds of %1$s Co., %2$s, and the pack for its state is not on this phone yet. Add it on the Packs screen, then start the outing.</string>
+    <string name="home_pack_missing_body_no_region">An outing logs the birds of your home county, and the pack for its state is not on this phone yet. Add it on the Packs screen, then start the outing.</string>
+    <string name="home_pack_missing_go">Go to Packs</string>
+    <string name="home_pack_missing_cancel">Not now</string>
+
     <!-- Outing -->
+    <!-- What a screen reader announces when the outing screen opens. -->
     <string name="outing_title">Outing</string>
+    <string name="outing_overline">Outing in progress</string>
+    <!-- Follows the number of species seen so far. -->
+    <plurals name="outing_species_label">
+        <item quantity="one">species</item>
+        <item quantity="other">species</item>
+    </plurals>
+    <!-- Follows the number of birds counted so far. -->
+    <plurals name="outing_birds_label">
+        <item quantity="one">bird</item>
+        <item quantity="other">birds</item>
+    </plurals>
+    <!-- The place name and the county: "Two Ponds · Jefferson Co., CO". -->
+    <string name="outing_place_county">%1$s · %2$s Co., %3$s</string>
+    <!-- The county alone, when the place has no name: "Jefferson Co., CO". -->
+    <string name="outing_county">%1$s Co., %2$s</string>
+    <string name="outing_place_unnamed">Add a place name</string>
+    <!-- What a screen reader says the place button does. -->
+    <string name="outing_place_edit">Change the place name</string>
+    <string name="outing_more">More options</string>
+    <string name="outing_discard">Discard outing</string>
+    <string name="outing_sightings_title">Sightings</string>
+    <string name="outing_sightings_empty">No birds yet. Tap Add sighting each time you see a new one.</string>
+    <!-- How many of a bird were seen: "× 6". -->
+    <string name="outing_count">× %1$d</string>
+    <!-- What a screen reader calls the buttons beside a bird's count. -->
+    <string name="outing_one_more">One more %1$s</string>
+    <string name="outing_one_fewer">One fewer %1$s</string>
+    <string name="outing_remove_named">Remove %1$s</string>
+    <string name="outing_add_sighting">Add sighting</string>
+    <string name="outing_finish">Finish</string>
+    <string name="outing_rename_title">Place name</string>
+    <string name="outing_rename_label">Place name</string>
+    <string name="outing_rename_hint">Your own words, such as the park or the trail. Leave it empty if you like.</string>
+    <string name="outing_rename_save">Save</string>
+    <string name="outing_cancel">Cancel</string>
+    <string name="outing_remove_title">Remove %1$s?</string>
+    <string name="outing_remove_body">%1$s comes off this outing. You can add it again.</string>
+    <string name="outing_remove">Remove</string>
+    <string name="outing_discard_title">Discard this outing?</string>
+    <plurals name="outing_discard_body">
+        <item quantity="one">The outing and its %d sighting are deleted. This cannot be undone.</item>
+        <item quantity="other">The outing and its %d sightings are deleted. This cannot be undone.</item>
+    </plurals>
+    <string name="outing_discard_confirm">Discard</string>
+    <string name="outing_discard_keep">Keep outing</string>
+
+    <!-- Add sighting -->
+    <string name="add_sighting_title">Add sighting</string>
+    <string name="add_sighting_search_label">Bird</string>
+    <!-- The county and its state's abbreviation: "Expected in Jefferson Co., CO this week". -->
+    <string name="add_sighting_expected_title">Expected in %1$s Co., %2$s this week</string>
+    <string name="add_sighting_expected_title_no_county">Expected here this week</string>
+    <string name="add_sighting_others_title">Other birds in the pack</string>
+    <!-- The mark on a bird that is in the county's pack but not expected there this week. -->
+    <string name="add_sighting_not_expected">Not expected this week</string>
+    <!-- On a bird already on this outing: "Logged × 6". -->
+    <string name="add_sighting_logged">Logged × %1$d</string>
+    <string name="add_sighting_no_match">No bird in the pack matches “%1$s”.</string>
+    <string name="add_sighting_no_pack">The pack for this county is not on this phone, so there are no birds to choose from. Add it on the Packs screen.</string>
+
+    <!-- Outing summary -->
+    <string name="summary_overline">Outing complete</string>
+    <!-- The title of an outing the player gave no place name. -->
+    <string name="summary_unnamed">Unnamed place</string>
+    <!-- The day, the start and end times, and how long it lasted: "Apr 18, 2027 · 6:58 AM to 8:10 AM · 1 h 12 min". -->
+    <string name="summary_when">%1$s · %2$s to %3$s · %4$s</string>
+    <!-- Follows the number of species. -->
+    <plurals name="summary_species_label">
+        <item quantity="one">species</item>
+        <item quantity="other">species</item>
+    </plurals>
+    <!-- Follows the number of birds. -->
+    <plurals name="summary_birds_label">
+        <item quantity="one">bird counted</item>
+        <item quantity="other">birds counted</item>
+    </plurals>
+    <string name="summary_birds_title">Birds seen</string>
+    <!-- How many of a bird were seen: "× 6". -->
+    <string name="summary_count">× %1$d</string>
+    <string name="summary_empty">No birds were logged on this outing.</string>
+    <string name="summary_done">Done</string>
 </resources>

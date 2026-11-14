@@ -1,5 +1,8 @@
 package io.cosgriff.flywaybracket.server.account
 
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 import javax.sql.DataSource
 
@@ -23,8 +26,27 @@ interface PlayerStore {
      */
     fun update(id: UUID, displayName: String?, homeCounty: String?): Boolean
 
-    /** @return false when there was no such player */
+    /**
+     * Deletes the player and, in the same step, lists their id as deleted, with the time, unless it is
+     * listed already: a list kept so that a restore from a backup can be followed by deleting them again
+     * (docs/server/backups.md). Nothing else about the player is kept.
+     *
+     * @return false when there was no such player
+     */
     fun delete(id: UUID): Boolean
+
+    /**
+     * The ids listed as deleted that still name a player. None, unless the database was restored from a
+     * backup taken before they were deleted and the list was then copied in.
+     */
+    fun deletedButPresent(): List<UUID>
+
+    /**
+     * Forgets the ids listed as deleted before [cutoff].
+     *
+     * @return how many were forgotten
+     */
+    fun forgetDeletedBefore(cutoff: Instant): Int
 }
 
 class PostgresPlayerStore(private val dataSource: DataSource) : PlayerStore {
@@ -73,10 +95,38 @@ class PostgresPlayerStore(private val dataSource: DataSource) : PlayerStore {
     // Accounts.delete has already left (#32), and their sightings (#36). The issue that gives the server
     // picks must extend this (#31): delete the player's picks, and keep their results in a finished season
     // under no name, as "a former player".
+    // One statement, so the row cannot go without its id being listed. An id listed already, as after a
+    // restore, keeps the time it was first deleted.
     override fun delete(id: UUID): Boolean = dataSource.connection.use { connection ->
-        connection.prepareStatement("DELETE FROM players WHERE id = ?").use { delete ->
+        connection.prepareStatement(
+            """
+            WITH gone AS (DELETE FROM players WHERE id = ? RETURNING id),
+            listed AS (INSERT INTO deleted_players (player_id) SELECT id FROM gone ON CONFLICT (player_id) DO NOTHING)
+            SELECT count(*) FROM gone
+            """.trimIndent(),
+        ).use { delete ->
             delete.setObject(1, id)
-            delete.executeUpdate() == 1
+            delete.executeQuery().use { row ->
+                row.next()
+                row.getInt(1) == 1
+            }
+        }
+    }
+
+    override fun deletedButPresent(): List<UUID> = dataSource.connection.use { connection ->
+        connection.prepareStatement(
+            "SELECT d.player_id FROM deleted_players d JOIN players p ON p.id = d.player_id ORDER BY d.player_id",
+        ).use { select ->
+            select.executeQuery().use { rows ->
+                buildList { while (rows.next()) add(rows.getObject(1, UUID::class.java)) }
+            }
+        }
+    }
+
+    override fun forgetDeletedBefore(cutoff: Instant): Int = dataSource.connection.use { connection ->
+        connection.prepareStatement("DELETE FROM deleted_players WHERE deleted_at < ?").use { delete ->
+            delete.setObject(1, OffsetDateTime.ofInstant(cutoff, ZoneOffset.UTC))
+            delete.executeUpdate()
         }
     }
 }

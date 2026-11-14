@@ -22,6 +22,8 @@ import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Test
 import org.testcontainers.postgresql.PostgreSQLContainer
+import java.time.Instant
+import java.time.OffsetDateTime
 import java.util.UUID
 
 /**
@@ -189,6 +191,66 @@ class DatabaseTest {
         }
     }
 
+    /** ADR 0001: a deleted account's id and when, and nothing else about it. */
+    @Test
+    fun `the seventh migration makes the deleted players table, with only an id and a time`() {
+        assertEquals(
+            mapOf(
+                "player_id" to ("uuid" to "NO"),
+                "deleted_at" to ("timestamp with time zone" to "NO"),
+            ),
+            columns("deleted_players"),
+        )
+    }
+
+    /** When [id] is listed as deleted; null when it is not. */
+    private fun deletedAt(id: UUID): OffsetDateTime? = database.dataSource.connection.use { connection ->
+        connection.prepareStatement("SELECT deleted_at FROM deleted_players WHERE player_id = ?").use { select ->
+            select.setObject(1, id)
+            select.executeQuery().use { row -> if (row.next()) row.getObject(1, OffsetDateTime::class.java) else null }
+        }
+    }
+
+    @Test
+    fun `deleting a player lists their id, and deleting them again after a restore keeps the first time`() {
+        val store = PostgresPlayerStore(database.dataSource)
+        val id = UUID.randomUUID()
+        store.create(id, "made-up-hash")
+
+        assertTrue(store.delete(id))
+        val first = checkNotNull(deletedAt(id))
+        assertFalse(store.delete(id))
+
+        // As a restore from a backup taken before the deletion brings the row back.
+        store.create(id, "made-up-hash")
+        assertEquals(listOf(id), store.deletedButPresent().filter { it == id })
+        assertTrue(store.delete(id))
+
+        assertNull(store.profile(id))
+        assertEquals(first, deletedAt(id))
+        assertEquals(emptyList<UUID>(), store.deletedButPresent().filter { it == id })
+    }
+
+    @Test
+    fun `the store forgets ids listed before the cutoff, and only those`() {
+        val older = UUID.randomUUID()
+        val newer = UUID.randomUUID()
+        database.dataSource.connection.use { connection ->
+            mapOf(older to "2000-01-01T00:00:00Z", newer to "2000-12-01T00:00:00Z").forEach { (id, at) ->
+                connection.prepareStatement("INSERT INTO deleted_players (player_id, deleted_at) VALUES (?, ?)").use { insert ->
+                    insert.setObject(1, id)
+                    insert.setObject(2, OffsetDateTime.parse(at))
+                    insert.executeUpdate()
+                }
+            }
+        }
+
+        assertEquals(1, PostgresPlayerStore(database.dataSource).forgetDeletedBefore(Instant.parse("2000-06-01T00:00:00Z")))
+
+        assertNull(deletedAt(older))
+        assertNotNull(deletedAt(newer))
+    }
+
     @Test
     fun `the first migration makes the players table`() {
         val columns = columns("players")
@@ -262,7 +324,7 @@ class DatabaseTest {
         fun startPostgres() {
             postgres.start()
             database = Database.connect(postgres.jdbcUrl, postgres.username, postgres.password)
-            assertEquals(6, database.migrate())
+            assertEquals(7, database.migrate())
         }
 
         @AfterClass

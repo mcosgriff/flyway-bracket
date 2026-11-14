@@ -1,0 +1,11 @@
+{
+  "name": "flyway-bracket-site-checks",
+  "description": "The accessibility check for the user guide. The site itself is built with pandoc and uses no JavaScript.",
+  "private": true,
+  "scripts": {
+    "a11y": "pa11y-ci --config .pa11yci.json 'build/*.html'"
+  },
+  "devDependencies": {
+    "pa11y-ci": "5.0.0"
+  }
+}

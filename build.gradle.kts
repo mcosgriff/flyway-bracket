@@ -18,10 +18,11 @@ subprojects {
     }
 }
 
-// Test coverage (Codecov): `./gradlew koverXmlReportCoverage` runs the unit tests of :domain, :data and
-// :app and merges what they cover into one report.
+// Test coverage (Codecov): `./gradlew koverXmlReportCoverage` runs the unit tests of :domain, :api,
+// :data and :app and merges what they cover into one report.
 dependencies {
     kover(project(":domain"))
+    kover(project(":api"))
     kover(project(":data"))
     kover(project(":app"))
 }
@@ -48,6 +49,16 @@ project(":domain") {
         currentProject {
             // Test helpers shared with other modules are not code to cover.
             sources { excludedSourceSets.add("testFixtures") }
+            createVariant("coverage") { add("jvm") }
+        }
+    }
+}
+
+// The same for :api, the other plain Kotlin module.
+project(":api") {
+    apply(plugin = "org.jetbrains.kotlinx.kover")
+    extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
+        currentProject {
             createVariant("coverage") { add("jvm") }
         }
     }

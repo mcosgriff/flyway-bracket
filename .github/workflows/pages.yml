@@ -1,0 +1,103 @@
+# Builds the user guide (site/) and, on main, publishes it to GitHub Pages.
+# A pull request that touches the site gets the build and the checks, never the deploy.
+# Action versions are pinned to commit SHAs; Dependabot keeps them current.
+#
+# One-time setup by the owner: Settings, Pages, "Build and deployment", Source: "GitHub Actions".
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      # Copied into the site at build time: the screenshots, the font and its licence.
+      - 'app/src/test/screenshots/**'
+      - 'app/src/main/res/font/inter.ttf'
+      - 'app/src/main/assets/licences/inter-OFL.txt'
+      # check.py holds the site's colors to the app's tokens.
+      - 'app/src/main/java/io/cosgriff/flywaybracket/ui/theme/Color.kt'
+      - '.github/workflows/pages.yml'
+  pull_request:
+    # The same list as for a push.
+    paths:
+      - 'site/**'
+      # Copied into the site at build time: the screenshots, the font and its licence.
+      - 'app/src/test/screenshots/**'
+      - 'app/src/main/res/font/inter.ttf'
+      - 'app/src/main/assets/licences/inter-OFL.txt'
+      # check.py holds the site's colors to the app's tokens.
+      - 'app/src/main/java/io/cosgriff/flywaybracket/ui/theme/Color.kt'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  # A deploy in progress is left to finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PANDOC_VERSION: '3.13'
+  # sha256 of pandoc-3.13-1-amd64.deb, from the release's asset list on github.com/jgm/pandoc.
+  PANDOC_SHA256: 7e3736f255090296ca5d1a14291a76b9b3c43cd385011b1621a4d0c16091a70f
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The site generator. One pinned release, checked against its published sha256.
+      - name: Install pandoc
+        run: |
+          deb="pandoc-${PANDOC_VERSION}-1-amd64.deb"
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$deb" \
+            "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/$deb"
+          echo "${PANDOC_SHA256}  $RUNNER_TEMP/$deb" | sha256sum --check
+          sudo dpkg --install "$RUNNER_TEMP/$deb"
+
+      - name: Build the site
+        run: site/build.sh
+
+      # Broken links and anchors, anything loaded from another host, the markup an accessible page
+      # needs, the contrast of each color pair in light and dark, and colors that differ from Color.kt.
+      - name: Link, third-party request and markup checks
+        run: python3 site/check.py
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      # pa11y opens each built page in headless Chrome and runs axe and HTML_CodeSniffer on it (WCAG 2 AA).
+      - name: Accessibility check
+        working-directory: site
+        run: |
+          npm ci
+          npm run a11y
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: github.event_name != 'pull_request'
+        with:
+          path: site/build
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      # Publish to Pages.
+      pages: write
+      # Pages checks that the deployment comes from this workflow.
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

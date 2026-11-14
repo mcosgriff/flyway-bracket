@@ -7,6 +7,9 @@ A bird-watching bracket game for Android. Each migration season, 64 migrating bi
 bracket. Players in a league pick winners, then go outside and log the birds they see. A matchup is won by
 the bird that more of the league found.
 
+New here and want to play, not read code? Read the
+[user guide](https://mcosgriff.github.io/flyway-bracket/).
+
 ## Status
 
 Early development. Nothing is released.
@@ -22,6 +25,9 @@ What exists:
 - The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen with its empty state.
   The other screens are placeholders. Every screen is screenshot-tested in light and dark and checked
   for accessibility (touch targets, contrast, labels) on each build.
+
+- The [user guide](https://mcosgriff.github.io/flyway-bracket/), a small website built from `site/` and
+  served by GitHub Pages. Its pages about things the app cannot do yet are marked "Coming in the beta".
 
 What does not exist yet: bird packs on the phone, outings and sightings, the bracket screens, leagues, and
 the server that leagues need.

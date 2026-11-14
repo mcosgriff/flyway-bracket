@@ -24,11 +24,65 @@ class PacksContentTest {
     @get:Rule val compose = createComposeRule()
 
     private val removed = mutableListOf<String>()
+    private val downloaded = mutableListOf<String>()
+    private var askedForAccount = false
 
-    private fun show(state: PacksState) = compose.setContent {
+    private fun show(state: PacksState, onAddFile: (() -> Unit)? = null) = compose.setContent {
         FlywayTheme(darkTheme = false) {
-            PacksContent(state, onNavigate = {}, onAddPack = {}, onRemove = { removed += it })
+            PacksContent(
+                state,
+                onNavigate = {},
+                onRemove = { removed += it },
+                onDownload = { downloaded += it },
+                onGetAccount = { askedForAccount = true },
+                onAddFile = onAddFile,
+            )
         }
+    }
+
+    @Test
+    fun `a pack on the server is downloaded from its own button`() {
+        show(previewServerList)
+
+        compose.onNodeWithContentDescription("Download Dogwood").performClick()
+
+        assertEquals(listOf("US-ZD"), downloaded)
+    }
+
+    @Test
+    fun `an update is downloaded from its own button, and says so in words`() {
+        show(previewUpdateAvailable)
+
+        // With the size of the server's file, in the phone's units.
+        compose.onNodeWithText("Update available · ", substring = true).assertExists()
+        compose.onNodeWithContentDescription("Update Alder").performClick()
+
+        assertEquals(listOf("US-ZA"), downloaded)
+    }
+
+    @Test
+    fun `with no account, Get packs asks for the consent page`() {
+        show(previewNoPacks)
+
+        compose.onNodeWithText("Get packs").performClick()
+
+        assertEquals(true, askedForAccount)
+    }
+
+    @Test
+    fun `the file picker shows only when the build gives it`() {
+        show(previewNoPacks)
+        compose.onNodeWithText("Add a pack file").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the file picker opens from its button in a debug build`() {
+        var opened = false
+        show(previewNoPacks, onAddFile = { opened = true })
+
+        compose.onNodeWithText("Add a pack file").performClick()
+
+        assertEquals(true, opened)
     }
 
     @Test

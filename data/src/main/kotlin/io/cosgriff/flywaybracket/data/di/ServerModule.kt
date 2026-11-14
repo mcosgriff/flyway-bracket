@@ -17,14 +17,23 @@ import io.cosgriff.flywaybracket.data.account.keystoreKey
 import io.cosgriff.flywaybracket.data.db.BracketDao
 import io.cosgriff.flywaybracket.data.db.LeagueDao
 import io.cosgriff.flywaybracket.data.db.OutingDao
+import io.cosgriff.flywaybracket.data.db.SyncDao
 import io.cosgriff.flywaybracket.data.server.ServerClient
 import io.cosgriff.flywaybracket.data.server.serverEngine
 import io.cosgriff.flywaybracket.data.server.serverHttpClient
+import io.cosgriff.flywaybracket.data.sync.SightingSync
+import io.cosgriff.flywaybracket.data.sync.SyncScheduler
+import io.cosgriff.flywaybracket.data.sync.SyncWorkerFactory
+import io.cosgriff.flywaybracket.data.sync.WorkSyncScheduler
 import java.io.File
 import java.time.Clock
+import javax.inject.Provider
 import javax.inject.Singleton
 
-/** The league server's client, the account kept on the phone (#38), and what is fetched with it (#40, #41). */
+/**
+ * The league server's client, the account kept on the phone (#38), what is fetched with it (#40, #41), and the
+ * background sync of sightings and results (#43).
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object ServerModule {
@@ -49,6 +58,18 @@ object ServerModule {
     @Provides @Singleton
     fun leagueRepository(server: ServerClient, accounts: AccountRepository, leagues: LeagueDao, clock: Clock): LeagueRepository =
         LeagueRepository(server, accounts, leagues, clock)
+
+    @Provides @Singleton
+    fun sightingSync(server: ServerClient, accounts: AccountRepository, brackets: BracketRepository, sync: SyncDao, clock: Clock): SightingSync =
+        SightingSync(server, accounts, brackets, sync, clock)
+
+    /** Enqueuing work makes no call: a run with no account sends nothing (#43). */
+    @Provides @Singleton
+    fun syncScheduler(@ApplicationContext context: Context): SyncScheduler = WorkSyncScheduler(context)
+
+    @Provides @Singleton
+    fun syncWorkerFactory(sync: Provider<SightingSync>, scheduler: Provider<SyncScheduler>): SyncWorkerFactory =
+        SyncWorkerFactory(sync, scheduler)
 
     private const val KEY_ALIAS = "flyway_account"
 }

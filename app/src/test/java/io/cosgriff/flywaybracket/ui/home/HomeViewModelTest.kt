@@ -16,9 +16,13 @@ import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
 import io.cosgriff.flywaybracket.data.account.AccountStore
 import io.cosgriff.flywaybracket.data.account.StoredAccount
-import io.cosgriff.flywaybracket.data.db.FlywayDatabase
+import io.cosgriff.flywaybracket.data.db.BracketEntity
+import io.cosgriff.flywaybracket.data.db.SyncStateEntity
 import io.cosgriff.flywaybracket.data.server.ServerClient
 import io.cosgriff.flywaybracket.data.server.serverHttpClient
+import io.cosgriff.flywaybracket.data.sync.SightingSync
+import io.cosgriff.flywaybracket.data.sync.SyncScheduler
+import io.cosgriff.flywaybracket.data.db.FlywayDatabase
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.domain.bracket.Season
 import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendar
@@ -32,7 +36,9 @@ import io.cosgriff.flywaybracket.domain.pack.StatePackCodec
 import io.cosgriff.flywaybracket.domain.pack.testStatePack
 import io.cosgriff.flywaybracket.domain.place.CountyTableParser
 import io.cosgriff.flywaybracket.ui.FakeCountyLocator
+import io.cosgriff.flywaybracket.ui.FakePackServer
 import io.cosgriff.flywaybracket.ui.outing.CountyFallback
+import io.ktor.client.engine.mock.MockEngine
 import java.io.File
 import java.time.Clock
 import java.time.Duration
@@ -52,7 +58,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
-import io.ktor.client.engine.mock.MockEngine
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -213,8 +218,24 @@ class HomeViewModelTest {
             val inProgress = outings.start("Sample Marsh", "US-ZZ-001")
             outings.addOrBump(inProgress.id, "Made-up Heron")
 
+            val packs = PackRepository(File(context.filesDir, "home_test_packs"))
+            val server = FakePackServer(packs, settings, scope, account = false)
             val state = withTimeout(10_000) {
-                homeViewModel(db, outings, settings, counties, PackRepository(File(context.filesDir, "home_test_packs")), FakeCountyLocator(), clock)
+                HomeViewModel(
+                    outings,
+                    settings,
+                    counties,
+                    packs,
+                    FakeCountyLocator(),
+                    clock,
+                    server.downloads,
+                    server.accounts,
+                    { false },
+                    sync(db, settings, clock, account = false),
+                    RecordingScheduler(),
+                    leagues(db, settings, clock),
+                    brackets(db, settings, clock),
+                )
                     .state.first { it.recentOutings.isNotEmpty() }
             }
 
@@ -224,44 +245,115 @@ class HomeViewModelTest {
             assertEquals(listOf(OutingRow(finished.id, "Test Pond", today, Duration.ZERO, species = 2)), state.recentOutings)
             assertTrue(state.outingInProgress)
         } finally {
+            stopViewModels()
             scope.cancel()
             db.close()
         }
     }
 
     /**
-     * Home's view model with no account on the phone: its league and bracket send nothing, and a call to the
-     * server fails the test (ADR 0001).
+     * Lets the view models' figures stop, as they do [HomeViewModel.STOP_AFTER_MILLIS] after Home is left, so
+     * none reads the database once it is closed.
      */
-    private fun homeViewModel(
-        db: FlywayDatabase,
-        outings: OutingRepository,
-        settings: SettingsRepository,
-        counties: BundledCounties,
-        packs: PackRepository,
-        locator: FakeCountyLocator,
-        clock: Clock,
-    ): HomeViewModel {
-        val server = ServerClient(serverHttpClient(MockEngine { throw AssertionError("Home sent a request with no account") }), "https://server.example")
-        val accounts = AccountRepository(server, NoAccount, settings)
-        return HomeViewModel(
-            outings,
-            settings,
-            counties,
-            packs,
-            locator,
-            clock,
-            LeagueRepository(server, accounts, db.leagues(), clock),
-            BracketRepository(server, accounts, db.brackets(), db.outings(), clock),
-        )
+    private fun stopViewModels() {
+        scheduler.advanceTimeBy(HomeViewModel.STOP_AFTER_MILLIS + 1)
+        scheduler.runCurrent()
     }
 
-    private object NoAccount : AccountStore {
-        override suspend fun read(): StoredAccount? = null
+    /** Records what Home asks of the background sync (#43). */
+    private class RecordingScheduler : SyncScheduler {
+        var syncedNow = 0
 
-        override suspend fun write(account: StoredAccount) = Unit
+        override fun sendSoon() = Unit
 
-        override suspend fun clear() = Unit
+        override fun syncNow() {
+            syncedNow++
+        }
+
+        override fun keepRefreshing(seasonRunning: Boolean) = Unit
+    }
+
+    private class MemoryAccountStore(var account: StoredAccount?) : AccountStore {
+        override suspend fun read() = account
+
+        override suspend fun write(account: StoredAccount) {
+            this.account = account
+        }
+
+        override suspend fun clear() {
+            account = null
+        }
+    }
+
+    /** A server no test reaches: with no account, Home's league and bracket send nothing (ADR 0001). */
+    private val unreached = ServerClient(serverHttpClient(MockEngine { error("Home sent a request with no account") }), "https://server.example")
+
+    private fun noAccount(settings: SettingsRepository) = AccountRepository(unreached, MemoryAccountStore(null), settings)
+
+    /** The league kept on the phone, with no account: Home reads it and sends nothing (#40). */
+    private fun leagues(db: FlywayDatabase, settings: SettingsRepository, clock: Clock) =
+        LeagueRepository(unreached, noAccount(settings), db.leagues(), clock)
+
+    private fun brackets(db: FlywayDatabase, settings: SettingsRepository, clock: Clock) =
+        BracketRepository(unreached, noAccount(settings), db.brackets(), db.outings(), clock)
+
+    /** The background sync over [db], with a server that is never reached: these tests make no call. */
+    private fun sync(db: FlywayDatabase, settings: SettingsRepository, clock: Clock, account: Boolean): SightingSync {
+        val server = ServerClient(serverHttpClient(MockEngine { error("no call is expected") }), "https://server.example")
+        val store = MemoryAccountStore(StoredAccount("00000000-0000-4000-8000-000000000001", "test-secret-not-real").takeIf { account })
+        val accounts = AccountRepository(server, store, settings)
+        return SightingSync(server, accounts, BracketRepository(server, accounts, db.brackets(), db.outings(), clock), db.sync(), clock)
+    }
+
+    @Test
+    fun `Home says when sightings have waited more than a day, and Send now sends them`() = runBlocking {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val db = Room.inMemoryDatabaseBuilder<FlywayDatabase>(context).build()
+        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        try {
+            val file = File(context.filesDir, "home_unsent_test.preferences_pb").apply { delete() }
+            val settings = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            // A made-up league in season since 1 March, learned the day before.
+            val league = "test-league-1"
+            db.brackets().upsert(BracketEntity(league, false, "2027-03-01", "UTC", picksLocked = true, picksUnsent = false, picksNotice = null))
+            db.sync().saveState(SyncStateEntity(leagueId = league, leagueSince = Instant.parse("2027-03-09T08:00:00Z").toEpochMilli()))
+            val clock = MovableClock(Instant.parse("2027-03-10T08:00:00Z"), zone)
+            val outings = OutingRepository(db.outings(), clock)
+            val outing = outings.start("Test Pond", "US-ZZ-001")
+            outings.addOrBump(outing.id, "Test Warbler")
+            outings.end()
+            val scheduler = RecordingScheduler()
+            val sync = sync(db, settings, clock, account = true)
+            val packs = PackRepository(File(context.filesDir, "home_unsent_packs"))
+            val server = FakePackServer(packs, settings, scope, account = false)
+            fun home() = HomeViewModel(
+                outings, settings, BundledCounties(context), packs, FakeCountyLocator(), clock,
+                server.downloads, server.accounts, { false }, sync, scheduler, leagues(db, settings, clock), brackets(db, settings, clock),
+            )
+
+            // Waiting for a day exactly: no note yet.
+            clock.now = Instant.parse("2027-03-11T08:00:00Z")
+            assertFalse(withTimeout(10_000) { home().state.first { it.recentOutings.isNotEmpty() } }.sightingsUnsent)
+
+            clock.now = Instant.parse("2027-03-11T09:00:00Z")
+            val later = home()
+            assertTrue(withTimeout(10_000) { later.state.first { it.recentOutings.isNotEmpty() } }.sightingsUnsent)
+            later.onSendNow()
+            assertEquals(1, scheduler.syncedNow)
+        } finally {
+            stopViewModels()
+            scope.cancel()
+            db.close()
+        }
+    }
+
+    /** A clock the test moves by hand. */
+    private class MovableClock(var now: Instant, private val zone: ZoneId) : Clock() {
+        override fun getZone(): ZoneId = zone
+
+        override fun withZone(zone: ZoneId): Clock = MovableClock(now, zone)
+
+        override fun instant(): Instant = now
     }
 
     /**
@@ -288,8 +380,25 @@ class HomeViewModelTest {
                 if (installTestland) packs.install(StatePackCodec.encode(testStatePack()))
                 val clock = Clock.fixed(Instant.parse("2027-04-18T18:00:00Z"), zone)
                 val outings = OutingRepository(db.outings(), clock)
-                withTimeout(10_000) { block(homeViewModel(db, outings, settings, BundledCounties(context), packs, locator, clock), outings, settings) }
+                val server = FakePackServer(packs, settings, scope, account = false)
+                val home = HomeViewModel(
+                    outings,
+                    settings,
+                    BundledCounties(context),
+                    packs,
+                    locator,
+                    clock,
+                    server.downloads,
+                    server.accounts,
+                    { false },
+                    sync(db, settings, clock, account = false),
+                    RecordingScheduler(),
+                    leagues(db, settings, clock),
+                    brackets(db, settings, clock),
+                )
+                withTimeout(10_000) { block(home, outings, settings) }
             } finally {
+                stopViewModels()
                 scope.cancel()
                 db.close()
             }
@@ -447,4 +556,67 @@ class HomeViewModelTest {
             assertNull(outings.inProgress().first())
         }
     }
+
+    /** Home with the home county in Testland, Testland's pack on the made-up server, and [block] to run. */
+    private fun offering(account: Boolean, installTestland: Boolean = false, block: suspend (HomeViewModel, FakePackServer, PackRepository) -> Unit) =
+        runBlocking {
+            val context: Context = ApplicationProvider.getApplicationContext()
+            val db = Room.inMemoryDatabaseBuilder<FlywayDatabase>(context).build()
+            val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            try {
+                val file = File(context.filesDir, "home_offer_test.preferences_pb").apply { delete() }
+                val settings = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+                settings.setHomeCountyCode("XX-TS-002")
+                val packs = PackRepository(File(context.filesDir, "home_offer_test_packs").apply { deleteRecursively() })
+                if (installTestland) packs.install(StatePackCodec.encode(testStatePack()))
+                val server = FakePackServer(packs, settings, scope, account = account)
+                server.hold(testStatePack())
+                val clock = Clock.fixed(Instant.parse("2027-04-18T18:00:00Z"), zone)
+                val home = HomeViewModel(
+                    OutingRepository(db.outings(), clock), settings, BundledCounties(context), packs, FakeCountyLocator(), clock,
+                    server.downloads, server.accounts, { false }, sync(db, settings, clock, account = false), RecordingScheduler(),
+                    leagues(db, settings, clock), brackets(db, settings, clock),
+                )
+                withTimeout(10_000) { block(home, server, packs) }
+            } finally {
+                stopViewModels()
+                scope.cancel()
+                db.close()
+            }
+        }
+
+    @Test
+    fun `the home county's state is a county code without its last part`() {
+        assertEquals("US-CO", stateCodeOf("US-CO-059"))
+    }
+
+    @Test
+    fun `Home offers the home county's pack when the server has it and the phone does not, and downloads it`() =
+        offering(account = true) { home, _, packs ->
+            val offer = home.state.first { it.packOffer != null }.packOffer
+            assertEquals("XX-TS", offer?.stateCode)
+            assertEquals("Testland", offer?.state)
+
+            home.onDownloadPack()
+
+            // Installed, the offer goes.
+            packs.installed().first { it.isNotEmpty() }
+            assertNull(home.state.first { it.packOffer == null }.packOffer)
+        }
+
+    @Test
+    fun `with no account Home asks the server nothing and offers nothing`() =
+        offering(account = false) { home, server, _ ->
+            home.state.first { it.region != null || it.recentOutings.isEmpty() }
+            assertNull(home.state.value.packOffer)
+            assertEquals(emptyList<Any>(), server.requests)
+        }
+
+    @Test
+    fun `with the pack on the phone Home offers nothing and asks nothing`() =
+        offering(account = true, installTestland = true) { home, server, _ ->
+            home.state.first()
+            assertNull(home.state.value.packOffer)
+            assertEquals(emptyList<Any>(), server.requests)
+        }
 }

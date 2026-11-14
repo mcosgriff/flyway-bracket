@@ -4,6 +4,9 @@ import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.Query
 import androidx.room3.Transaction
+import androidx.room3.Upsert
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -60,6 +63,36 @@ interface OutingDao {
     @Query("UPDATE outings SET endedAt = :at WHERE endedAt IS NULL")
     suspend fun endInProgress(at: Long): Int
 
+    @Query("SELECT * FROM sightings WHERE outingId = :outingId")
+    suspend fun sightingsOf(outingId: Long): List<SightingEntity>
+
+    @Query("SELECT * FROM outings WHERE id = :id")
+    suspend fun outing(id: Long): OutingEntity?
+
+    @Query("SELECT * FROM sightings WHERE id = :id")
+    suspend fun sightingById(id: Long): SightingEntity?
+
+    @Upsert
+    suspend fun queue(entries: List<SyncQueueEntity>)
+
+    @Query("SELECT * FROM sync_queue WHERE clientId = :clientId")
+    suspend fun queued(clientId: String): SyncQueueEntity?
+
+    @Query("DELETE FROM sync_queue WHERE clientId = :clientId")
+    suspend fun unqueue(clientId: String)
+
+    /**
+     * Ends the outing in progress, if there is one, and queues an upload of each of its sightings (#43), dated
+     * the day it was first logged in [zone]. Returns the number of outings ended.
+     */
+    @Transaction
+    suspend fun finish(at: Long, zone: ZoneId): Int {
+        val outing = inProgress() ?: return 0
+        endInProgress(at)
+        queue(sightingsOf(outing.id).map { it.upload(outing.countyCode, zone, at) })
+        return 1
+    }
+
     /** Deletes the outing in progress and its sightings. A finished outing is never touched. */
     @Query("DELETE FROM outings WHERE endedAt IS NULL")
     suspend fun discardInProgress(): Int
@@ -86,5 +119,35 @@ interface OutingDao {
     }
 
     @Query("DELETE FROM sightings WHERE id = :id")
-    suspend fun removeSighting(id: Long): Int
+    suspend fun deleteSighting(id: Long): Int
+
+    /**
+     * Deletes a sighting. Of a finished outing, the server may have it (#43): an upload never tried is taken
+     * off the queue, and anything else is queued as a delete at [at]. A sighting of the outing in progress
+     * was never queued.
+     */
+    @Transaction
+    suspend fun removeSighting(id: Long, at: Long, zone: ZoneId) {
+        val sighting = sightingById(id) ?: return
+        deleteSighting(id)
+        val outing = outing(sighting.outingId) ?: return
+        if (outing.endedAt == null) return
+        val queued = queued(sighting.clientId)
+        if (queued != null && queued.action == SyncAction.UPLOAD.name && !queued.mayBeOnServer) {
+            unqueue(sighting.clientId)
+        } else {
+            val upload = queued ?: sighting.upload(outing.countyCode, zone, at)
+            queue(listOf(upload.copy(action = SyncAction.DELETE.name, queuedAt = at, mayBeOnServer = true, refused = false)))
+        }
+    }
 }
+
+/** An upload of this sighting, logged in [countyCode], queued at [at]. */
+internal fun SightingEntity.upload(countyCode: String, zone: ZoneId, at: Long) = SyncQueueEntity(
+    clientId = clientId,
+    action = SyncAction.UPLOAD.name,
+    commonName = birdName,
+    countyCode = countyCode,
+    date = Instant.ofEpochMilli(seenAt).atZone(zone).toLocalDate().toString(),
+    queuedAt = at,
+)

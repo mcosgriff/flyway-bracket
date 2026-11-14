@@ -26,6 +26,8 @@ import io.cosgriff.flywaybracket.ui.consent.previewNoNetwork
 import io.cosgriff.flywaybracket.ui.home.HomeContent
 import io.cosgriff.flywaybracket.ui.home.HomeState
 import io.cosgriff.flywaybracket.ui.home.LocationExplainContent
+import io.cosgriff.flywaybracket.ui.home.previewLongCounty
+import io.cosgriff.flywaybracket.ui.home.previewPackOffer
 import io.cosgriff.flywaybracket.ui.home.previewState
 import io.cosgriff.flywaybracket.ui.home.previewToday
 import io.cosgriff.flywaybracket.ui.league.CreateLeagueState
@@ -64,10 +66,14 @@ import io.cosgriff.flywaybracket.ui.outing.previewOutingFallback
 import io.cosgriff.flywaybracket.ui.outing.previewSummary
 import io.cosgriff.flywaybracket.ui.packs.PacksContent
 import io.cosgriff.flywaybracket.ui.packs.PacksState
+import io.cosgriff.flywaybracket.ui.packs.previewAskMetered
+import io.cosgriff.flywaybracket.ui.packs.previewDownloading
 import io.cosgriff.flywaybracket.ui.packs.previewHomePack
 import io.cosgriff.flywaybracket.ui.packs.previewNoPacks
 import io.cosgriff.flywaybracket.ui.packs.previewRejected
+import io.cosgriff.flywaybracket.ui.packs.previewServerList
 import io.cosgriff.flywaybracket.ui.packs.previewTwoPacks
+import io.cosgriff.flywaybracket.ui.packs.previewUpdateAvailable
 import io.cosgriff.flywaybracket.ui.settings.LicencesContent
 import io.cosgriff.flywaybracket.ui.settings.SettingsActions
 import io.cosgriff.flywaybracket.ui.settings.SettingsContent
@@ -112,6 +118,27 @@ class ScreensScreenshotTest(private val shade: Shade) {
     }
 
     @Test
+    fun homeUnsent() = compose.shoot("home_unsent", shade) {
+        HomeContent(previewState.copy(sightingsUnsent = true), previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
+    fun homePackOffer() = compose.shoot("home_pack_offer", shade) {
+        HomeContent(previewPackOffer, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    // The chip goes below the title, which keeps its words whole (#76).
+    @Test
+    fun homeLongCounty() = compose.shoot("home_long_county", shade) {
+        HomeContent(previewLongCounty, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
+    fun homeLongCountyLargeText() = compose.shoot("home_long_county_font_1_3", shade, fontScale = 1.3f) {
+        HomeContent(previewLongCounty, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
     fun homePackMissing() = compose.shootScreen("home_pack_missing", shade) {
         HomeContent(HomeState(region = previewState.region, packMissing = true), previewToday, onNavigate = {}, onStartOuting = {})
     }
@@ -138,11 +165,26 @@ class ScreensScreenshotTest(private val shade: Shade) {
     @Test
     fun packsTwoPacks() = packs("packs_two_packs", previewTwoPacks)
 
+    // The file picker is in debug builds only, which is where a file is turned away.
     @Test
-    fun packsRejected() = packs("packs_rejected", previewRejected)
+    fun packsRejected() = packs("packs_rejected", previewRejected, debug = true)
 
-    private fun packs(name: String, state: PacksState) = compose.shoot(name, shade) {
-        PacksContent(state, onNavigate = {}, onAddPack = {}, onRemove = {})
+    @Test
+    fun packsServerList() = packs("packs_server_list", previewServerList)
+
+    @Test
+    fun packsDownloading() = packs("packs_downloading", previewDownloading)
+
+    @Test
+    fun packsUpdateAvailable() = packs("packs_update_available", previewUpdateAvailable)
+
+    @Test
+    fun packsAskMetered() = compose.shootScreen("packs_ask_metered", shade) {
+        PacksContent(previewAskMetered, onNavigate = {}, onRemove = {})
+    }
+
+    private fun packs(name: String, state: PacksState, debug: Boolean = false) = compose.shoot(name, shade) {
+        PacksContent(state, onNavigate = {}, onRemove = {}, onAddFile = if (debug) ({}) else null)
     }
 
     @Test

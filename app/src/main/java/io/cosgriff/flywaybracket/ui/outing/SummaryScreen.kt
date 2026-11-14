@@ -43,8 +43,9 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 /**
- * A finished outing (#26). What it did for the player's bracket is shown once there are leagues and live
- * rounds (#41); until then that part of the board is left out.
+ * A finished outing (#26), and whether its sightings have reached the league server (#43). What it did for
+ * the player's bracket is shown once there are leagues and live rounds (#41); until then that part of the
+ * board is left out.
  */
 @Composable
 fun SummaryScreen(
@@ -121,6 +122,19 @@ private fun Header(state: SummaryState) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        state.sent?.let { sent ->
+            Text(
+                text = stringResource(
+                    when (sent) {
+                        SummarySent.SENT -> R.string.summary_sent
+                        SummarySent.WAITING -> R.string.summary_waiting
+                        SummarySent.ON_PHONE -> R.string.summary_on_phone
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -219,6 +233,7 @@ internal val previewSummary = SummaryState(
         SummaryRow("Yellow-rumped Test Warbler", 6),
         SummaryRow("Sample Vireo", 1),
     ),
+    sent = SummarySent.WAITING,
 )
 
 @Preview

@@ -90,9 +90,23 @@ data class SummaryState(
     val length: Duration,
     /** The birds seen, in the order first logged. */
     val sightings: List<SummaryRow>,
+    /** Whether the sightings have reached the league server (#43); null when there is nothing to say. */
+    val sent: SummarySent? = null,
 ) {
     val species: Int get() = sightings.size
     val birds: Int get() = sightings.sumOf { it.count }
+}
+
+/** Where a finished outing's sightings are (#43). */
+enum class SummarySent {
+    /** The league server has every one. */
+    SENT,
+
+    /** Some wait to be sent, and go when the phone is online. */
+    WAITING,
+
+    /** Some stay on this phone: no account or league, outside the league's season, or refused. */
+    ON_PHONE,
 }
 
 @Immutable

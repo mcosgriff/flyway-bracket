@@ -6,11 +6,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.Density
 import com.dropbox.differ.Image
 import com.dropbox.differ.ImageComparator
 import com.dropbox.differ.Mask
@@ -116,11 +119,15 @@ private fun reference(name: String, shade: Shade) = "src/test/screenshots/${name
 /**
  * Draws [content] (a `…Content` composable) as the app shows a screen: in the Flyway theme, on the page
  * colour. Checks it for accessibility, then compares it with `src/test/screenshots/<name>_<shade>.png`.
+ *
+ * @param fontScale the phone's font size setting, 1 being the default: text grows by it, the rest does not
  */
-fun ComposeContentTestRule.shoot(name: String, shade: Shade, content: @Composable () -> Unit) {
+fun ComposeContentTestRule.shoot(name: String, shade: Shade, fontScale: Float = 1f, content: @Composable () -> Unit) {
     setContent {
-        FlywayTheme(darkTheme = shade.dark) {
-            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { content() }
+        CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, fontScale)) {
+            FlywayTheme(darkTheme = shade.dark) {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { content() }
+            }
         }
     }
     // Accessibility first: a finding says what is wrong, where an image that differs only says that it does.

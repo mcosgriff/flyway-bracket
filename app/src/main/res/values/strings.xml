@@ -95,7 +95,26 @@
     <string name="packs_title">Bird packs</string>
     <string name="packs_subtitle">A pack is one state: every county\'s birds, week by week, saved for offline use.</string>
     <string name="packs_add">Add a pack</string>
-    <string name="packs_add_hint">Choose a pack file saved on this phone. Its name ends in .fbpack.</string>
+    <!-- Debug builds only: the file picker, for testing with a pack built on the developer's machine. -->
+    <string name="packs_add_file">Add a pack file</string>
+    <string name="packs_add_hint">Debug builds only. Choose a pack file saved on this phone. Its name ends in .fbpack.</string>
+    <!-- The server's packs (#39). -->
+    <string name="packs_server_needs_account">Packs come from the Flyway Bracket server, which needs an account first. The next page says what is sent.</string>
+    <string name="packs_server_get_account">Get packs</string>
+    <string name="packs_server_loading">Asking the server for its packs…</string>
+    <string name="packs_server_retry">Try again</string>
+    <string name="packs_server_all_installed">Every pack the server has is on this phone.</string>
+    <string name="packs_server_none">The server has no packs yet.</string>
+    <!-- The size of a pack's file, then the day it was built: "1.4 MB · built Apr 2, 2027". -->
+    <string name="packs_server_details">%1$s · built %2$s</string>
+    <string name="packs_download">Download</string>
+    <!-- What a screen reader calls a pack's Download button: "Download Wyoming". -->
+    <string name="packs_download_named">Download %1$s</string>
+    <!-- The size of the newer file on the server: "Update available · 1.5 MB". -->
+    <string name="packs_update_available">Update available · %1$s</string>
+    <string name="packs_update">Update</string>
+    <!-- What a screen reader calls a pack's Update button: "Update Wyoming". -->
+    <string name="packs_update_named">Update %1$s</string>
     <!-- Why a chosen file was not added. -->
     <string name="packs_problem_not_a_pack">That file was not added. It is not a pack file.</string>
     <string name="packs_problem_damaged">That file was not added. It is a pack file, but part of it is missing or damaged.</string>
@@ -141,8 +160,16 @@
     <string name="home_pack_missing_body_no_region">An outing logs the birds of your home county, and the pack for its state is not on this phone yet. Add it on the Packs screen, then start the outing.</string>
     <string name="home_pack_missing_go">Go to Packs</string>
     <string name="home_pack_missing_cancel">Not now</string>
+    <!-- The home county's pack, offered when the server has it and the phone does not (#39). The state's name. -->
+    <string name="home_pack_offer_title">Get the %1$s pack</string>
+    <!-- The size of the pack's file: "1.4 MB". -->
+    <string name="home_pack_offer_body">Your home county\'s birds, for outings. %1$s from the Flyway Bracket server.</string>
+    <string name="home_pack_offer_download">Download</string>
     <!-- The start button while a new outing waits for the phone's location. -->
     <string name="home_finding_county">Finding your county…</string>
+    <!-- Home's note when sightings have waited more than a day to reach the league server (#43). -->
+    <string name="home_unsent">Some sightings haven\'t been sent to the league server for over a day.</string>
+    <string name="home_unsent_send">Send now</string>
 
     <!-- Location: the page before Android's location prompt, the first time an outing is started -->
     <string name="location_overline">Before your first outing</string>
@@ -251,16 +278,21 @@
     <string name="summary_count">× %1$d</string>
     <string name="summary_empty">No birds were logged on this outing.</string>
     <string name="summary_done">Done</string>
+    <!-- Whether the outing's sightings have reached the league server (#43). -->
+    <string name="summary_sent">Sent to the league server.</string>
+    <string name="summary_waiting">Not sent yet. It goes when the phone is online.</string>
+    <string name="summary_on_phone">Kept on this phone. Only sightings inside your league\'s season are sent.</string>
 
-    <!-- Consent: League and Bracket show it first, until the player has an account. The words say what
+    <!-- Consent: League, Bracket and a first pack download show it first, until the player has an account. The words say what
          docs/adr/0001-server-and-network.md says; change the two together. -->
     <string name="consent_title">Play in a league</string>
-    <string name="consent_intro">Leagues and brackets need the Flyway Bracket server, the project\'s own. The app talks to it over a secure connection and to no other server. Nothing has been sent yet. If you continue, this is what will be.</string>
+    <string name="consent_intro">Leagues, brackets and bird pack downloads need the Flyway Bracket server, the project\'s own. The app talks to it over a secure connection and to no other server. Nothing has been sent yet. If you continue, this is what will be.</string>
     <string name="consent_sent_title">What is sent</string>
     <string name="consent_sent_account">An anonymous account: an id and a secret the server gives this phone. No email, no password, no phone number. The secret is kept encrypted on this phone.</string>
     <string name="consent_sent_profile">Your display name and home county, when you set or change them.</string>
     <string name="consent_sent_leagues">The leagues you create, join or leave, and your bracket picks. For a league you create: its name, whether it is open, its time zone and its start date.</string>
-    <string name="consent_sent_sightings">Each bird you log: its name, the county and the date.</string>
+    <string name="consent_sent_sightings">Each bird you log: its name, the county, the date, and a random code the phone makes for it, so it is never counted twice and can be deleted.</string>
+    <string name="consent_sent_packs">The state of each bird pack you download, and the version of it you already have, so an unchanged pack is not sent again.</string>
     <string name="consent_never_sent">Never sent: your exact location, the time of day you saw a bird, or the place names you type.</string>
     <string name="consent_seen_title">What other players see</string>
     <string name="consent_seen_body">Your display name, your picks once they lock, your points, and how many birds you logged in a round.</string>
@@ -428,6 +460,20 @@
     <string name="server_problem_season_start_not_a_monday">A season starts on a Monday. Choose another date.</string>
     <string name="server_problem_season_start_too_soon">A season starts at least a week from today. Choose a later Monday.</string>
     <string name="server_problem_time_zone_unknown">The server does not know that time zone. Choose another.</string>
+    <string name="server_problem_pack_not_found">The server no longer has this pack.</string>
+
+    <!-- A pack download, on Packs and Home (#39). -->
+    <string name="download_in_progress">Downloading…</string>
+    <!-- How much has come, in the phone's way of writing a percentage: "Downloading… 42%". -->
+    <string name="download_in_progress_percent">Downloading… %1$s</string>
+    <string name="download_problem_damaged">The download was damaged, so nothing changed. Try again.</string>
+    <string name="download_problem_too_new">This pack was made for a newer version of this app. Update the app, then try again.</string>
+    <string name="download_problem_not_saved">The phone could not save the pack, so nothing changed. Free some space, then try again.</string>
+    <string name="download_metered_title">Download on mobile data?</string>
+    <!-- The state's name and the size of its pack: "The Wyoming pack is 6.2 MB…". -->
+    <string name="download_metered_body">The %1$s pack is %2$s, and this connection may charge for data. On Wi-Fi it costs nothing.</string>
+    <string name="download_metered_confirm">Download</string>
+    <string name="download_metered_cancel">Not now</string>
 
     <!-- Settings (#44), opened from the gear on Home -->
     <!-- The app's own licence, on Settings and on Licences. #15 changes it here, and nowhere else. -->
@@ -440,7 +486,7 @@
     <string name="settings_profile_kept">Kept on this phone. Nothing is sent while the phone has no account.</string>
     <string name="settings_account_title">Account</string>
     <string name="settings_account_has">This phone has an anonymous account on the league server.</string>
-    <string name="settings_account_none">This phone has no account on the league server, and nothing is sent. League and Bracket ask before making one.</string>
+    <string name="settings_account_none">This phone has no account on the league server, and nothing is sent. League, Bracket and bird pack downloads ask before making one.</string>
     <string name="settings_account_deleted">Your account is deleted. Your outings stay on this phone.</string>
     <string name="settings_account_delete">Delete my account</string>
     <string name="settings_account_deleting">Deleting your account…</string>

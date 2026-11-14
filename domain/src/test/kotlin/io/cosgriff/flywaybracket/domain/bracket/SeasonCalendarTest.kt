@@ -213,6 +213,21 @@ class SeasonCalendarTest {
         assertFalse(spring.isDecided(Round.ROUND_OF_32, LocalDateTime.of(2027, 3, 8, 12, 0)))
     }
 
+    @Test
+    fun `the season runs from the first Monday to the final's Sunday`() {
+        assertEquals(LocalDate.of(2027, 3, 1)..LocalDate.of(2027, 4, 11), spring.seasonDates)
+        assertEquals(LocalDate.of(2027, 11, 29)..LocalDate.of(2028, 1, 9), acrossNewYear.seasonDates)
+    }
+
+    @Test
+    fun `only sightings dated inside the season are sent for it`() {
+        assertFalse(spring.isSentForSeason(LocalDate.of(2027, 2, 28)))
+        assertTrue(spring.isSentForSeason(LocalDate.of(2027, 3, 1)))
+        assertTrue(spring.isSentForSeason(LocalDate.of(2027, 4, 11)))
+        assertFalse(spring.isSentForSeason(LocalDate.of(2027, 4, 12)))
+        assertTrue(acrossNewYear.isSentForSeason(LocalDate.of(2028, 1, 1)))
+    }
+
     // With the rules that take bins
 
     @Test

@@ -4,10 +4,20 @@ import android.content.Context
 import android.net.Uri
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.test.core.app.ApplicationProvider
+import io.cosgriff.flywaybracket.api.PackSummary
 import io.cosgriff.flywaybracket.data.BundledCounties
+import io.cosgriff.flywaybracket.data.DownloadProgress
+import io.cosgriff.flywaybracket.data.Downloads
+import io.cosgriff.flywaybracket.data.FailedDownload
 import io.cosgriff.flywaybracket.data.InstalledPack
+import io.cosgriff.flywaybracket.data.PackDownload
+import io.cosgriff.flywaybracket.data.PackListing
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
+import io.cosgriff.flywaybracket.data.packVersion
+import io.cosgriff.flywaybracket.data.server.ServerProblem
+import io.cosgriff.flywaybracket.ui.FakePackServer
+import io.cosgriff.flywaybracket.ui.components.MeteredAsk
 import io.cosgriff.flywaybracket.domain.pack.PackState
 import io.cosgriff.flywaybracket.domain.pack.StatePackCodec
 import io.cosgriff.flywaybracket.domain.pack.StatePackResult
@@ -58,14 +68,14 @@ class PacksViewModelTest {
 
     private val testland = testStatePack()
     private val testlandBytes = StatePackCodec.encode(testland)
-    private val testlandInstalled = InstalledPack(testland, sizeBytes = 2_048)
+    private val testlandInstalled = InstalledPack(testland, sizeBytes = 2_048, version = "a1")
     private val testlandRow = PackRow("XX-TS", "Testland", counties = 3, LocalDate.of(2026, 3, 14), 2_048, "Made-up figures for tests")
 
     private val otherland = testland.copy(
         state = PackState("XX-OT", "Otherland"),
         counties = listOf(county("XX-OT-001", "Far Square", listOf(resident("Test Sparrow", 0.5)), rectangle(10.0, 0.0, 11.0, 1.0))),
     )
-    private val otherlandInstalled = InstalledPack(otherland, sizeBytes = 512)
+    private val otherlandInstalled = InstalledPack(otherland, sizeBytes = 512, version = "b1")
     private val otherlandRow = testlandRow.copy(stateCode = "XX-OT", state = "Otherland", counties = 1, sizeBytes = 512)
 
     // A made-up table: the codes have the real shape and name no real state.
@@ -127,7 +137,7 @@ class PacksViewModelTest {
                 ),
             ),
         )
-        assertEquals(1, packsState(listOf(InstalledPack(rare, 1)), "XX-TS-001", table).home?.species)
+        assertEquals(1, packsState(listOf(InstalledPack(rare, 1, "c1")), "XX-TS-001", table).home?.species)
     }
 
     @Test
@@ -147,7 +157,11 @@ class PacksViewModelTest {
         assertFalse(holds(installed, "XX-TS", null))
     }
 
-    private fun viewModel() = PacksViewModel(packs, settings, BundledCounties(context), context)
+    private val server = FakePackServer(packs, settings, scope)
+    private var metered = false
+
+    private fun viewModel(server: FakePackServer = this.server) =
+        PacksViewModel(packs, settings, BundledCounties(context), server.downloads, server.accounts, { metered }, context)
 
     /** A file the system's file picker could hand back. */
     private fun file(name: String, content: InputStream): Uri =
@@ -231,4 +245,118 @@ class PacksViewModelTest {
         assertEquals("XX-TS", state.homePack?.stateCode)
         assertEquals(listOf("XX-TS"), packs.installed().first().map { it.pack.state.code })
     }
+
+    // The server's packs (#39).
+
+    private fun summary(pack: InstalledPack, version: String = pack.version, size: Long = pack.sizeBytes) =
+        PackSummary(pack.pack.state.code, pack.pack.state.name, size, pack.pack.builtOn, version)
+
+    @Test
+    fun `with no account the server's packs wait for the consent page`() {
+        assertEquals(ServerPacks.NeedsAccount, packsState(emptyList(), null, table, listing = PackListing.NoAccount).server)
+        assertEquals(ServerPacks.Loading, packsState(emptyList(), null, table, listing = null).server)
+        val failed = PackListing.Failed(ServerProblem.NoNetwork)
+        assertEquals(ServerPacks.Failed(ServerProblem.NoNetwork), packsState(emptyList(), null, table, listing = failed).server)
+    }
+
+    @Test
+    fun `the server's packs not on the phone are offered, with how far a download has come`() {
+        val listing = PackListing.Listed(listOf(summary(otherlandInstalled), summary(testlandInstalled)))
+        val downloads = Downloads(running = mapOf("XX-OT" to DownloadProgress(100, 512)))
+
+        val state = packsState(listOf(testlandInstalled), null, table, listing = listing, downloads = downloads)
+
+        val otherland = ServerPackRow("XX-OT", "Otherland", 512, LocalDate.of(2026, 3, 14), DownloadProgress(100, 512))
+        assertEquals(ServerPacks.Listed(available = listOf(otherland), onServer = 2), state.server)
+        assertNull(state.extraPacks.single().update)
+    }
+
+    @Test
+    fun `an installed pack whose version differs from the server's has an update`() {
+        val listing = PackListing.Listed(listOf(summary(testlandInstalled, version = "a2", size = 2_100)))
+        val failed = FailedDownload("XX-TS", PackDownload.Failed(ServerProblem.NoAnswer))
+
+        val state = packsState(listOf(testlandInstalled), null, table, listing = listing, downloads = Downloads(failed = failed))
+
+        assertEquals(PackUpdate(sizeBytes = 2_100), state.extraPacks.single().update)
+        assertEquals(failed, state.failedDownload)
+        assertEquals(ServerPacks.Listed(available = emptyList(), onServer = 1), state.server)
+    }
+
+    @Test
+    fun `with no account the server is not asked, and the screen offers the consent page`() = runBlocking {
+        val server = FakePackServer(packs, settings, scope, account = false)
+
+        assertEquals(ServerPacks.NeedsAccount, viewModel(server).awaitState { it.server != ServerPacks.Loading }.server)
+        assertEquals(emptyList<Any>(), server.requests)
+    }
+
+    @Test
+    fun `a pack from the server's list is downloaded and installed, and leaves the list`() = runBlocking {
+        val bytes = server.hold(testland)
+        val viewModel = viewModel()
+        assertEquals(listOf("XX-TS"), viewModel.awaitState { it.server is ServerPacks.Listed }.available().map { it.stateCode })
+
+        viewModel.onDownload("XX-TS")
+
+        val state = viewModel.awaitState { it.extraPacks.isNotEmpty() }
+        assertEquals(emptyList<ServerPackRow>(), state.available())
+        assertEquals(packVersion(bytes), packs.installed().first().single().version)
+    }
+
+    @Test
+    fun `an update replaces the pack, and a failed one leaves it in place and says why`() = runBlocking {
+        packs.install(testlandBytes)
+        val newer = server.hold(testland.copy(builtOn = testland.builtOn.plusMonths(1)))
+        val viewModel = viewModel()
+        viewModel.awaitState { it.extraPacks.singleOrNull()?.update != null }
+
+        server.offline = true
+        viewModel.onDownload("XX-TS")
+        val failed = viewModel.awaitState { it.failedDownload != null }
+        assertEquals(FailedDownload("XX-TS", PackDownload.Failed(ServerProblem.NoNetwork)), failed.failedDownload)
+        assertEquals(packVersion(testlandBytes), packs.installed().first().single().version)
+
+        server.offline = false
+        viewModel.onDownload("XX-TS")
+        val updated = viewModel.awaitState { it.extraPacks.singleOrNull()?.update == null }
+        assertNull(updated.failedDownload)
+        assertEquals(packVersion(newer), packs.installed().first().single().version)
+    }
+
+    @Test
+    fun `a pack over 5 MB on a metered connection asks first, and Not now downloads nothing`() = runBlocking {
+        server.hold(testland)
+        server.listedSizes["XX-TS"] = 6_000_000
+        metered = true
+        val viewModel = viewModel()
+        viewModel.awaitState { it.server is ServerPacks.Listed }
+
+        viewModel.onDownload("XX-TS")
+        val asking = viewModel.awaitState { it.askMetered != null }
+        assertEquals(MeteredAsk("XX-TS", "Testland", 6_000_000), asking.askMetered)
+        viewModel.onMeteredDismissed()
+        viewModel.awaitState { it.askMetered == null }
+        assertEquals(1, server.requests.size)
+
+        viewModel.onDownload("XX-TS")
+        viewModel.awaitState { it.askMetered != null }
+        viewModel.onMeteredConfirmed()
+        assertEquals(listOf("XX-TS"), viewModel.awaitState { it.extraPacks.isNotEmpty() }.extraPacks.map { it.stateCode })
+    }
+
+    @Test
+    fun `a list the server cannot give says why, and Try again asks again`() = runBlocking {
+        server.offline = true
+        val viewModel = viewModel()
+        assertEquals(ServerPacks.Failed(ServerProblem.NoNetwork), viewModel.awaitState { it.server is ServerPacks.Failed }.server)
+
+        server.offline = false
+        server.hold(testland)
+        viewModel.onRetry()
+
+        assertEquals(listOf("XX-TS"), viewModel.awaitState { it.server is ServerPacks.Listed }.available().map { it.stateCode })
+    }
+
+    private fun PacksState.available() = (server as ServerPacks.Listed).available
 }

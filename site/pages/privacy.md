@@ -49,6 +49,7 @@ Android.
 | Each sighting: the bird's name | When you log a bird | To decide the matchup |
 | Each sighting: the county | With the sighting | Logging in a county makes you eligible there |
 | Each sighting: the date | With the sighting | To know which round it belongs to |
+| Each sighting: a random code | With the sighting, and to delete it | So a sighting sent twice counts once, and the app can delete it. The phone makes it; it says nothing about you or your phone |
 
 The server stores these things.
 

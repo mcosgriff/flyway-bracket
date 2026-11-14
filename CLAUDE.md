@@ -22,15 +22,17 @@ This file holds the rules and the decisions behind them. How a feature works is 
 the player's settings, the bundled table of states and counties (`assets/places/counties.tsv`,
 Colorado only) and the state packs on the phone (`PackRepository`). `:app` has the theme, the bottom bar,
 the first-run screen (display name and home county, saved in the settings), the Home screen and the Packs
-screen, which adds a pack from a `.fbpack` file the player chooses (downloading is #39), and the outing
+screen, which downloads packs from the server and updates them (`PackDownloads`, #39; the `.fbpack` file
+picker is in debug builds only), and the outing
 flow: Outing, the Add sighting sheet and Summary, in the county found from the phone's approximate location
 (`CountyLocator`, #27), else the home county. Bracket (#42) and League (#40: Join a league, Create a league,
 and the league forming, running, finished or closed) stand behind the consent page. Home reads its region
 from the settings, its season figures and recent outings from the database, and its league row and hero
-from the league kept on the phone (`LeagueRepository`, Room schema 4); it starts or continues an outing.
+from the league kept on the phone (`LeagueRepository`, Room schema 5); it starts or continues an outing.
 The app's network calls are the account endpoints (`data/server/ServerClient`, `AccountRepository`, #38),
-creating, joining, auto-joining, leaving and reading a league (#40) and the bracket, picks and results
-(#41), all made after the player agrees on the consent page.
+creating, joining, auto-joining, leaving and reading a league (#40), the bracket's (#41), the pack
+endpoints (`PackDownloads`, #39) and the sighting endpoints (`SightingSync`, #43), all made after the
+player agrees on the consent page.
 `:server` starts, migrates its Postgres, answers a health check and has anonymous device accounts (create,
 read, change and delete the profile) and leagues (create, join, auto-join, leave, read); it has no pick or
 sighting endpoint yet and is hosted nowhere.
@@ -85,7 +87,7 @@ the `CODECOV_TOKEN` secret.
 - `:api` — pure Kotlin, no Android: the messages the app and the server exchange (`kotlinx.serialization`
   JSON, read and written with `ApiJson`), `ApiPaths` (every path, under `/v1/`), `ApiErrorCode` and
   `MatchupSlot` (a bracket's 63 matchups, numbered by round, then from the top). Depends on `:domain`.
-  The app does not call it yet; `:server` answers with it. `docs/server/api.md` lists the endpoints; change the two together. A field the app
+  The app sends and reads it through `data/server/ServerClient` in `:data`; `:server` answers with it. `docs/server/api.md` lists the endpoints; change the two together. A field the app
   sends must be in ADR 0001's table first. Test: `./gradlew :api:test`.
 - `:data` — what the app saves on the phone, mapped to and from `:domain` types. Depends on `:domain`.
   - `data/db` — `FlywayDatabase` (Room 3), its entities and DAOs. Each version's schema is exported to
@@ -95,6 +97,9 @@ the `CODECOV_TOKEN` secret.
   - `PackRepository` — the state packs, each its `.fbpack` file in `files/packs`: install from bytes
     (checked with `StatePackCodec.decode` first), list, delete, `chartFor(countyCode)` and
     `countyAt(longitude, latitude)`. The files are parsed once and kept in memory.
+  - `PackDownloads` — the server's packs (#39): its list, and a download that replaces the pack on the
+    phone only once the whole file has come, matched its `ETag` (SHA-256) and been checked; runs in its own
+    scope so a download outlives the screen. `NetworkMeter` says whether the connection is metered.
   - `data/di/DataModule` — Hilt: provides the database, its DAOs, the DataStore and the repositories.
   - `data/server/ServerClient` — the league server's account endpoints, with `:api`'s messages and
     `ApiJson` (no content negotiation), on Ktor's OkHttp engine. Results are `ServerResult`; a failure is a

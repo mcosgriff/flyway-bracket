@@ -12,8 +12,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
- * The player's outings and the birds seen on them, kept on the phone only (#25). At most one outing is in
+ * The player's outings and the birds seen on them, kept on the phone (#25). At most one outing is in
  * progress. [clock] gives the time an outing starts and ends and a bird is logged. Made by `DataModule`.
+ *
+ * Ending an outing queues its sightings for the league server, and removing a sighting of a finished outing
+ * queues a delete (#43); `SightingSync` sends the queue, and only with an account.
  */
 class OutingRepository(private val dao: OutingDao, private val clock: Clock) {
     /** The outing in progress, or `null`. */
@@ -64,7 +67,7 @@ class OutingRepository(private val dao: OutingDao, private val clock: Clock) {
     }
 
     suspend fun remove(sightingId: Long) {
-        dao.removeSighting(sightingId)
+        dao.removeSighting(sightingId, now(), clock.zone)
     }
 
     /** Gives the outing in progress a new place name, stored trimmed; may be empty. Nothing happens when none is. */
@@ -83,9 +86,9 @@ class OutingRepository(private val dao: OutingDao, private val clock: Clock) {
         dao.setCountyInProgress(countyCode.trim())
     }
 
-    /** Ends the outing in progress now. Nothing happens when none is. */
+    /** Ends the outing in progress now and queues its sightings for upload. Nothing happens when none is. */
     suspend fun end() {
-        dao.endInProgress(now())
+        dao.finish(now(), clock.zone)
     }
 
     /** Deletes the outing in progress with its sightings. A finished outing is never deleted. */

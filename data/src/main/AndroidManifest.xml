@@ -6,4 +6,10 @@
         manifest declares it too, where it is explained.
     -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
+        AndroidNetworkMeter asks whether the connection is metered before a large pack download (#39). The
+        app's own manifest declares it too, where it is explained.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 </manifest>

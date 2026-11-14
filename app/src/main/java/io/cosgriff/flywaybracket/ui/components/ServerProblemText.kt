@@ -31,6 +31,7 @@ val ServerProblem.message: Int
             ApiErrorCode.SEASON_START_TOO_SOON -> R.string.server_problem_season_start_too_soon
             ApiErrorCode.SEASON_START_NOT_A_MONDAY -> R.string.server_problem_season_start_not_a_monday
             ApiErrorCode.TIME_ZONE_UNKNOWN -> R.string.server_problem_time_zone_unknown
+            ApiErrorCode.PACK_NOT_FOUND -> R.string.server_problem_pack_not_found
             ApiErrorCode.INVALID_REQUEST,
             ApiErrorCode.BIRD_UNKNOWN,
             ApiErrorCode.PICKS_LOCKED,
@@ -39,7 +40,6 @@ val ServerProblem.message: Int
             ApiErrorCode.MEMBER_NOT_FOUND,
             ApiErrorCode.BRACKET_NOT_READY,
             ApiErrorCode.ROUND_NOT_DECIDED,
-            ApiErrorCode.PACK_NOT_FOUND,
             ApiErrorCode.SIGHTING_DATE_IN_FUTURE,
             ApiErrorCode.SIGHTING_NOT_FOUND,
             null,

@@ -19,6 +19,9 @@ sqlite = "2.7.1"
 hilt = "2.60.1"
 # AndroidX Hilt: hiltViewModel() for Compose.
 hilt-androidx = "1.4.0"
+# WorkManager: sends sightings and fetches results in the background (#43). Its worker is made by the app's
+# own WorkerFactory (`SyncWorkerFactory`), so `androidx.hilt:hilt-work` is not needed.
+work = "2.12.0"
 
 # Ktor: the server (:server), and the app's client to it in :data (`ktor-client-*`, #38).
 ktor = "3.6.1"
@@ -70,6 +73,11 @@ androidx-sqlite-framework = { module = "androidx.sqlite:sqlite-framework", versi
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
 hilt-lifecycle-viewmodel-compose = { module = "androidx.hilt:hilt-lifecycle-viewmodel-compose", version.ref = "hilt-androidx" }
+androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+# WorkManager asks for an older lifecycle-service; this keeps :data on the lifecycle the app ships.
+androidx-lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version.ref = "lifecycle" }
+# Test only: runs workers on the JVM (TestListenableWorkerBuilder, WorkManagerTestInitHelper).
+androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
 
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 compose-ui = { module = "androidx.compose.ui:ui" }

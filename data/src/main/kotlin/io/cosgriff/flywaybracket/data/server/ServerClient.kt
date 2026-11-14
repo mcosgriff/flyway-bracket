@@ -10,28 +10,37 @@ import io.cosgriff.flywaybracket.api.CreateLeagueRequest
 import io.cosgriff.flywaybracket.api.JoinLeagueRequest
 import io.cosgriff.flywaybracket.api.LeagueDetail
 import io.cosgriff.flywaybracket.api.LeagueSummary
+import io.cosgriff.flywaybracket.api.PackListResponse
 import io.cosgriff.flywaybracket.api.PicksResponse
 import io.cosgriff.flywaybracket.api.ProfileResponse
 import io.cosgriff.flywaybracket.api.RoundResultsResponse
 import io.cosgriff.flywaybracket.api.SubmitPicksRequest
 import io.cosgriff.flywaybracket.api.UpdateProfileRequest
+import io.cosgriff.flywaybracket.api.UploadSightingsRequest
+import io.cosgriff.flywaybracket.data.MAX_PACK_BYTES
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.header
+import io.ktor.client.request.prepareRequest
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.client.request.url
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
+import io.ktor.http.contentLength
 import io.ktor.http.isSuccess
+import io.ktor.utils.io.readAvailable
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.NoRouteToHostException
 import java.net.UnknownHostException
@@ -78,16 +87,38 @@ class Credentials(val playerId: String, val secret: String) {
     override fun toString() = "Credentials(playerId=$playerId)"
 }
 
+/** What asking for a pack file gave (#39). */
+sealed interface PackFetch {
+    /** The server's pack is the version the phone holds (`304 Not Modified`); nothing was sent. */
+    data object Unchanged : PackFetch
+
+    /**
+     * The file, as it arrived. Not yet checked: it is a pack only once `StatePackCodec` reads it.
+     *
+     * @property version the version the server named in its `ETag`, or null when it named none
+     */
+    class Received(val bytes: ByteArray, val version: String?) : PackFetch
+
+    /** Larger than [MAX_PACK_BYTES]: reading stopped there, and nothing was kept. */
+    data object TooLarge : PackFetch
+}
+
 /**
- * The league server's account endpoints, creating, joining and leaving a league, and a league's dates,
- * bracket, picks and results (`docs/server/api.md`), with the messages of `:api`. Bodies are
- * written and read with `ApiJson`. Each call sends only what its message holds: ADR 0001's table lists
- * every field the app may send.
+ * The league server's account endpoints, creating, joining and leaving a league, a league's dates, bracket,
+ * picks and results, the pack endpoints, and the player's sightings (`docs/server/api.md`), with the messages of `:api`. Bodies are written and read
+ * with `ApiJson`. Each call sends only what its message holds: ADR 0001's table lists every field the app
+ * may send.
  *
  * @param baseUrl the server's address with no path and no slash at the end, such as `https://example.org`.
  *   Whether a plain `http://` one may connect is the network security config's to say, not this class's.
+ * @param downloadMillis how long a pack download may take in all. A few megabytes on a slow connection
+ *   take longer than any other call; a download that stalls still fails after the client's socket timeout.
  */
-class ServerClient(private val http: HttpClient, private val baseUrl: String) {
+class ServerClient(
+    private val http: HttpClient,
+    private val baseUrl: String,
+    private val downloadMillis: Long = DOWNLOAD_MILLIS,
+) {
 
     /** `POST /v1/accounts`. The request carries nothing about the player: it is `{}`. */
     suspend fun createAccount(): ServerResult<CreateAccountResponse> = call(
@@ -144,6 +175,68 @@ class ServerClient(private val http: HttpClient, private val baseUrl: String) {
     suspend fun leaveLeague(credentials: Credentials, leagueId: String): ServerResult<Unit> =
         call(HttpMethod.Delete, ApiPaths.membership(leagueId), credentials, body = null, answer = null)
 
+    /** `GET /v1/packs`: the packs the server holds, in order of state name. */
+    suspend fun packs(credentials: Credentials): ServerResult<PackListResponse> =
+        call(HttpMethod.Get, ApiPaths.PACKS, credentials, body = null, answer = PackListResponse.serializer())
+
+    /**
+     * `GET /v1/packs/{state}`: the state's pack file, read as it arrives and no further than
+     * [MAX_PACK_BYTES]. A connection lost on the way is a failure, never part of a file.
+     *
+     * @param stateCode the state's region code, such as `US-CO`
+     * @param heldVersion the version of the state's pack on the phone, sent as `If-None-Match` so that an
+     *   unchanged pack is not sent again; null when the phone has none
+     * @param onProgress called as the file arrives, with the bytes so far and the file's size when the
+     *   server gave it
+     */
+    suspend fun downloadPack(
+        credentials: Credentials,
+        stateCode: String,
+        heldVersion: String?,
+        onProgress: (receivedBytes: Long, totalBytes: Long?) -> Unit = { _, _ -> },
+    ): ServerResult<PackFetch> = try {
+        http.prepareRequest {
+            method = HttpMethod.Get
+            url(baseUrl + ApiPaths.pack(stateCode))
+            header(HttpHeaders.Authorization, basic(credentials))
+            if (heldVersion != null) header(HttpHeaders.IfNoneMatch, "\"$heldVersion\"")
+            timeout { requestTimeoutMillis = downloadMillis }
+        }.execute { response ->
+            when {
+                response.status == HttpStatusCode.NotModified -> ServerResult.Ok(PackFetch.Unchanged)
+                !response.status.isSuccess() -> ServerResult.Failed(refusal(response.status, response.bodyAsText()))
+                else -> ServerResult.Ok(receive(response, onProgress))
+            }
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: IOException) {
+        ServerResult.Failed(problemOf(e))
+    }
+
+    private suspend fun receive(response: HttpResponse, onProgress: (Long, Long?) -> Unit): PackFetch {
+        val total = response.contentLength()
+        if (total != null && total > MAX_PACK_BYTES) return PackFetch.TooLarge
+        val channel = response.bodyAsChannel()
+        val bytes = ByteArrayOutputStream(total?.toInt() ?: DEFAULT_BUFFER_SIZE)
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        onProgress(0, total)
+        while (true) {
+            // -1 at the end of the body. A connection lost on the way usually throws here, but Ktor's
+            // readAvailable can also answer -1 for a channel closed with an error, so the end is checked below.
+            val count = channel.readAvailable(buffer)
+            if (count < 0) break
+            bytes.write(buffer, 0, count)
+            if (bytes.size() > MAX_PACK_BYTES) return PackFetch.TooLarge
+            onProgress(bytes.size().toLong(), total)
+        }
+        // A body that ended in an error, or short of the size the server gave, was cut off: a lost connection
+        // (caught by downloadPack), never a damaged file.
+        channel.closedCause?.let { throw it as? IOException ?: IOException("The download failed", it) }
+        if (total != null && bytes.size().toLong() != total) throw IOException("${bytes.size()} of $total bytes came")
+        val version = response.headers[HttpHeaders.ETag]?.removePrefix(WEAK_TAG)?.removeSurrounding("\"")
+        return PackFetch.Received(bytes.toByteArray(), version)
+    }
     /** `GET /v1/leagues/{leagueId}`: the league, its members and its season's dates. */
     suspend fun league(credentials: Credentials, leagueId: String): ServerResult<LeagueDetail> =
         call(HttpMethod.Get, ApiPaths.league(leagueId), credentials, body = null, answer = LeagueDetail.serializer())
@@ -171,6 +264,23 @@ class ServerClient(private val http: HttpClient, private val baseUrl: String) {
     /** `GET /v1/leagues/{leagueId}/rounds/{round}/results`: how each matchup of a decided round went. */
     suspend fun roundResults(credentials: Credentials, leagueId: String, round: Round): ServerResult<RoundResultsResponse> =
         call(HttpMethod.Get, ApiPaths.roundResults(leagueId, round), credentials, body = null, answer = RoundResultsResponse.serializer())
+
+    /**
+     * `POST /v1/sightings` (#43): at most `UploadSightingsRequest.MAX_SIGHTINGS`. Each sighting is the bird, the
+     * county, the date and its id, all ADR 0001's table lets the app send. A sighting the server already
+     * has is not counted again.
+     */
+    suspend fun uploadSightings(credentials: Credentials, sightings: UploadSightingsRequest): ServerResult<Unit> = call(
+        method = HttpMethod.Post,
+        path = ApiPaths.SIGHTINGS,
+        credentials = credentials,
+        body = ApiJson.encodeToString(UploadSightingsRequest.serializer(), sightings),
+        answer = null,
+    )
+
+    /** `DELETE /v1/sightings/{clientId}`: `SIGHTING_NOT_FOUND` means the server does not have it. */
+    suspend fun deleteSighting(credentials: Credentials, clientId: String): ServerResult<Unit> =
+        call(HttpMethod.Delete, ApiPaths.sighting(clientId), credentials, body = null, answer = null)
 
     /** @param answer how to read a successful answer's body, or null when it has none worth reading */
     private suspend fun <T> call(
@@ -227,6 +337,12 @@ class ServerClient(private val http: HttpClient, private val baseUrl: String) {
     }
 
     private companion object {
+        /** Ten minutes: a pack of a few megabytes at a slow mobile data rate, and then some. */
+        const val DOWNLOAD_MILLIS = 10 * 60_000L
+
+        /** How a weak `ETag` starts (RFC 9110); the server sends strong ones. */
+        const val WEAK_TAG = "W/"
+
         val GATEWAY_FAILURES = setOf(HttpStatusCode.BadGateway, HttpStatusCode.ServiceUnavailable, HttpStatusCode.GatewayTimeout)
 
         /** `Authorization: Basic`, the id as the user and the secret as the password. */

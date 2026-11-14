@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 4,
-    "identityHash": "fc3896dd0fd6fcbe7950704fdbeb1321",
+    "identityHash": "5bdc1e0865a786246d1783f6e3ffa895",
     "entities": [
       {
         "tableName": "outings",
@@ -47,7 +47,7 @@
       },
       {
         "tableName": "sightings",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `outingId` INTEGER NOT NULL, `birdName` TEXT NOT NULL, `count` INTEGER NOT NULL, `seenAt` INTEGER NOT NULL, FOREIGN KEY(`outingId`) REFERENCES `outings`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `outingId` INTEGER NOT NULL, `birdName` TEXT NOT NULL, `count` INTEGER NOT NULL, `seenAt` INTEGER NOT NULL, `clientId` TEXT NOT NULL, FOREIGN KEY(`outingId`) REFERENCES `outings`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -78,6 +78,12 @@
             "columnName": "seenAt",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "clientId",
+            "columnName": "clientId",
+            "affinity": "TEXT",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -96,6 +102,15 @@
             ],
             "orders": [],
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_sightings_outingId_birdName` ON `${TABLE_NAME}` (`outingId`, `birdName`)"
+          },
+          {
+            "name": "index_sightings_clientId",
+            "unique": true,
+            "columnNames": [
+              "clientId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_sightings_clientId` ON `${TABLE_NAME}` (`clientId`)"
           }
         ],
         "foreignKeys": [
@@ -346,62 +361,54 @@
         ]
       },
       {
-        "tableName": "league",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`leagueId` TEXT NOT NULL, `name` TEXT NOT NULL, `inviteCode` TEXT, `players` INTEGER NOT NULL, `capacity` INTEGER NOT NULL, `phase` TEXT NOT NULL, `closedBecause` TEXT, `timeZone` TEXT, `seasonStart` TEXT, `fetchedAt` INTEGER NOT NULL, PRIMARY KEY(`leagueId`))",
+        "tableName": "sync_queue",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`clientId` TEXT NOT NULL, `action` TEXT NOT NULL, `commonName` TEXT NOT NULL, `countyCode` TEXT NOT NULL, `date` TEXT NOT NULL, `queuedAt` INTEGER NOT NULL, `mayBeOnServer` INTEGER NOT NULL, `refused` INTEGER NOT NULL, PRIMARY KEY(`clientId`))",
         "fields": [
           {
-            "fieldPath": "leagueId",
-            "columnName": "leagueId",
+            "fieldPath": "clientId",
+            "columnName": "clientId",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "name",
-            "columnName": "name",
+            "fieldPath": "action",
+            "columnName": "action",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "inviteCode",
-            "columnName": "inviteCode",
-            "affinity": "TEXT"
+            "fieldPath": "commonName",
+            "columnName": "commonName",
+            "affinity": "TEXT",
+            "notNull": true
           },
           {
-            "fieldPath": "players",
-            "columnName": "players",
+            "fieldPath": "countyCode",
+            "columnName": "countyCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "queuedAt",
+            "columnName": "queuedAt",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "capacity",
-            "columnName": "capacity",
+            "fieldPath": "mayBeOnServer",
+            "columnName": "mayBeOnServer",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "phase",
-            "columnName": "phase",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "closedBecause",
-            "columnName": "closedBecause",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "timeZone",
-            "columnName": "timeZone",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "seasonStart",
-            "columnName": "seasonStart",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "fetchedAt",
-            "columnName": "fetchedAt",
+            "fieldPath": "refused",
+            "columnName": "refused",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -409,59 +416,28 @@
         "primaryKey": {
           "autoGenerate": false,
           "columnNames": [
-            "leagueId"
+            "clientId"
           ]
         }
       },
       {
-        "tableName": "league_members",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`leagueId` TEXT NOT NULL, `position` INTEGER NOT NULL, `memberKey` TEXT NOT NULL, `displayName` TEXT NOT NULL, `points` INTEGER NOT NULL, `rightPicks` INTEGER NOT NULL, `rank` INTEGER NOT NULL, `you` INTEGER NOT NULL, PRIMARY KEY(`leagueId`, `position`), FOREIGN KEY(`leagueId`) REFERENCES `league`(`leagueId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "tableName": "sync_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `leagueId` TEXT, `leagueSince` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
           {
             "fieldPath": "leagueId",
             "columnName": "leagueId",
-            "affinity": "TEXT",
-            "notNull": true
+            "affinity": "TEXT"
           },
           {
-            "fieldPath": "position",
-            "columnName": "position",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "memberKey",
-            "columnName": "memberKey",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "displayName",
-            "columnName": "displayName",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "points",
-            "columnName": "points",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "rightPicks",
-            "columnName": "rightPicks",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "rank",
-            "columnName": "rank",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "you",
-            "columnName": "you",
+            "fieldPath": "leagueSince",
+            "columnName": "leagueSince",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -469,28 +445,14 @@
         "primaryKey": {
           "autoGenerate": false,
           "columnNames": [
-            "leagueId",
-            "position"
+            "id"
           ]
-        },
-        "foreignKeys": [
-          {
-            "table": "league",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "leagueId"
-            ],
-            "referencedColumns": [
-              "leagueId"
-            ]
-          }
-        ]
+        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fc3896dd0fd6fcbe7950704fdbeb1321')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5bdc1e0865a786246d1783f6e3ffa895')"
     ]
   }
 }

@@ -35,6 +35,8 @@ val ServerProblem.message: Int
             ApiErrorCode.BIRD_UNKNOWN,
             ApiErrorCode.PICKS_LOCKED,
             ApiErrorCode.PICKS_INCOMPLETE,
+            ApiErrorCode.PICKS_HIDDEN,
+            ApiErrorCode.MEMBER_NOT_FOUND,
             ApiErrorCode.BRACKET_NOT_READY,
             ApiErrorCode.ROUND_NOT_DECIDED,
             ApiErrorCode.PACK_NOT_FOUND,

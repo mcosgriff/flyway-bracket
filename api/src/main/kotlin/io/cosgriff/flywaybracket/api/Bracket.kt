@@ -47,7 +47,8 @@ data class BracketResponse(
 )
 
 /**
- * The player's whole bracket: for each of the 63 slots, the common name of the bird picked to win it.
+ * The player's bracket, all or part of it: for each slot picked, the common name of the bird picked to win
+ * it. It replaces every pick the player had; a slot left out has no pick, and scores nothing.
  */
 @Serializable
 data class SubmitPicksRequest(val picks: Map<MatchupSlot, String>) {
@@ -56,7 +57,8 @@ data class SubmitPicksRequest(val picks: Map<MatchupSlot, String>) {
 }
 
 /**
- * The player's picks as the server holds them; empty before the first submission.
+ * A member's picks as the server holds them, by slot; empty before their first submission. The asking
+ * player's own at any time; another member's only once picks have locked.
  *
  * @property locked whether the season has started, so the picks can no longer change.
  */

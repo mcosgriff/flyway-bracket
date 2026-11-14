@@ -32,6 +32,13 @@ object ApiPaths {
 
     fun picks(leagueId: String): String = "${league(leagueId)}/picks"
 
+    /**
+     * Another member's picks.
+     *
+     * @param memberKey the member's [Standing.memberKey], never their account id; or the server's route parameter.
+     */
+    fun memberPicks(leagueId: String, memberKey: String): String = "${league(leagueId)}/members/$memberKey/picks"
+
     fun standings(leagueId: String): String = "${league(leagueId)}/standings"
 
     /** @param round a [Round]'s name, such as `ROUND_OF_64`, or the server's route parameter. */

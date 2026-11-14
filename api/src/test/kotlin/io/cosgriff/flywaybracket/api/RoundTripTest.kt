@@ -35,8 +35,8 @@ class RoundTripTest {
     )
 
     private val standings = listOf(
-        Standing(displayName = "Player One", points = 12, rank = 1, you = true),
-        Standing(displayName = "Player Two", points = 9, rank = 2),
+        Standing(displayName = "Player One", points = 12, rank = 1, memberKey = "member-1", you = true),
+        Standing(displayName = "Player Two", points = 9, rank = 2, memberKey = "member-2"),
     )
 
     /** One made-up bird per slot. */
@@ -48,6 +48,13 @@ class RoundTripTest {
 
         assertEquals("""{"code":"LEAGUE_FULL","detail":"16 of 16"}""", json)
         roundTrip(ApiError(ApiErrorCode.UNAUTHORIZED))
+    }
+
+    @Test
+    fun `a refusal of picks names its slot`() {
+        val json = roundTrip(ApiError(ApiErrorCode.PICKS_INCOMPLETE, slot = MatchupSlot(40)))
+
+        assertEquals("""{"code":"PICKS_INCOMPLETE","slot":40}""", json)
     }
 
     @Test

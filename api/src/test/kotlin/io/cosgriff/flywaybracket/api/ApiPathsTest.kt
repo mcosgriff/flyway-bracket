@@ -21,6 +21,7 @@ class ApiPathsTest {
         ApiPaths.membership("league-1"),
         ApiPaths.bracket("league-1"),
         ApiPaths.picks("league-1"),
+        ApiPaths.memberPicks("league-1", "member-1"),
         ApiPaths.standings("league-1"),
         ApiPaths.roundResults("league-1", Round.FINAL),
     )
@@ -41,5 +42,6 @@ class ApiPathsTest {
         assertEquals("/v1/leagues/league-1/rounds/ROUND_OF_16/results", ApiPaths.roundResults("league-1", Round.ROUND_OF_16))
         assertEquals("/v1/packs/{state}", ApiPaths.pack("{state}"))
         assertEquals("/v1/sightings/{clientId}", ApiPaths.sighting("{clientId}"))
+        assertEquals("/v1/leagues/{leagueId}/members/{memberKey}/picks", ApiPaths.memberPicks("{leagueId}", "{memberKey}"))
     }
 }

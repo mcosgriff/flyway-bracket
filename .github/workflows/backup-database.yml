@@ -1,0 +1,148 @@
+# Backs up the hosted league server's database every night (docs/server/backups.md, issue #16): pg_dump of
+# the Neon `production` branch, encrypted with age, uploaded to a Cloudflare R2 bucket that deletes each
+# dump after 35 days. Neon's free plan keeps only a short restore window; these dumps cover the weeks before.
+# The dump holds personal data (display names, home counties, sightings) and the repository is public, so:
+# the dump is encrypted on the runner before it leaves, to a public key whose private key is kept offline;
+# the unencrypted file never leaves the runner's temp directory, is never an artifact, and is deleted at
+# the end even when a step fails; and nothing but the object's key and size is printed.
+# The job runs in the `backup` environment, which holds the database URL and the R2 credentials. It has no
+# required reviewer, because a scheduled run cannot wait for approval, and accepts only `main`.
+# This workflow uses no action, so there is no `uses:` to pin; it runs only tools already on GitHub's
+# Ubuntu runner, `age` from Ubuntu's archive, and the official Postgres image.
+name: backup-database
+
+on:
+  schedule:
+    # 10:17 UTC: 2 to 3 a.m. on the US west coast and 5 to 6 a.m. on the east coast, when few players are
+    # logging. Every US time zone's midnight (when leagues start their rounds) has passed by then, so the
+    # night's settled leagues are in the dump. Minute 17, not 0: GitHub's scheduler is busiest at the top
+    # of the hour and may start or drop runs late, and the Worker's hourly wake is at minute 0.
+    - cron: '17 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One backup at a time; one in progress is left to finish.
+concurrency:
+  group: backup-database
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: backup
+    steps:
+      - name: Check the configuration
+        env:
+          AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+          BUCKET: ${{ vars.BACKUP_BUCKET }}
+        run: |
+          case "$AGE_RECIPIENT" in
+            age1*) ;;
+            '') echo "::error::The repository variable BACKUP_AGE_RECIPIENT is empty (docs/server/backups.md)."; exit 1 ;;
+            *) echo "::error::BACKUP_AGE_RECIPIENT is not an age public key (age1...)."; exit 1 ;;
+          esac
+          if [ -z "$BUCKET" ]; then
+            echo "::error::The repository variable BACKUP_BUCKET is empty (docs/server/backups.md)."
+            exit 1
+          fi
+
+      - name: Install age
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq age
+          age --version
+
+      # pg_dump must be the server's major version or newer: Neon runs Postgres 18, so the client is the
+      # official postgres:18-alpine image (the tag follows the latest 18.x).
+      # The URL is split into libpq's PG* variables, written to a file only this user can read, and handed
+      # to the container with --env-file, so it is never on a command line. The dump is checked with
+      # pg_restore --list, encrypted, and the unencrypted file deleted at once.
+      - name: Dump and encrypt the database
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          umask 077
+          work="$RUNNER_TEMP/backup"
+          mkdir -p "$work"
+          python3 - "$work/pg.env" <<'PY'
+          import os, sys, urllib.parse as up
+
+          def fail(message):
+              print(f"::error::{message}")
+              sys.exit(1)
+
+          url = os.environ.get("BACKUP_DATABASE_URL", "")
+          if not url:
+              fail("The secret BACKUP_DATABASE_URL is empty (docs/server/backups.md).")
+          if any(c in url for c in "\r\n"):
+              fail("BACKUP_DATABASE_URL has a line break.")
+          parts = up.urlsplit(url)
+          if parts.scheme not in ("postgres", "postgresql"):
+              fail("BACKUP_DATABASE_URL is not a postgresql:// URL.")
+          params = dict(up.parse_qsl(parts.query))
+          if params.get("sslmode") not in ("require", "verify-ca", "verify-full"):
+              fail("BACKUP_DATABASE_URL must have sslmode=require.")
+          known = {"sslmode": "PGSSLMODE", "channel_binding": "PGCHANNELBINDING"}
+          unknown = sorted(set(params) - set(known))
+          if unknown:
+              fail("BACKUP_DATABASE_URL has a parameter this workflow does not pass on: " + ", ".join(unknown))
+          values = {
+              "PGHOST": parts.hostname,
+              "PGPORT": str(parts.port or 5432),
+              "PGDATABASE": up.unquote(parts.path.lstrip("/")),
+              "PGUSER": up.unquote(parts.username or ""),
+              "PGPASSWORD": up.unquote(parts.password or ""),
+          }
+          values.update({known[k]: v for k, v in params.items()})
+          missing = sorted(k for k, v in values.items() if not v)
+          if missing:
+              fail("BACKUP_DATABASE_URL has no " + ", ".join(missing) + ".")
+          with open(sys.argv[1], "w") as f:
+              for k, v in values.items():
+                  f.write(f"{k}={v}\n")
+          PY
+
+          docker run --rm --env-file "$work/pg.env" postgres:18-alpine \
+            pg_dump --format=custom --no-owner --no-privileges > "$work/flyway-bracket.dump"
+          rm -f "$work/pg.env"
+
+          if ! docker run --rm -i postgres:18-alpine pg_restore --list < "$work/flyway-bracket.dump" > /dev/null; then
+            echo "::error::pg_restore cannot read the dump."
+            exit 1
+          fi
+
+          age --encrypt --recipient "$AGE_RECIPIENT" --output "$work/flyway-bracket.dump.age" "$work/flyway-bracket.dump"
+          rm -f "$work/flyway-bracket.dump"
+
+      # Region `auto` is what R2 expects. The checksum settings keep newer AWS CLI versions from sending
+      # checksums an S3-compatible store may refuse.
+      - name: Upload to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          BUCKET: ${{ vars.BACKUP_BUCKET }}
+        run: |
+          file="$RUNNER_TEMP/backup/flyway-bracket.dump.age"
+          now=$(date -u +%s)
+          key="postgres/$(date -u -d "@$now" +%Y/%m/%d)/flyway-bracket-$(date -u -d "@$now" +%Y%m%dT%H%M%SZ).dump.age"
+          size=$(stat -c %s "$file")
+          aws s3 cp "$file" "s3://$BUCKET/$key" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+          stored=$(aws s3api head-object --bucket "$BUCKET" --key "$key" --endpoint-url "$R2_ENDPOINT" \
+            --query ContentLength --output text)
+          if [ "$stored" != "$size" ]; then
+            echo "::error::R2 holds $stored bytes for $key; $size were sent."
+            exit 1
+          fi
+          echo "Uploaded $key ($size bytes)"
+
+      - name: Delete the local files
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/backup"

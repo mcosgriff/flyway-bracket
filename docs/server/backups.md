@@ -28,6 +28,10 @@ The dump holds personal data: display names, home counties, sightings, leagues a
 of the account secrets. It is encrypted before it leaves the runner, and only the private key, kept
 offline by the owner, can read it. The unencrypted dump is never uploaded as an artifact.
 
+Deleting an account in the app also lists its id and the time, and nothing else, in the table
+`deleted_players` for 35 days. A restore from a dump would bring back an account deleted after that dump
+was taken; with this list the server deletes it again ([Restore](#restore), step 7).
+
 R2 is part of Cloudflare, and the dump is of the database Neon stores, so backups add no company to the
 ones the privacy texts name ([ADR 0001](../adr/0001-server-and-network.md#where-it-runs)).
 
@@ -60,6 +64,9 @@ npx wrangler r2 bucket lifecycle list <bucket-name>
 
 35 days keeps five weeks of nightly dumps. R2 deletes an expired object some time after it expires, not at
 the exact moment.
+
+The server keeps a deleted account's id for the same 35 days (`Accounts.DELETED_IDS_KEEP_DAYS`), and ADR
+0001 and the privacy texts promise that number. Change them all together, or not at all.
 
 ### 3. An R2 token for the backup job
 
@@ -255,7 +262,29 @@ mkdir -m 700 ~/flyway-restore
    The migration is the newest in `server/src/main/resources/db/migration` as of the dump, and the counts
    are close to `production`'s, less what was added since the dump.
 
-7. Clean up:
+7. Copy in the list of deleted accounts. The dump still holds every account deleted after it was taken.
+   The database as it was just before the restore lists those accounts, by id and time only, in
+   `deleted_players`. Copy that list out of it, here `production`, and into the restored database:
+
+   ```sh
+   psql "$(neon connection-string production)" \
+     -c "\copy (SELECT player_id, deleted_at FROM deleted_players) TO '$HOME/flyway-restore/deleted-players.csv' WITH (FORMAT csv)"
+   psql "$RESTORE_URL" <<SQL
+   CREATE TEMP TABLE before_restore (player_id uuid, deleted_at timestamptz);
+   \copy before_restore FROM '$HOME/flyway-restore/deleted-players.csv' WITH (FORMAT csv)
+   INSERT INTO deleted_players SELECT player_id, deleted_at FROM before_restore ON CONFLICT (player_id) DO NOTHING;
+   SELECT count(*) AS to_delete_again FROM deleted_players d JOIN players p ON p.id = d.player_id;
+   SQL
+   ```
+
+   `to_delete_again` is how many accounts the restore brought back. A server running against the restored
+   database deletes each of them again when it starts, and every hour after
+   (`server/…/account/DeletedAccountsJob.kt`). It deletes them as deleting from Settings does: it takes
+   the player out of every league, then deletes the player, their picks and their sightings. Each id keeps
+   the time it was first deleted, so it is still forgotten 35 days after that. In a restore test no server
+   runs against the copy, so the count is only shown; the server's tests cover the deleting.
+
+8. Clean up:
 
    ```sh
    neon branches delete restore-test
@@ -263,16 +292,28 @@ mkdir -m 700 ~/flyway-restore
    unset RESTORE_URL
    ```
 
-**To recover the live database**, first decide whether Neon's own restore is enough: in the Neon console,
-the `production` branch can be restored to a moment within its restore window, which is newer than any
-dump. If the damage is older than that window, restore the newest good dump into a new branch as above,
-check it, then point the server at it: set the Worker secrets to that branch's credentials
-([hosting.md](hosting.md#4-the-database-secrets)) and run the deploy again. Never restore over
-`production` without deciding to.
+**To recover the live database**, never restore over `production` without deciding to. Then:
+
+1. Copy the list of deleted accounts first, while `production` still answers: the first command of step 7.
+   If it no longer answers, or the damage reached `deleted_players`, make a branch from `production`'s
+   history at a moment just before the damage, and copy the list from that branch instead:
+
+   ```sh
+   neon branches create --name before-damage --parent '<UTC time, such as 2026-11-14T09:00:00Z>'
+   ```
+
+2. If the damage is within Neon's own restore window, restore `production` in the Neon console to a moment
+   before it: that is newer than any dump. Neon's restore also takes `deleted_players` back to that
+   moment, so load the copied list into `production` (the second command of step 7, with production's URL
+   in place of `$RESTORE_URL`).
+3. Otherwise restore the newest good dump into a new branch (steps 1 to 6), load the list (step 7), check
+   it, then point the server at it: set the Worker secrets to that branch's credentials
+   ([hosting.md](hosting.md#4-the-database-secrets)) and run the deploy again.
+4. Once the server has started, the last query of step 7 shows 0 accounts to delete again.
 
 ## A monthly restore test
 
-A backup no one has restored is a guess. Once a month, say on the first Monday, run steps 1 to 7 above
+A backup no one has restored is a guess. Once a month, say on the first Monday, run steps 1 to 8 above
 with the newest dump. It takes about ten minutes and proves the key, the bucket, the token and the dump
 all still work. If a step fails, fix it before the next night's dump is needed.
 
@@ -285,6 +326,11 @@ all still work. If a step fails, fix it before the next night's dump is needed.
   it back on in Actions, backup-database.
 - When a scheduled run fails, GitHub emails the person who last changed the workflow's `cron` line. That
   email is the only alert.
-- An account deleted in the app stays in the dumps taken before, for up to 35 days, encrypted. A restore
-  brings back every account deleted since that dump.
+- An account deleted in the app stays, encrypted, in the dumps taken before, for up to 35 days. A restore
+  brings it back, and the server deletes it again once the list of deleted accounts is copied in (step 7).
+- If Neon loses the database and its own history entirely, the list of deleted accounts is lost with it,
+  so accounts deleted after the newest dump could come back. That is unlikely. In that case, ask the beta
+  testers who deleted an account in that time to say so. Their phone no longer holds the account, so they
+  cannot delete it again themselves: find each one by its display name and league, list its id in
+  `deleted_players`, and the server deletes it again.
 - Losing the age private key, and its backup, makes every dump unreadable.

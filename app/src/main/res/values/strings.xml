@@ -267,7 +267,7 @@
     <string name="consent_sent_account">An anonymous account: an id and a secret the server gives this phone. No email, no password, no phone number. The secret is kept encrypted on this phone.</string>
     <string name="consent_sent_profile">Your display name and home county, when you set or change them.</string>
     <string name="consent_sent_leagues">The leagues you create, join or leave, and your bracket picks.</string>
-    <string name="consent_sent_sightings">Each bird you log: its name, the county and the date.</string>
+    <string name="consent_sent_sightings">Each bird you log: its name, the county, the date, and a random code the phone makes for it, so it is never counted twice and can be deleted.</string>
     <string name="consent_never_sent">Never sent: your exact location, the time of day you saw a bird, or the place names you type.</string>
     <string name="consent_seen_title">What other players see</string>
     <string name="consent_seen_body">Your display name, your picks once they lock, your points, and how many birds you logged in a round.</string>

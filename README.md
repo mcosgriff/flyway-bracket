@@ -91,7 +91,7 @@ What exists:
 - The league server (`server/`, [`docs/server/api.md`](docs/server/api.md)): anonymous accounts,
   creating, joining, auto-joining and leaving leagues, listing and downloading the state packs it is
   given (to signed-in players only), taking and deleting a player's sightings, each kept as a bird
-  name, a county and a date only, and seeding each league's bracket: a preview before the season, fixed
+  name, a county, a date and the random id the app made for it only, and seeding each league's bracket: a preview before the season, fixed
   48 hours before it starts. The app uses it for the account, the bracket and sightings so far.
 
 What does not exist yet: downloading bird packs, the League screen, and the rest of the app's side of the
@@ -194,7 +194,9 @@ lines below say what will be sent then.
 - An account is anonymous: no email, no password, no phone number. The server gives the app an id and a
   secret, and the app keeps them encrypted on the phone with a key in the Android Keystore.
 - The server stores your display name, your home county, your leagues, your bracket picks, and each
-  sighting as a bird name, a county, a date and a random id the app makes for it. It never gets
+  sighting as a bird name, a county, a date and a random id the app makes for it, which says nothing
+  about you or your phone: it stops a sighting sent twice from counting twice, and lets the app delete
+  it. It never gets
   coordinates, the time of day, how many of a bird you counted or the place name you typed.
 - Other players in your league will see your display name, your picks once they lock, your points, and how
   many birds you logged in a round. They will not see your county or your individual sightings.

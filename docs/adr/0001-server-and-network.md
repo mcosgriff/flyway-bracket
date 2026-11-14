@@ -51,6 +51,7 @@ the only proof that an account belongs to a phone, so it is not stored in plain 
 | Sighting: bird name | When the player logs a bird | To decide the matchup |
 | Sighting: county code | With the sighting | A county where the player logged makes them eligible there |
 | Sighting: date | With the sighting | To know which round the sighting belongs to |
+| Sighting: random id | With the sighting, and to delete it; stored with the sighting | A random UUID the phone makes for each sighting, unrelated to the player or the device: a retried upload is not counted twice, and the phone can delete a sighting it sent |
 
 The request that creates an account carries nothing about the player.
 

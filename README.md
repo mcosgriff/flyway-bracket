@@ -21,11 +21,19 @@ What exists:
 - The state pack file format (`<state code>.fbpack`, gzipped JSON): a state's counties, each with its bar
   chart and its outline, and finding the county a place is in. A developer's command-line tool builds a
   pack from files downloaded by hand ([`docs/packs.md`](docs/packs.md)).
-- The Packs screen: "Add a pack" opens the phone's file picker for a `.fbpack` file, which the app checks
-  and then keeps in its own storage. The screen lists each pack (state, counties, the day it was built,
-  its size), says where its figures came from, and shows how many species the home county expects at some
-  time of year. A pack can be removed after a warning, except the one that holds the home county. A file
-  that is not a pack is turned away with the reason. The app does not download packs yet.
+- The Packs screen: "Add a pack" lists the packs the league server has and the phone does not, each with
+  its size; Download fetches one with a progress bar, and the app checks it before keeping it in its own
+  storage. Downloads need the account, so without one "Get packs" opens the consent page first. On a
+  metered connection (mobile data) a pack over 5 MB asks before it downloads. When the server has a
+  different version of a pack on the phone, its row says "Update available"; an update replaces the old
+  pack only once the new file has arrived whole and been checked, so a failed one leaves the old pack in
+  place. The screen lists each pack (state, counties, the day it was built, its size), says where its
+  figures came from, and shows how many species the home county expects at some time of year. A pack can
+  be removed after a warning, except the one that holds the home county. Debug builds also keep a file
+  picker for a `.fbpack` file built on a developer's machine; a file that is not a pack is turned away
+  with the reason.
+- Home offers the home county's pack, with a Download button, when the phone has an account, the server
+  has that state's pack and the phone does not.
 - Logging an outing. Start outing on Home starts one in the county the phone is in, found from its
   approximate location, so a trip to another county counts there. The first time, a page explains why
   before Android asks for the permission; saying no is fine. With no permission, no location within five
@@ -59,9 +67,9 @@ What exists:
 
 - The league server (`server/`, [`docs/server/api.md`](docs/server/api.md)): anonymous accounts,
   creating, joining, auto-joining and leaving leagues, and listing and downloading the state packs it is
-  given (to signed-in players only). The app does not talk to it yet.
+  given (to signed-in players only). The app uses its account and pack endpoints so far.
 
-What does not exist yet: downloading bird packs, the bracket screens, the League screen, and the app's side
+What does not exist yet: the bracket screens, the League screen, and the app's side
 of the server.
 
 ## How the game works
@@ -108,9 +116,13 @@ No trackers, analytics, crash reporting or ads. Every build's release APK is sca
 [Exodus Privacy](https://exodus-privacy.eu.org); a tracker fails the build, and so does a permission that
 is not listed in [`.github/privacy/permissions.txt`](.github/privacy/permissions.txt).
 
-The app asks for two permissions: approximate location (below), and `INTERNET`, to talk to the league
-server (further below). Adding a pack uses the phone's file picker, which needs no permission: the app is
-handed the one file you choose and sees no others.
+The app asks for three permissions: approximate location (below), `INTERNET`, to talk to the league
+server (further below), and `ACCESS_NETWORK_STATE`, to tell whether the connection is metered. Android
+grants the last two when the app is installed and never asks you. The app reads only whether the
+connection may cost you for data, so that a bird pack over 5 MB asks before it downloads on mobile data;
+not the network's name and not the phone's address. Android has no way to tell without it. Debug builds
+can also add a pack with the phone's file picker, which needs no permission: the app is handed the one
+file you choose and sees no others.
 
 **Approximate location** (`ACCESS_COARSE_LOCATION`) is used once, when an outing starts, to find the county
 you are in. A county is far larger than the error of an approximate location, so the app never asks for
@@ -123,12 +135,14 @@ and you can change an outing's county by hand.
 ### The league server
 
 Written down in [`docs/adr/0001-server-and-network.md`](docs/adr/0001-server-and-network.md). The account
-is built: creating it, and sending your display name and home county when you set or change them.
-Leagues, picks and sightings are not sent yet; the lines below say what will be.
+is built: creating it, sending your display name and home county when you set or change them, and
+downloading bird packs. Leagues, picks and sightings are not sent yet; the lines below say what will be.
 
 - The app talks to one server, the project's own, over HTTPS, and to nothing else.
-- Nothing is sent before you say yes. Outings work with no account. When you open League or Bracket
-  without an account, a page says what will be sent and asks. "Not now" sends nothing.
+- Nothing is sent before you say yes. Outings work with no account. When you open League or Bracket, or
+  ask for bird packs, without an account, a page says what will be sent and asks. "Not now" sends nothing.
+- Downloading a bird pack asks the server for its list of packs and for the pack of one state. To update a
+  pack, the app sends the version it already has, so an unchanged pack is not sent again.
 - An account is anonymous: no email, no password, no phone number. The server gives the app an id and a
   secret, and the app keeps them encrypted on the phone with a key in the Android Keystore.
 - The server will store your display name, your home county, your leagues, your bracket picks, and each

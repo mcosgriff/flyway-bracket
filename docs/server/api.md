@@ -6,7 +6,7 @@ the endpoints that carry them. Change the two together.
 
 The server (`:server`, [running.md](running.md)) answers the health check, the account endpoints, the
 league endpoints and the pack endpoints, and the app calls the account endpoints, after the player agrees
-(#38). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
+(#38), and the pack endpoints (#39). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
 new field sent to the server needs a change to that record first.
 
 ## Rules for every call
@@ -243,6 +243,9 @@ The server's packs are the files in its packs directory ([running.md](running.md
   `Cache-Control: private, no-cache`. The app reads it with `StatePackCodec`, as a file added by hand.
 - **Asking again.** The app sends `If-None-Match: "<version>"` with the version of the pack it holds. When
   that is still the server's version, the answer is `304 Not Modified` with the `ETag` and no body.
+- **Before an account.** The app asks for neither endpoint until the player has agreed on the consent page
+  and has an account (#39). It checks a downloaded file against its `ETag` and with `StatePackCodec`
+  before it replaces the pack on the phone.
 
 ## Not decided
 
@@ -263,7 +266,5 @@ ADR 0001 leaves these open, so no message or endpoint settles them:
 
 Also open, for the server issues:
 
-- Whether the app may download packs before the player has an account. Both pack endpoints need one
-  (#33); outings work with no account, and the app makes no network call before the player agrees.
 - Seeing other players' picks once they lock, and how many birds each player logged in a round. ADR 0001
   allows both; issue #29 lists no type for either.

@@ -139,8 +139,12 @@ talks to; the consent page, the README's Privacy section and the user guide's pr
 - The server knows each player's home county and the county and date of each sighting. That is coarser
   than a location, but it is still personal data, and the server must be looked after as such.
 - Like any server, this one sees the IP address of each connection, and so does Cloudflare. The server uses
-  it only to limit how many accounts one address creates, counted in memory (#16). This record does not
-  decide what the server logs.
+  it only to limit how many accounts one address creates, counted in memory (#16). Cloudflare also keeps a
+  trace of each request for 7 days, so the operator can see how the server is doing: its method and path,
+  its status, how long it took, the app's user agent, and the country, region and city Cloudflare works out
+  from the IP address. A trace never holds the secret, a request's body or the IP address itself
+  (`docs/server/hosting.md`). The server's own log keeps a request's status, method and path, never its
+  body, query or headers.
 - Changing the host, or adding a company that handles the data, needs a change to this record and to the
   consent page first, as a new field does.
 - A player who loses or resets their phone, or clears the app's data, loses their account, league place

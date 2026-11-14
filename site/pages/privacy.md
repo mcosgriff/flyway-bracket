@@ -97,6 +97,10 @@ than a location, but it is still information about you.
 
 Like any server, it also sees the internet address of each connection, and so does Cloudflare.
 
+For 7 days, Cloudflare also keeps a record of each request, so the project can see how the server is
+doing: what was asked for, whether it worked, how long it took, and the country, region and city your
+internet address is in. It never holds your secret, what you sent, or the address itself.
+
 ## Deleting your account
 
 You can delete your account from Settings in the app. You do not have to ask anyone.

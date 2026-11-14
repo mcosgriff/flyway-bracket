@@ -6,7 +6,11 @@ beta: true
 
 ## Today
 
-Today the app sends nothing. It makes no connection to the internet, and it asks for no permissions.
+Today the app sends nothing. It makes no connection to the internet.
+
+It asks for one permission: your approximate location, once when an outing starts, to find the county you
+are in. Your location is turned into a county on your phone, then forgotten. It is never saved and never
+sent. Only the county is kept, with the outing. If you say no, outings are in your home county.
 
 The app has no trackers, no analytics, no crash reporting and no ads. That will not change.
 

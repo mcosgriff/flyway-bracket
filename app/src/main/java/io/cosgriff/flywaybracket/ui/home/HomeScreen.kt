@@ -1,6 +1,10 @@
 package io.cosgriff.flywaybracket.ui.home
 
+import android.Manifest
 import android.icu.text.MessageFormat
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -47,6 +51,7 @@ import io.cosgriff.flywaybracket.domain.bracket.Season
 import io.cosgriff.flywaybracket.ui.components.FlywayBottomBar
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.components.lengthText
+import io.cosgriff.flywaybracket.ui.outing.CountyFallback
 import io.cosgriff.flywaybracket.ui.theme.FlywayDimens
 import io.cosgriff.flywaybracket.ui.theme.FlywayTheme
 import java.time.Duration
@@ -58,13 +63,28 @@ import java.time.format.FormatStyle
  * Home, with the home county from the settings and the season figures and recent outings saved on the
  * phone. No league or tournament exists yet.
  *
- * @param onOpenOuting called once an outing is in progress, to show it
+ * The first time an outing is started, the page that explains the use of the phone's location takes
+ * Home's place until the player answers it (#27).
+ *
+ * @param onOpenOuting called once an outing is in progress, to show it, with why a new one is in the home
+ *   county, if it fell back there
  */
 @Composable
-fun HomeScreen(onNavigate: (TopLevel) -> Unit, onOpenOuting: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(onNavigate: (TopLevel) -> Unit, onOpenOuting: (CountyFallback?) -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val open by rememberUpdatedState(onOpenOuting)
-    LaunchedEffect(viewModel) { viewModel.openOuting.collect { open() } }
+    LaunchedEffect(viewModel) { viewModel.openOuting.collect { open(it.fallback) } }
+    // Whatever the player answers, the outing starts: in the county the phone is in, or the home county.
+    val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.onLocationAnswered() }
+    if (state.askLocation) {
+        BackHandler(onBack = viewModel::onLocationCancelled)
+        LocationExplainContent(
+            onContinue = { askPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION) },
+            onNotNow = viewModel::onLocationAnswered,
+            onBack = viewModel::onLocationCancelled,
+        )
+        return
+    }
     HomeContent(
         state = state,
         today = LocalDate.now(),
@@ -105,7 +125,7 @@ fun HomeContent(
             } else {
                 NoLeagueHero(onFindLeague = { onNavigate(TopLevel.League) })
             }
-            StartOutingButton(continuing = state.outingInProgress, onClick = onStartOuting)
+            StartOutingButton(continuing = state.outingInProgress, finding = state.findingCounty, onClick = onStartOuting)
             if (state.league != null) LeagueRow(state.league, onClick = { onNavigate(TopLevel.League) })
             SeasonTiles(state.season)
             RecentOutings(state.recentOutings, today)
@@ -262,8 +282,9 @@ private fun NoLeagueHero(onFindLeague: () -> Unit) {
     }
 }
 
+/** @param finding a new outing is waiting for the phone's location; the button says so, and a tap does nothing */
 @Composable
-private fun StartOutingButton(continuing: Boolean, onClick: () -> Unit) {
+private fun StartOutingButton(continuing: Boolean, finding: Boolean, onClick: () -> Unit) {
     val colors = FlywayTheme.colors
     Button(
         onClick = onClick,
@@ -280,7 +301,13 @@ private fun StartOutingButton(continuing: Boolean, onClick: () -> Unit) {
         )
         Spacer(Modifier.width(FlywayDimens.space2))
         Text(
-            text = stringResource(if (continuing) R.string.home_continue_outing else R.string.home_start_outing),
+            text = stringResource(
+                when {
+                    finding -> R.string.home_finding_county
+                    continuing -> R.string.home_continue_outing
+                    else -> R.string.home_start_outing
+                },
+            ),
             style = MaterialTheme.typography.titleLarge,
         )
     }

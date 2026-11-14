@@ -13,6 +13,7 @@ import io.cosgriff.flywaybracket.ui.components.NotBuiltYetContent
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.home.HomeScreen
 import io.cosgriff.flywaybracket.ui.onboarding.OnboardingScreen
+import io.cosgriff.flywaybracket.ui.outing.CountyFallback
 import io.cosgriff.flywaybracket.ui.outing.OutingScreen
 import io.cosgriff.flywaybracket.ui.outing.SummaryScreen
 import io.cosgriff.flywaybracket.ui.packs.PacksScreen
@@ -29,8 +30,12 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object PacksRoute : NavKey
 
-/** The outing in progress, with the Add sighting sheet (#26). */
-@Serializable data object OutingRoute : NavKey
+/**
+ * The outing in progress, with the Add sighting sheet (#26).
+ *
+ * @property fallback why a new outing is in the home county rather than where the phone is (#27)
+ */
+@Serializable data class OutingRoute(val fallback: CountyFallback? = null) : NavKey
 
 /** A finished outing, by its id (#26). */
 @Serializable data class SummaryRoute(val outingId: Long) : NavKey
@@ -74,7 +79,7 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
                 OnboardingScreen()
             }
             entry<HomeRoute> {
-                HomeScreen(onNavigate = navigate, onOpenOuting = { if (backStack.lastOrNull() != OutingRoute) backStack.add(OutingRoute) })
+                HomeScreen(onNavigate = navigate, onOpenOuting = { fallback -> if (backStack.lastOrNull() !is OutingRoute) backStack.add(OutingRoute(fallback)) })
             }
             entry<BracketRoute> {
                 NotBuiltYetContent(title = R.string.nav_bracket, place = TopLevel.Bracket, onNavigate = navigate)
@@ -85,15 +90,16 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
             entry<PacksRoute> {
                 PacksScreen(onNavigate = navigate)
             }
-            entry<OutingRoute> {
+            entry<OutingRoute> { route ->
                 OutingScreen(
+                    fallback = route.fallback,
                     onBack = back,
                     // The summary takes the outing's place, so Back from it goes Home.
                     onFinished = { id ->
-                        backStack.remove(OutingRoute)
+                        backStack.removeAll { it is OutingRoute }
                         backStack.add(SummaryRoute(id))
                     },
-                    onClosed = { backStack.remove(OutingRoute) },
+                    onClosed = { backStack.removeAll { it is OutingRoute } },
                 )
             }
             entry<SummaryRoute> { route ->

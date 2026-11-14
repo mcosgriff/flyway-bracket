@@ -6,6 +6,7 @@ import io.cosgriff.flywaybracket.ui.components.NotBuiltYetContent
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.home.HomeContent
 import io.cosgriff.flywaybracket.ui.home.HomeState
+import io.cosgriff.flywaybracket.ui.home.LocationExplainContent
 import io.cosgriff.flywaybracket.ui.home.previewState
 import io.cosgriff.flywaybracket.ui.home.previewToday
 import io.cosgriff.flywaybracket.ui.onboarding.OnboardingContent
@@ -15,15 +16,18 @@ import io.cosgriff.flywaybracket.ui.onboarding.previewFilledIn
 import io.cosgriff.flywaybracket.ui.onboarding.previewNameTooShort
 import io.cosgriff.flywaybracket.ui.outing.AddSightingSheet
 import io.cosgriff.flywaybracket.ui.outing.AddSightingState
+import io.cosgriff.flywaybracket.ui.outing.CountyPickerSheet
 import io.cosgriff.flywaybracket.ui.outing.OutingContent
 import io.cosgriff.flywaybracket.ui.outing.OutingState
 import io.cosgriff.flywaybracket.ui.outing.SummaryContent
 import io.cosgriff.flywaybracket.ui.outing.previewAddSighting
 import io.cosgriff.flywaybracket.ui.outing.previewAddSightingNoMatch
 import io.cosgriff.flywaybracket.ui.outing.previewAddSightingSearch
+import io.cosgriff.flywaybracket.ui.outing.previewCountyChoices
 import io.cosgriff.flywaybracket.ui.outing.previewElapsed
 import io.cosgriff.flywaybracket.ui.outing.previewOuting
 import io.cosgriff.flywaybracket.ui.outing.previewOutingEmpty
+import io.cosgriff.flywaybracket.ui.outing.previewOutingFallback
 import io.cosgriff.flywaybracket.ui.outing.previewSummary
 import io.cosgriff.flywaybracket.ui.packs.PacksContent
 import io.cosgriff.flywaybracket.ui.packs.PacksState
@@ -106,6 +110,9 @@ class ScreensScreenshotTest(private val shade: Shade) {
     @Test
     fun outingWithSightings() = outing("outing_with_sightings", previewOuting, previewElapsed)
 
+    @Test
+    fun outingFallback() = outing("outing_fallback", previewOutingFallback, Duration.ofSeconds(12))
+
     private fun outing(name: String, state: OutingState, elapsed: Duration) = compose.shoot(name, shade) {
         OutingContent(state, elapsed, {}, {}, {}, {}, {}, {}, {}, {})
     }
@@ -123,6 +130,18 @@ class ScreensScreenshotTest(private val shade: Shade) {
     private fun addSighting(name: String, state: AddSightingState, query: String) = compose.shootScreen(name, shade) {
         OutingContent(previewOuting, previewElapsed, {}, {}, {}, {}, {}, {}, {}, {})
         AddSightingSheet(state, query, onQuery = {}, onPick = {}, onDismiss = {})
+    }
+
+    /** The county picker over a new outing that fell back to the home county. */
+    @Test
+    fun countyPicker() = compose.shootScreen("county_picker", shade) {
+        OutingContent(previewOutingFallback, Duration.ofSeconds(12), {}, {}, {}, {}, {}, {}, {}, {})
+        CountyPickerSheet(previewCountyChoices, currentCode = previewOutingFallback.countyCode, onPick = {}, onDismiss = {})
+    }
+
+    @Test
+    fun locationExplain() = compose.shoot("location_explain", shade) {
+        LocationExplainContent(onContinue = {}, onNotNow = {}, onBack = {})
     }
 
     @Test

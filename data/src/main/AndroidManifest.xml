@@ -1,2 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        AndroidCountyLocator reads the approximate location once when an outing starts (#27). The app's own
+        manifest declares it too, where it is explained.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+</manifest>

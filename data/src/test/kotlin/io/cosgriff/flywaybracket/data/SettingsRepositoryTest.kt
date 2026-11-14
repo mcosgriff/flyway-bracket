@@ -74,4 +74,11 @@ class SettingsRepositoryTest {
         }
         assertEquals(PlayerSettings(), settings.settings().first())
     }
+
+    @Test
+    fun `the location question is unasked until it is asked`() = runBlocking {
+        assertEquals(false, settings.locationAsked().first())
+        settings.setLocationAsked()
+        assertEquals(true, settings.locationAsked().first())
+    }
 }

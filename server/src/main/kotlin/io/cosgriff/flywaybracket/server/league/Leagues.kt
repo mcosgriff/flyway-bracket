@@ -355,7 +355,10 @@ class Leagues(
     private fun LeagueTransaction.memberLeague(player: SignedInPlayer, leagueId: String): StoredLeague? {
         val id = parseId(leagueId) ?: return null
         if (!isMember(id, player.id)) return null
-        return league(id, lock = true)?.let { settleAndSave(it) }
+        val locked = league(id, lock = true) ?: return null
+        // Asked again under the lock: a leave that locked the league first may have taken the player out.
+        if (!isMember(id, player.id)) return null
+        return settleAndSave(locked)
     }
 
     /**

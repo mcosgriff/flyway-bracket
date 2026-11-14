@@ -44,6 +44,7 @@ Android.
 | Your display name | When you set or change it | To show you to the others in your league |
 | Your home county | When you set or change it | Seeds, and who is eligible, are judged by county |
 | Your leagues | When you create, join or leave one | To know whose picks and sightings count together |
+| A league you create: its name, whether it is open, its time zone and its start date | When you create it | To show it to its players, let open leagues take players, and date its season |
 | Your bracket picks | When you make or change them | To score them |
 | Each sighting: the bird's name | When you log a bird | To decide the matchup |
 | Each sighting: the county | With the sighting | Logging in a county makes you eligible there |

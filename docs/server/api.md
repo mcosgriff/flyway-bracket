@@ -6,8 +6,8 @@ the endpoints that carry them. Change the two together.
 
 The server (`:server`, [running.md](running.md)) answers the health check, the account endpoints, the
 league endpoints, a league's bracket, picks, results and standings, the pack endpoints and the sighting endpoints, and the app calls the account endpoints,
-after the player agrees (#38), and a league's detail, bracket, picks and round results (#41,
-`BracketRepository`). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
+after the player agrees (#38), creating, joining, auto-joining and leaving a league and its detail (#40,
+`LeagueRepository`), and a league's bracket, picks and round results (#41, `BracketRepository`). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
 new field sent to the server needs a change to that record first.
 
 ## Rules for every call
@@ -412,11 +412,10 @@ The server's packs are the files in its packs directory ([running.md](running.md
 
 ADR 0001 leaves these open, so no message or endpoint settles them:
 
-- **The league's own fields and who can see them.** `CreateLeagueRequest` (name, open, time zone, season
-  start) and `LeagueSummary` hold the fields issue #29 lists, and the server takes them, but the ADR's
-  table of what the app sends does not name them yet. The ADR must be changed before the app first sends
-  them. There is no endpoint that lists leagues the player is not in; `open` only lets auto-join choose
-  the league.
+- **Who can see the league's own fields.** `CreateLeagueRequest` (name, open, time zone, season start) and
+  `LeagueSummary` hold the fields issue #29 lists. The ADR's table names the four the app sends when the
+  player creates a league (#40); who else may see them is open. There is no endpoint that lists leagues the
+  player is not in; `open` only lets auto-join choose the league.
 - **A player's time zone.** Issue #32 has auto-join open a league in the player's time zone; the ADR does
   not name one among what the app sends, so auto-join sends none and opens its league in UTC.
 - **An outing with no birds.** Eligibility counts the county of any outing, but only sightings are sent;

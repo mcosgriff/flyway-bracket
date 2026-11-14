@@ -1,7 +1,7 @@
 # ADR 0001: what the app sends to the server, and when
 
-- Status: accepted. The account endpoints are built, in the server (#31) and the app (#38); the rest is the
-  plan.
+- Status: accepted. The account endpoints are built, in the server (#31) and the app (#38), and so are
+  creating, joining and leaving a league in the app (#40); the rest is the plan.
 - Date: 2026-11-13
 - Issue: #28
 
@@ -47,6 +47,10 @@ the only proof that an account belongs to a phone, so it is not stored in plain 
 | Display name | When the player sets or changes it | To show the player to the others in the league |
 | Home county code | When the player sets or changes it | Eligibility and seeding are judged by county |
 | League membership | When the player creates, joins or leaves a league | To know whose picks and sightings count together |
+| League name | When the player creates a league | To show the league to its players |
+| League open or invite-only | When the player creates a league | Auto-join places players only in open leagues |
+| League time zone | When the player creates a league | Every date of the league's season is a date in it |
+| League start date | When the player creates a league | The season and its rounds start on it, and picks lock then |
 | Bracket picks | When the player makes or changes them | To score them |
 | Sighting: bird name | When the player logs a bird | To decide the matchup |
 | Sighting: county code | With the sighting | A county where the player logged makes them eligible there |
@@ -125,7 +129,8 @@ means a rule and both of its users change in the same pull request.
 
 ### Not decided here
 
-- The league's own fields (for example its name, start date and time zone) and who can see them.
+- Who can see a league's own fields (its name, whether it is open, its time zone and its start date). The
+  app sends them when the player creates a league (#40), as the table above says.
 - How long the server keeps data after a season ends.
 - What happens to matchups already decided when a player deletes their account, and whether deletion also
   covers the home county and league membership.

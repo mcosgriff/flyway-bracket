@@ -26,6 +26,7 @@ import io.cosgriff.flywaybracket.ui.consent.previewNoNetwork
 import io.cosgriff.flywaybracket.ui.home.HomeContent
 import io.cosgriff.flywaybracket.ui.home.HomeState
 import io.cosgriff.flywaybracket.ui.home.LocationExplainContent
+import io.cosgriff.flywaybracket.ui.home.previewLongCounty
 import io.cosgriff.flywaybracket.ui.home.previewPackOffer
 import io.cosgriff.flywaybracket.ui.home.previewState
 import io.cosgriff.flywaybracket.ui.home.previewToday
@@ -105,6 +106,17 @@ class ScreensScreenshotTest(private val shade: Shade) {
     @Test
     fun homePackOffer() = compose.shoot("home_pack_offer", shade) {
         HomeContent(previewPackOffer, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    // The chip goes below the title, which keeps its words whole (#76).
+    @Test
+    fun homeLongCounty() = compose.shoot("home_long_county", shade) {
+        HomeContent(previewLongCounty, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
+    fun homeLongCountyLargeText() = compose.shoot("home_long_county_font_1_3", shade, fontScale = 1.3f) {
+        HomeContent(previewLongCounty, previewToday, onNavigate = {}, onStartOuting = {})
     }
 
     @Test

@@ -19,8 +19,10 @@ This file holds the rules and the decisions behind them. How a feature works is 
 ## Status
 
 `:domain` has the game rules. `:data` has the database (one table, `outings`, not used by a screen yet) and
-the player's settings. `:app` has the theme, the bottom bar and the Home screen; Bracket, League, Packs and
-Outing are placeholders (`NotBuiltYetContent`). No screen reads or saves anything yet. No network, no server.
+the player's settings, and the bundled table of states and counties (`assets/places/counties.tsv`,
+Colorado only). `:app` has the theme, the bottom bar, the first-run screen (display name and home county,
+saved in the settings) and the Home screen, which shows the home county; Bracket, League, Packs and Outing
+are placeholders (`NotBuiltYetContent`). No network, no server.
 `./gradlew build` is green (Gradle 9.9.1, AGP 9.5.1, lint included). Keep it green; lint fails the build on
 a warning as on an error (`warningsAsErrors`, in `:app` and `:data`), and there is no baseline: fix a
 warning, or suppress that one case in `app/lint.xml` with a comment saying why.
@@ -53,7 +55,8 @@ the `CODECOV_TOKEN` secret.
   - `src/testFixtures` — made-up charts and a made-up pack (`testStatePack()`) for any module's tests:
     `testImplementation(testFixtures(project(":domain")))`.
   - `domain/bracket` — `Round`, `Team`, `Matchup`, `Seeding`, `MatchupRule`, `PickScore`.
-  - `domain/player` — `PlayerSettings` (display name, home county code).
+  - `domain/player` — `PlayerSettings` (display name, home county code), `DisplayName` (the name's rule).
+  - `domain/place` — `CountyTable` (states and counties to choose a home county from), `CountyTableParser`.
 - `:data` — what the app saves on the phone, mapped to and from `:domain` types. Depends on `:domain`.
   - `data/db` — `FlywayDatabase` (Room 3), its entities and DAOs. Each version's schema is exported to
     `data/schemas` and committed (CI fails if it isn't). A schema change raises the version and adds a

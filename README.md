@@ -17,8 +17,11 @@ What exists:
   which are migrants, seeding, matchup decisions and pick scoring.
 - The state pack file format (`<state code>.fbpack`, gzipped JSON): a state's counties, each with its bar
   chart and its outline, and finding the county a place is in. Nothing builds or downloads a pack yet.
-- The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen with its empty state.
-  The other screens are placeholders. Every screen is screenshot-tested in light and dark and checked
+- The first run: the app asks for a display name (2 to 24 characters) and a home county, chosen from a
+  list by state. Both stay on the phone. The list ships with the app (codes and names from the US Census
+  Bureau's list of counties) and holds Colorado only for now.
+- The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen, which shows the home
+  county and is otherwise in its empty state. The other screens are placeholders. Every screen is screenshot-tested in light and dark and checked
   for accessibility (touch targets, contrast, labels) on each build.
 
 What does not exist yet: bird packs on the phone, outings and sightings, the bracket screens, leagues, and

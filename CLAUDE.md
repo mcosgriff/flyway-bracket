@@ -22,13 +22,14 @@ This file holds the rules and the decisions behind them. How a feature works is 
 the player's settings, the bundled table of states and counties (`assets/places/counties.tsv`,
 Colorado only) and the state packs on the phone (`PackRepository`). `:app` has the theme, the bottom bar,
 the first-run screen (display name and home county, saved in the settings), the Home screen and the Packs
-screen, which adds a pack from a `.fbpack` file the player chooses (downloading is #39), and the outing
+screen, which downloads packs from the server and updates them (`PackDownloads`, #39; the `.fbpack` file
+picker is in debug builds only), and the outing
 flow: Outing, the Add sighting sheet and Summary, in the county found from the phone's approximate location
 (`CountyLocator`, #27), else the home county. Bracket and League are placeholders (`NotBuiltYetContent`)
 behind the consent page. Home reads its region from the settings and its season figures and recent outings
-from the database, and starts or continues an outing. The app's only network calls are the account
-endpoints (`data/server/ServerClient`, `AccountRepository`, #38), made after the player agrees on the
-consent page.
+from the database, and starts or continues an outing. The app's network calls are the account
+endpoints (`data/server/ServerClient`, `AccountRepository`, #38), the bracket's (#41) and the pack
+endpoints (`PackDownloads`, #39), made after the player agrees on the consent page.
 `:server` starts, migrates its Postgres, answers a health check and has anonymous device accounts (create,
 read, change and delete the profile) and leagues (create, join, auto-join, leave, read); it has no pick or
 sighting endpoint yet and is hosted nowhere.
@@ -92,6 +93,9 @@ the `CODECOV_TOKEN` secret.
   - `PackRepository` — the state packs, each its `.fbpack` file in `files/packs`: install from bytes
     (checked with `StatePackCodec.decode` first), list, delete, `chartFor(countyCode)` and
     `countyAt(longitude, latitude)`. The files are parsed once and kept in memory.
+  - `PackDownloads` — the server's packs (#39): its list, and a download that replaces the pack on the
+    phone only once the whole file has come, matched its `ETag` (SHA-256) and been checked; runs in its own
+    scope so a download outlives the screen. `NetworkMeter` says whether the connection is metered.
   - `data/di/DataModule` — Hilt: provides the database, its DAOs, the DataStore and the repositories.
   - `data/server/ServerClient` — the league server's account endpoints, with `:api`'s messages and
     `ApiJson` (no content negotiation), on Ktor's OkHttp engine. Results are `ServerResult`; a failure is a

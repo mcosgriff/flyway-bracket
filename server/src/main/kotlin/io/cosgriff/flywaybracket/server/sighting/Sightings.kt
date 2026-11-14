@@ -54,8 +54,8 @@ class Sightings(
      * sighting whose id the player already used changes nothing, so a batch sent again is safe.
      *
      * A sighting dated in a round that is already decided is stored like any other. It must not change
-     * that round's result: deciding rounds (#37) reads the sightings once, when the round ends, and keeps
-     * the result.
+     * that round's result: deciding rounds (#37) reads the sightings once, 12 hours after the round's Sunday
+     * ends, and keeps the result.
      */
     fun upload(player: SignedInPlayer, request: UploadSightingsRequest): UploadOutcome {
         if (request.sightings.size > UploadSightingsRequest.MAX_SIGHTINGS) return UploadOutcome.TOO_MANY

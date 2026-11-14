@@ -8,6 +8,7 @@ import io.cosgriff.flywaybracket.api.CreateAccountResponse
 import io.cosgriff.flywaybracket.api.ProfileResponse
 import io.cosgriff.flywaybracket.server.league.LeagueStore
 import io.cosgriff.flywaybracket.server.league.Leagues
+import io.cosgriff.flywaybracket.server.pack.testCharts
 import io.cosgriff.flywaybracket.server.module
 import io.cosgriff.flywaybracket.server.pack.noPacks
 import io.cosgriff.flywaybracket.server.sighting.InMemorySightingStore
@@ -46,9 +47,10 @@ abstract class AccountEndpointsTest {
 
     protected fun server(creationsPerAddress: Int = 100, test: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         val players = store()
-        val leagues = Leagues(leagueStore(players))
-        val accounts = Accounts(players, leagues, creationLimit = FixedWindowRateLimiter(creationsPerAddress, Accounts.CREATION_WINDOW))
         val packs = noPacks()
+        val charts = testCharts()
+        val leagues = Leagues(leagueStore(players), charts)
+        val accounts = Accounts(players, leagues, charts, creationLimit = FixedWindowRateLimiter(creationsPerAddress, Accounts.CREATION_WINDOW))
         application {
             module(
                 database = { true },
@@ -181,7 +183,7 @@ abstract class AccountEndpointsTest {
         val response = patch(account, """{"displayName":"  Player One ","homeCounty":"US-ZZ-001"}""")
 
         assertEquals(HttpStatusCode.NoContent, response.status)
-        assertEquals(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-001"), profile(account))
+        assertEquals(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-001", homeCountyInPacks = true), profile(account))
     }
 
     @Test
@@ -192,7 +194,7 @@ abstract class AccountEndpointsTest {
         assertEquals(HttpStatusCode.NoContent, patch(account, """{"homeCounty":"US-ZZ-003"}""").status)
         assertEquals(HttpStatusCode.NoContent, patch(account, "{}").status)
 
-        assertEquals(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-003"), profile(account))
+        assertEquals(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-003", homeCountyInPacks = false), profile(account))
     }
 
     @Test
@@ -215,7 +217,7 @@ abstract class AccountEndpointsTest {
                 .assertRefused(HttpStatusCode.UnprocessableEntity, ApiErrorCode.DISPLAY_NAME_INVALID)
         }
 
-        assertEquals(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-001"), profile(account))
+        assertEquals(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-001", homeCountyInPacks = true), profile(account))
     }
 
     @Test

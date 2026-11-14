@@ -58,6 +58,8 @@ class DatabaseTest {
                 "season_start" to ("date" to "NO"),
                 "postponements" to ("integer" to "NO"),
                 "created_at" to ("timestamp with time zone" to "NO"),
+                // Added by the fourth migration.
+                "closed_reason" to ("text" to "YES"),
             ),
             columns("leagues"),
         )
@@ -67,8 +69,74 @@ class DatabaseTest {
                 "player_id" to ("uuid" to "NO"),
                 "joined_at" to ("timestamp with time zone" to "NO"),
                 "left_at" to ("timestamp with time zone" to "YES"),
+                // Added by the fifth migration.
+                "member_key" to ("uuid" to "NO"),
             ),
             columns("league_members"),
+        )
+    }
+
+    @Test
+    fun `the fifth migration makes the picks table`() {
+        assertEquals(
+            mapOf(
+                "league_id" to ("uuid" to "NO"),
+                "player_id" to ("uuid" to "NO"),
+                "slot" to ("smallint" to "NO"),
+                "common_name" to ("text" to "NO"),
+            ),
+            columns("league_picks"),
+        )
+    }
+
+    /** Counts only: no column names a player, a county or a sighting. */
+    @Test
+    fun `the sixth migration makes the results table, and the round homes table`() {
+        assertEquals(
+            mapOf(
+                "league_id" to ("uuid" to "NO"),
+                "slot" to ("smallint" to "NO"),
+                "upper_bird" to ("text" to "NO"),
+                "lower_bird" to ("text" to "NO"),
+                "upper_eligible" to ("integer" to "NO"),
+                "upper_logged" to ("integer" to "NO"),
+                "lower_eligible" to ("integer" to "NO"),
+                "lower_logged" to ("integer" to "NO"),
+                "winner" to ("text" to "NO"),
+                "reason" to ("text" to "NO"),
+            ),
+            columns("league_results"),
+        )
+        assertEquals(
+            mapOf(
+                "league_id" to ("uuid" to "NO"),
+                "player_id" to ("uuid" to "NO"),
+                "round" to ("text" to "NO"),
+                "home_county" to ("text" to "YES"),
+            ),
+            columns("league_round_homes"),
+        )
+    }
+
+    @Test
+    fun `the fourth migration makes the field tables`() {
+        assertEquals(
+            mapOf(
+                "league_id" to ("uuid" to "NO"),
+                "season_start" to ("date" to "NO"),
+                "fixed" to ("boolean" to "NO"),
+                "candidates" to ("integer" to "NO"),
+            ),
+            columns("league_fields"),
+        )
+        assertEquals(
+            mapOf(
+                "league_id" to ("uuid" to "NO"),
+                "quarter" to ("text" to "NO"),
+                "seed" to ("integer" to "NO"),
+                "common_name" to ("text" to "NO"),
+            ),
+            columns("league_field_teams"),
         )
     }
 
@@ -164,10 +232,10 @@ class DatabaseTest {
 
     @Test
     fun `health says the database answers`() = testApplication {
-        val leagues = Leagues(PostgresLeagueStore(database.dataSource))
         val packs = noPacks()
+        val leagues = Leagues(PostgresLeagueStore(database.dataSource), packs)
         val sightings = Sightings(PostgresSightingStore(database.dataSource), packs)
-        application { module(database, Accounts(PostgresPlayerStore(database.dataSource), leagues), leagues, packs, sightings, version = "1.2.3") }
+        application { module(database, Accounts(PostgresPlayerStore(database.dataSource), leagues, packs), leagues, packs, sightings, version = "1.2.3") }
 
         val health = ApiJson.decodeFromString<HealthResponse>(client.get(ApiPaths.HEALTH).bodyAsText())
 
@@ -194,7 +262,7 @@ class DatabaseTest {
         fun startPostgres() {
             postgres.start()
             database = Database.connect(postgres.jdbcUrl, postgres.username, postgres.password)
-            assertEquals(3, database.migrate())
+            assertEquals(6, database.migrate())
         }
 
         @AfterClass

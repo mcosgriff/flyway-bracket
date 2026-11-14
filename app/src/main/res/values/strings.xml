@@ -17,6 +17,13 @@
     <string name="round_quarterfinals">Quarterfinals</string>
     <string name="round_semifinals">Semifinals</string>
     <string name="round_final">Final</string>
+    <!-- The bracket's four quarters, one per bird group (#42). -->
+    <string name="quarter_songbirds">Songbirds</string>
+    <string name="quarter_waterbirds">Waterbirds</string>
+    <string name="quarter_fliers">Fliers</string>
+    <string name="quarter_waterfowl">Waterfowl</string>
+    <!-- A bird's share of its eligible players, then how many were eligible: "62% of 13". Never a bare percent. -->
+    <string name="share_of_eligible">%1$s of %2$d</string>
     <string name="not_built_body">This screen is not built yet.</string>
 
     <!-- Bottom bar -->
@@ -291,6 +298,140 @@
     <string name="consent_try_again">Try again</string>
     <string name="consent_not_now">Not now</string>
     <string name="consent_not_now_hint">Outings work without an account, and nothing is sent.</string>
+
+    <!-- Bracket (#42) -->
+    <!-- The season's name, then the word: "Spring bracket". -->
+    <string name="bracket_title">%1$s bracket</string>
+    <string name="bracket_layout_list">List</string>
+    <string name="bracket_layout_tree">Tree</string>
+    <string name="bracket_layout_field">All 64</string>
+    <string name="bracket_loading">Reading your bracket…</string>
+    <string name="bracket_try_again">Try again</string>
+    <string name="bracket_no_league_title">No league yet</string>
+    <string name="bracket_no_league_body">Your bracket belongs to a league. Join or start one on the League tab, then pick your birds here.</string>
+    <string name="bracket_forming_title">Your league is forming</string>
+    <string name="bracket_forming_body">The bracket appears once the members\' home counties give enough migrating birds to seed all 64. More players bring more birds.</string>
+    <string name="bracket_go_to_league">Go to League</string>
+    <!-- How many of the bracket's matchups have a pick, then when picks lock, on the phone's clock:
+         "Picked: 20 of 63 · Picks lock Mar 1, 2027, 12:00 AM". -->
+    <string name="bracket_picks_status">Picked: %1$d of %2$d · Picks lock %3$s</string>
+    <string name="bracket_tap_to_pick">Tap a bird to pick it to win.</string>
+    <string name="bracket_preview">This is a preview. The birds can change until the field is fixed on %1$s.</string>
+    <!-- A round's name, then the day it ends: "Round of 32 is live · ends Sun, Mar 14". -->
+    <string name="bracket_live">%1$s is live · ends %2$s</string>
+    <string name="bracket_unsent">Your latest picks are saved on this phone. They are sent when the server can be reached.</string>
+    <string name="bracket_notice_locked">Picks locked before your latest changes reached the server. Your bracket is the picks the server had at the lock.</string>
+    <string name="bracket_notice_changed">The league\'s birds changed while the bracket was a preview. Picks in matchups whose birds changed were cleared. Pick them again.</string>
+    <string name="bracket_notice_ok">OK</string>
+    <string name="bracket_problem_locked">Picks are locked. Nothing was changed.</string>
+    <string name="bracket_problem_does_not_fit">That pick does not fit your other picks. Nothing was changed.</string>
+    <string name="bracket_your_pick">Your pick</string>
+    <!-- The short mark of the player's pick on a decided matchup. -->
+    <string name="bracket_you">You</string>
+    <string name="bracket_to_come">To be decided</string>
+    <!-- A bird the player picked to get here, which has already lost: "Common Grackle · out". -->
+    <string name="bracket_side_out">%1$s · out</string>
+    <string name="bracket_upset_pick">Upset pick</string>
+    <string name="bracket_upset_bonus">Bonus if it wins: +%1$d</string>
+    <string name="bracket_key_list">The left number is the seed. Once a round is decided, each bird shows the share of its eligible players who logged it, and how many were eligible. A player is eligible when the bird is expected in their home county, or where they logged birds, that week.</string>
+    <!-- A round's name: "Round of 64 · decided". -->
+    <string name="bracket_round_decided">%1$s · decided</string>
+    <string name="bracket_round_live">%1$s · live</string>
+    <!-- The round's last day, then the player's right picks of its matchups. The count is the third number. -->
+    <plurals name="bracket_round_summary">
+        <item quantity="one">Closed %1$s · %2$d of %3$d pick right</item>
+        <item quantity="other">Closed %1$s · %2$d of %3$d picks right</item>
+    </plurals>
+    <plurals name="bracket_points">
+        <item quantity="one">%d pt</item>
+        <item quantity="other">%d pts</item>
+    </plurals>
+    <!-- What a decided pick earned, over its word: "+1", "right". -->
+    <string name="bracket_points_won">+%1$d</string>
+    <string name="bracket_result_right">right</string>
+    <string name="bracket_result_upset">upset</string>
+    <string name="bracket_result_missed">missed</string>
+    <string name="bracket_result_no_pick">no pick</string>
+    <string name="bracket_key_done">Each bird shows the share of its eligible players who logged it that week, and how many were eligible. A right upset pick adds the seed gap.</string>
+    <string name="bracket_legend_out">Faded: knocked out</string>
+    <string name="bracket_scroll_hint">Scroll for later rounds</string>
+    <string name="bracket_champion">Your champion</string>
+    <string name="bracket_change_title">Change this pick?</string>
+    <!-- The bird now picked, then the count of later picks it clears. -->
+    <plurals name="bracket_change_body">
+        <item quantity="one">Picking %2$s here clears %1$d later pick of the bird you had:</item>
+        <item quantity="other">Picking %2$s here clears %1$d later picks of the bird you had:</item>
+    </plurals>
+    <!-- A cleared pick: the round, then the bird. -->
+    <string name="bracket_change_cleared">%1$s: %2$s</string>
+    <string name="bracket_change_confirm">Change pick</string>
+    <string name="bracket_change_cancel">Keep my picks</string>
+    <!-- What a screen reader says for one matchup, sentence by sentence. -->
+    <string name="bracket_a11y_bird">%2$s, seed %1$d</string>
+    <string name="bracket_a11y_bird_share">%2$s, seed %1$d: %3$s</string>
+    <string name="bracket_a11y_bird_picked">%2$s, seed %1$d: your pick to get here</string>
+    <string name="bracket_a11y_versus">%1$s, against %2$s.</string>
+    <string name="bracket_a11y_pick">Your pick: %1$s.</string>
+    <string name="bracket_a11y_no_pick">No pick.</string>
+    <string name="bracket_a11y_won">%1$s won.</string>
+    <plurals name="bracket_a11y_scored">
+        <item quantity="one">You scored %d point.</item>
+        <item quantity="other">You scored %d points.</item>
+    </plurals>
+    <string name="bracket_a11y_pick_action">Pick %1$s</string>
+    <string name="bracket_a11y_open">Open matchup</string>
+
+    <!-- Matchup (#42), opened from the bracket after picks lock -->
+    <!-- The round's name, then the quarter's: "Round of 32 · Songbirds". -->
+    <string name="matchup_overline">%1$s · %2$s</string>
+    <string name="matchup_live">Live · ends %1$s</string>
+    <string name="matchup_upcoming">Starts %1$s</string>
+    <string name="matchup_decided">Decided · closed %1$s</string>
+    <string name="matchup_seed">Seed %1$d</string>
+    <!-- Joins two labels: "Seed 12 · your pick". -->
+    <string name="matchup_joined">%1$s · %2$s</string>
+    <string name="matchup_tag_pick">your pick</string>
+    <string name="matchup_tag_won">won</string>
+    <!-- The count is the second number, how many players were eligible. -->
+    <plurals name="matchup_logged_of">
+        <item quantity="one">%1$d of %2$d eligible player logged it</item>
+        <item quantity="other">%1$d of %2$d eligible players logged it</item>
+    </plurals>
+    <string name="matchup_no_share">Shares come when the round is decided.</string>
+    <string name="matchup_result_title">Result</string>
+    <string name="matchup_reason_higher_share">%1$s won: a higher share of its eligible players logged it.</string>
+    <string name="matchup_reason_tied">The shares were equal, so %1$s won as the better seed.</string>
+    <!-- The count is the first number: the fewest eligible players a share needs. -->
+    <plurals name="matchup_reason_too_few">
+        <item quantity="one">Neither bird had at least %1$d eligible player, so %2$s won as the better seed.</item>
+        <item quantity="other">Neither bird had at least %1$d eligible players, so %2$s won as the better seed.</item>
+    </plurals>
+    <plurals name="matchup_share_did_not_count">
+        <item quantity="one">%2$s had fewer than %1$d eligible player, so its share did not count.</item>
+        <item quantity="other">%2$s had fewer than %1$d eligible players, so its share did not count.</item>
+    </plurals>
+    <string name="matchup_not_decided">Not decided yet. The bird logged by the higher share of its eligible players wins.</string>
+    <string name="matchup_pick_title">Your pick</string>
+    <string name="matchup_no_pick">You did not pick this matchup.</string>
+    <plurals name="matchup_points">
+        <item quantity="one">%d point</item>
+        <item quantity="other">%d points</item>
+    </plurals>
+    <!-- Points, then the upset bonus: "2 points, upset bonus +8". -->
+    <string name="matchup_points_bonus">%1$s, upset bonus +%2$d</string>
+    <!-- The bird, then the points: "Western Warbling Vireo won: 2 points, upset bonus +8." -->
+    <string name="matchup_pick_won">%1$s won: %2$s.</string>
+    <string name="matchup_pick_lost">%1$s lost: no points.</string>
+    <string name="matchup_pick_out">%1$s is already out, so this pick cannot score.</string>
+    <string name="matchup_pick_if_wins">If %1$s wins: %2$s.</string>
+    <string name="matchup_part_title">Your part</string>
+    <string name="matchup_part_counted">%1$s: you were eligible and logged it. Counted once.</string>
+    <string name="matchup_part_eligible_live">%1$s: you are eligible and have not logged it yet.</string>
+    <string name="matchup_part_eligible_done">%1$s: you were eligible and did not log it.</string>
+    <string name="matchup_part_not_counted">%1$s: you logged it, but it was not expected where you were, so it did not count.</string>
+    <string name="matchup_part_not_eligible">%1$s: not expected in your home county, or where you logged birds, that week.</string>
+    <string name="matchup_part_note">From the outings on this phone and the packs it holds.</string>
+    <string name="matchup_part_not_started">The round has not started yet.</string>
 
     <!-- Why a call to the server failed. Never the server\'s own words: these come from its error code. -->
     <string name="server_problem_no_network">No internet connection. Connect to a network, then try again.</string>

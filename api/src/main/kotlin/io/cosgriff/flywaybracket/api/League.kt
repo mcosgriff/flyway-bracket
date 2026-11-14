@@ -1,6 +1,7 @@
 package io.cosgriff.flywaybracket.api
 
 import io.cosgriff.flywaybracket.domain.bracket.Season
+import io.cosgriff.flywaybracket.domain.league.CloseReason
 import kotlinx.serialization.Serializable
 
 /**
@@ -29,8 +30,10 @@ enum class LeagueState {
     FINISHED,
 
     /**
-     * The season never started: the league had fewer than 8 players when its start date arrived, and
-     * still did after the start had moved back a week four times. Its players can join another league.
+     * The season never started ([LeagueSummary.closedBecause] says why): the league had fewer than 8
+     * players when its start date arrived, and still did after the start had moved back a week four
+     * times; or too few migrating birds pass through its players' home counties to seed a field of 64. Its
+     * players can join another league.
      */
     CLOSED,
 }
@@ -42,6 +45,7 @@ enum class LeagueState {
  *   player.
  * @property players how many players are in the league now.
  * @property capacity the most players the league can hold.
+ * @property closedBecause why a [LeagueState.CLOSED] league never started; null in every other state.
  */
 @Serializable
 data class LeagueSummary(
@@ -51,6 +55,7 @@ data class LeagueSummary(
     val players: Int,
     val capacity: Int,
     val state: LeagueState,
+    val closedBecause: CloseReason? = null,
 )
 
 /** The leagues the player is in: at most one forming or in season, and any finished or closed. */
@@ -64,11 +69,21 @@ data class JoinLeagueRequest(val inviteCode: String)
  * One player's place in a league. It holds only what ADR 0001 lets the others see: no county, no
  * sightings, and no account id.
  *
- * @property rank 1 is first. Players level on points share a rank.
+ * @property rank 1 is first. Players level on points and on [rightPicks] share a rank.
+ * @property memberKey names this member in the league's paths, such as [ApiPaths.memberPicks]: made by the
+ *   server when the player joins, one per league, and never the account id.
  * @property you whether this is the player who asked.
+ * @property rightPicks how many decided matchups the player picked the winner of; it breaks a tie on points.
  */
 @Serializable
-data class Standing(val displayName: String, val points: Int, val rank: Int, val you: Boolean = false)
+data class Standing(
+    val displayName: String,
+    val points: Int,
+    val rank: Int,
+    val memberKey: String,
+    val you: Boolean = false,
+    val rightPicks: Int = 0,
+)
 
 /**
  * A league, its members and its season.

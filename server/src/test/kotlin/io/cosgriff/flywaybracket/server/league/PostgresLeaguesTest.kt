@@ -1,5 +1,6 @@
 package io.cosgriff.flywaybracket.server.league
 
+import io.cosgriff.flywaybracket.api.SubmitPicksRequest
 import io.cosgriff.flywaybracket.server.Database
 import io.cosgriff.flywaybracket.server.account.Accounts
 import io.cosgriff.flywaybracket.server.account.PlayerStore
@@ -7,6 +8,7 @@ import io.cosgriff.flywaybracket.server.account.PostgresPlayerStore
 import org.junit.AfterClass
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.BeforeClass
 import org.junit.Test
 import org.testcontainers.postgresql.PostgreSQLContainer
@@ -20,7 +22,7 @@ import java.util.UUID
 class PostgresLeaguesTest : LeaguesTest() {
     override fun players(): PlayerStore {
         // Each test starts with no players and no leagues: auto-join would find another test's.
-        update("TRUNCATE sightings, league_members, leagues, players")
+        update("TRUNCATE league_round_homes, league_results, league_picks, league_field_teams, league_fields, sightings, league_members, leagues, players")
         return PostgresPlayerStore(database.dataSource)
     }
 
@@ -51,10 +53,42 @@ class PostgresLeaguesTest : LeaguesTest() {
         clock.now = at(START.plusDays(1))
         val leagueId = UUID.fromString(league.id)
 
-        Accounts(PostgresPlayerStore(database.dataSource), leagues).delete(deleted)
+        Accounts(PostgresPlayerStore(database.dataSource), leagues, charts).delete(deleted)
 
         assertEquals(0, count("SELECT count(*) FROM league_members WHERE player_id = ?", deleted.id))
         assertEquals(8, count("SELECT count(*) FROM league_members WHERE league_id = ? AND left_at IS NULL", leagueId))
+    }
+
+    @Test
+    fun `a deleted player's picks are gone, and a player who left after the start keeps theirs`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        val (deleted, leaver) = fill(league, 8).take(2)
+        val picks = upperWinsEverywhere(bracketOf(owner, league))
+        listOf(deleted, leaver).forEach { player ->
+            assertTrue(leagues.submitPicks(player, league.id, SubmitPicksRequest(picks)) is PicksOutcome.Shown)
+        }
+        clock.now = at(START.plusDays(1))
+
+        Accounts(PostgresPlayerStore(database.dataSource), leagues, charts).delete(deleted)
+        assertTrue(leagues.leave(leaver, league.id))
+
+        assertEquals(0, count("SELECT count(*) FROM league_picks WHERE player_id = ?", deleted.id))
+        assertEquals(63, count("SELECT count(*) FROM league_picks WHERE player_id = ?", leaver.id))
+    }
+
+    @Test
+    fun `the picks table refuses a slot outside the bracket`() {
+        val owner = newPlayer()
+        val league = create(owner)
+
+        assertThrows(SQLException::class.java) {
+            update(
+                "INSERT INTO league_picks (league_id, player_id, slot, common_name) VALUES (?, ?, 63, 'Test Warbler 20')",
+                UUID.fromString(league.id),
+                owner.id,
+            )
+        }
     }
 
     @Test

@@ -1,12 +1,25 @@
 package io.cosgriff.flywaybracket.server.league
 
+import io.cosgriff.flywaybracket.api.BracketResponse
 import io.cosgriff.flywaybracket.api.CreateLeagueRequest
 import io.cosgriff.flywaybracket.api.LeagueState
 import io.cosgriff.flywaybracket.api.LeagueSummary
+import io.cosgriff.flywaybracket.api.MatchupSlot
+import io.cosgriff.flywaybracket.api.PicksResponse
+import io.cosgriff.flywaybracket.api.SubmitPicksRequest
+import io.cosgriff.flywaybracket.domain.bracket.BirdGroup
+import io.cosgriff.flywaybracket.domain.bracket.Field
+import io.cosgriff.flywaybracket.domain.bracket.FieldResult
+import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.domain.bracket.Season
+import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendar
+import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendarResult
+import io.cosgriff.flywaybracket.domain.league.CloseReason
 import io.cosgriff.flywaybracket.server.account.Accounts
 import io.cosgriff.flywaybracket.server.account.PlayerStore
 import io.cosgriff.flywaybracket.server.account.SignedInPlayer
+import io.cosgriff.flywaybracket.server.pack.TEST_HOME_COUNTY
+import io.cosgriff.flywaybracket.server.pack.testCharts
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -35,17 +48,26 @@ abstract class LeaguesTest {
     /** The leagues of [players]' players, holding none. */
     protected abstract fun leagueStore(players: PlayerStore): LeagueStore
 
-    private val playerStore by lazy { players() }
+    protected val playerStore by lazy { players() }
 
     /** Wednesday 17 February 2027, noon in Denver. */
     protected val clock = HandClock(at(LocalDate.of(2027, 2, 17)))
-    protected val leagues by lazy { Leagues(leagueStore(playerStore), clock) }
+
+    /** Fieldland's made-up counties, and `US-ZZ-001` with 80 made-up migrants. */
+    protected val charts = testCharts()
+
+    /** Each time a stored field replaced one with birds: the league and the matchups whose birds changed. */
+    protected val previewChanges = mutableListOf<Pair<UUID, List<MatchupSlot>>>()
+
+    protected val leagues by lazy {
+        Leagues(leagueStore(playerStore), charts, clock, previewChanged = { id, slots -> previewChanges += id to slots })
+    }
     private var made = 0
 
-    protected fun newPlayer(displayName: String? = "Player ${++made}"): SignedInPlayer {
+    protected fun newPlayer(displayName: String? = "Player ${++made}", homeCounty: String = TEST_HOME_COUNTY): SignedInPlayer {
         val id = UUID.randomUUID()
         playerStore.create(id, "made-up-hash")
-        playerStore.update(id, displayName, "US-ZZ-001")
+        playerStore.update(id, displayName, homeCounty)
         return SignedInPlayer(id)
     }
 
@@ -60,8 +82,8 @@ abstract class LeaguesTest {
         inLeague(leagues.create(owner, request(open = open, seasonStart = seasonStart)))
 
     /** [count] new players join [league] by its code. */
-    protected fun fill(league: LeagueSummary, count: Int): List<SignedInPlayer> = List(count) {
-        newPlayer().also { inLeague(leagues.join(it, checkNotNull(league.inviteCode))) }
+    protected fun fill(league: LeagueSummary, count: Int, homeCounty: String = TEST_HOME_COUNTY): List<SignedInPlayer> = List(count) {
+        newPlayer(homeCounty = homeCounty).also { inLeague(leagues.join(it, checkNotNull(league.inviteCode))) }
     }
 
     protected fun inLeague(outcome: LeagueOutcome): LeagueSummary {
@@ -328,7 +350,9 @@ abstract class LeaguesTest {
 
         clock.now = at(LocalDate.of(2027, 3, 29))
         assertEquals(LeagueState.CLOSED, leagues.current(owner.id)?.state)
-        assertEquals(LeagueState.CLOSED, Accounts(playerStore, leagues).profile(owner)?.league?.state)
+        val told = Accounts(playerStore, leagues, charts).profile(owner)?.league
+        assertEquals(LeagueState.CLOSED, told?.state)
+        assertEquals(CloseReason.TOO_FEW_PLAYERS, told?.closedBecause)
         assertEquals(refused(LeagueRefusal.JOINING_CLOSED), leagues.join(newPlayer(), checkNotNull(league.inviteCode)))
     }
 
@@ -486,7 +510,7 @@ abstract class LeaguesTest {
         val league = create(owner)
         val deleted = fill(league, 1).single()
 
-        Accounts(playerStore, leagues).delete(deleted)
+        Accounts(playerStore, leagues, charts).delete(deleted)
 
         assertEquals(1, leagues.mine(owner).single().players)
         assertEquals(listOf("Player 1"), checkNotNull(leagues.detail(owner, league.id)).members.map { it.displayName })
@@ -499,7 +523,7 @@ abstract class LeaguesTest {
         val deleted = fill(league, 7).first()
         clock.now = at(START.plusDays(3))
 
-        Accounts(playerStore, leagues).delete(deleted)
+        Accounts(playerStore, leagues, charts).delete(deleted)
 
         val detail = checkNotNull(leagues.detail(owner, league.id))
         assertEquals(LeagueState.IN_SEASON, detail.league.state)
@@ -510,7 +534,7 @@ abstract class LeaguesTest {
     // What a member sees
 
     @Test
-    fun `members by display name, with points and rank`() {
+    fun `members level on points are listed in the order they joined, with points and rank`() {
         val owner = newPlayer(displayName = "Kestrel")
         val league = create(owner)
         inLeague(leagues.join(newPlayer(displayName = "avocet"), checkNotNull(league.inviteCode)))
@@ -518,10 +542,11 @@ abstract class LeaguesTest {
 
         val members = checkNotNull(leagues.detail(owner, league.id)).members
 
-        assertEquals(listOf("avocet", "Bittern", "Kestrel"), members.map { it.displayName })
+        assertEquals(listOf("Kestrel", "avocet", "Bittern"), members.map { it.displayName })
         assertEquals(listOf(0, 0, 0), members.map { it.points })
+        assertEquals(listOf(0, 0, 0), members.map { it.rightPicks })
         assertEquals(listOf(1, 1, 1), members.map { it.rank })
-        assertEquals(listOf(false, false, true), members.map { it.you })
+        assertEquals(listOf(true, false, false), members.map { it.you })
     }
 
     @Test
@@ -537,12 +562,407 @@ abstract class LeaguesTest {
     @Test
     fun `the profile shows the player's league`() {
         val owner = newPlayer()
-        val accounts = Accounts(playerStore, leagues)
+        val accounts = Accounts(playerStore, leagues, charts)
         assertNull(accounts.profile(owner)?.league)
 
         val league = create(owner)
 
         assertEquals(league, accounts.profile(owner)?.league)
+    }
+
+    // Seeding (#34), with the made-up pack of Fieldland
+
+    protected fun bracketOf(player: SignedInPlayer, league: LeagueSummary): BracketResponse {
+        val outcome = leagues.bracket(player, league.id)
+        assertTrue(outcome.toString(), outcome is BracketOutcome.Ready)
+        return (outcome as BracketOutcome.Ready).bracket
+    }
+
+    private fun BracketResponse.quarter(group: BirdGroup): List<String> =
+        teams.filter { it.quarter == group }.sortedBy { it.seed }.map { it.commonName }
+
+    /** `Test <family> 20` down to `Test <family> 05`: seeds 1 to 16 of a group with 20 birds. */
+    private fun strongest16(family: String) = (20 downTo 5).map { "Test $family ${it.toString().padStart(2, '0')}" }
+
+    @Test
+    fun `when the season starts its bracket is seeded from the members' home counties`() {
+        val owner = newPlayer(homeCounty = PLENTY)
+        val league = create(owner)
+        fill(league, 7, homeCounty = PLENTY)
+        clock.now = at(START, LocalTime.of(0, 1))
+
+        leagues.settleDue()
+
+        assertEquals(LeagueState.IN_SEASON, leagues.mine(owner).single().state)
+        val bracket = bracketOf(owner, league)
+        assertFalse(bracket.preview)
+        assertEquals(64, bracket.teams.size)
+        assertEquals(strongest16("Warbler"), bracket.quarter(BirdGroup.SONGBIRDS))
+        assertEquals(strongest16("Sandpiper"), bracket.quarter(BirdGroup.WATERBIRDS))
+        assertEquals(strongest16("Swallow"), bracket.quarter(BirdGroup.FLIERS))
+        assertEquals(strongest16("Teal"), bracket.quarter(BirdGroup.WATERFOWL))
+        assertEquals(MatchupSlot.all, bracket.matchups.map { it.slot })
+        // Seeds 1 and 16 of the top quarter meet at the top; seeds 2 and 15 of the bottom one at the bottom.
+        assertEquals("Test Warbler 20" to "Test Warbler 05", bracket.matchups[0].upper to bracket.matchups[0].lower)
+        assertEquals("Test Teal 19" to "Test Teal 06", bracket.matchups[31].upper to bracket.matchups[31].lower)
+        // No round is decided yet.
+        assertTrue(bracket.matchups.all { it.winner == null })
+        assertTrue(bracket.matchups.filter { it.slot.round != Round.ROUND_OF_64 }.all { it.upper == null && it.lower == null })
+    }
+
+    @Test
+    fun `a short quarter is filled with the strongest birds of the other groups`() {
+        val owner = newPlayer(homeCounty = FEW_DUCKS)
+        val league = create(owner)
+        fill(league, 7, homeCounty = FEW_DUCKS)
+        clock.now = at(START)
+
+        leagues.settleDue()
+
+        val waterfowl = bracketOf(owner, league).quarter(BirdGroup.WATERFOWL)
+        assertEquals(16, waterfowl.size)
+        assertEquals("Test Teal 06", waterfowl.first())
+        assertEquals(6, waterfowl.count { BirdGroup.of(it) == BirdGroup.WATERFOWL })
+        assertEquals(64, bracketOf(owner, league).teams.map { it.commonName }.toSet().size)
+    }
+
+    @Test
+    fun `with too few migrating birds the league is closed when its season would start`() {
+        val owner = newPlayer(homeCounty = SPARSE)
+        val league = create(owner)
+        fill(league, 7, homeCounty = SPARSE)
+        clock.now = at(START)
+
+        // Read before anything saved the start: the league is closed already.
+        assertEquals(CloseReason.TOO_FEW_BIRDS, leagues.current(owner.id)?.closedBecause)
+        leagues.settleDue()
+
+        val summary = leagues.mine(owner).single()
+        assertEquals(LeagueState.CLOSED, summary.state)
+        assertEquals(CloseReason.TOO_FEW_BIRDS, summary.closedBecause)
+        assertEquals(CloseReason.TOO_FEW_BIRDS, Accounts(playerStore, leagues, charts).profile(owner)?.league?.closedBecause)
+        assertEquals(BracketOutcome.NotReady, leagues.bracket(owner, league.id))
+        assertEquals(refused(LeagueRefusal.JOINING_CLOSED), leagues.join(newPlayer(), checkNotNull(league.inviteCode)))
+    }
+
+    @Test
+    fun `a member whose home county is in no pack is left out of seeding, and told so`() {
+        val owner = newPlayer(homeCounty = FEW_DUCKS)
+        val league = create(owner)
+        val outsiders = fill(league, 7, homeCounty = OUTSIDE_EVERY_PACK)
+        val accounts = Accounts(playerStore, leagues, charts)
+        assertEquals(false, accounts.profile(outsiders.first())?.homeCountyInPacks)
+        assertEquals(true, accounts.profile(owner)?.homeCountyInPacks)
+        clock.now = at(START)
+
+        leagues.settleDue()
+
+        // The outsiders count toward the 8 players, but the field is Few Ducks' alone.
+        assertEquals(LeagueState.IN_SEASON, leagues.mine(owner).single().state)
+        val bins = (SeasonCalendar.of(START) as SeasonCalendarResult.Valid).calendar.allBins()
+        val fewDucksAlone = Field.choose(listOf(checkNotNull(charts.chartFor(FEW_DUCKS))), bins) as FieldResult.Seeded
+        assertEquals(
+            fewDucksAlone.teams.map { Triple(it.commonName, it.quarter, it.seed) }.toSet(),
+            bracketOf(owner, league).teams.map { Triple(it.commonName, it.quarter.name, it.seed) }.toSet(),
+        )
+    }
+
+    @Test
+    fun `the job running twice seeds once`() {
+        val owner = newPlayer(homeCounty = PLENTY)
+        val league = create(owner)
+        val members = fill(league, 7, homeCounty = PLENTY) + owner
+        // Nothing read the league on the day its field was fixed: the start seeds it.
+        clock.now = at(START, LocalTime.of(0, 1))
+        leagues.settleDue()
+        val seeded = bracketOf(owner, league)
+
+        // Every member moves to Few Ducks. Seeding again would fill the waterfowl quarter from other groups.
+        members.forEach { playerStore.update(it.id, null, FEW_DUCKS) }
+        clock.now = at(START, LocalTime.of(0, 2))
+        leagues.settleDue()
+        leagues.settleDue()
+
+        assertEquals(seeded, bracketOf(owner, league))
+        assertEquals(strongest16("Teal"), bracketOf(owner, league).quarter(BirdGroup.WATERFOWL))
+        assertEquals(LeagueState.IN_SEASON, leagues.mine(owner).single().state)
+    }
+
+    @Test
+    fun `before the field is fixed the bracket is a preview, seeded again when the members change`() {
+        val owner = newPlayer(homeCounty = PLENTY)
+        val league = create(owner)
+
+        val first = bracketOf(owner, league)
+        assertTrue(first.preview)
+        assertEquals(strongest16("Teal"), first.quarter(BirdGroup.WATERFOWL))
+        // Asking again seeds the same field; there was nothing to pick against before the first.
+        assertEquals(first, bracketOf(owner, league))
+        assertEquals(emptyList<Pair<UUID, List<MatchupSlot>>>(), previewChanges)
+
+        // A player from Few Ducks joins. Its six teal now count for both members, the other teal for one.
+        val joiner = fill(league, 1, homeCounty = FEW_DUCKS).single()
+        val second = bracketOf(owner, league)
+        assertTrue(second.preview)
+        assertNotEquals(first.quarter(BirdGroup.WATERFOWL).toSet(), second.quarter(BirdGroup.WATERFOWL).toSet())
+        assertEquals(first.quarter(BirdGroup.SONGBIRDS), second.quarter(BirdGroup.SONGBIRDS))
+        // The matchups whose birds changed are the waterfowl quarter's, and those they feed.
+        val (changedLeague, changed) = previewChanges.single()
+        assertEquals(league.id, changedLeague.toString())
+        assertTrue(changed.toString(), changed.isNotEmpty())
+        assertTrue(changed.toString(), changed.filter { it.round == Round.ROUND_OF_64 }.all { it.position >= 24 })
+        assertTrue(changed.toString(), MatchupSlot(62) in changed)
+
+        // The joiner's home county changes to Plenty: the first field is back.
+        playerStore.update(joiner.id, null, PLENTY)
+        assertEquals(first.teams, bracketOf(owner, league).teams)
+        assertEquals(2, previewChanges.size)
+    }
+
+    @Test
+    fun `the field is fixed 48 hours before the start, and a late joiner does not change it`() {
+        val owner = newPlayer(homeCounty = PLENTY)
+        val league = create(owner)
+        fill(league, 7, homeCounty = PLENTY)
+
+        // Friday: still a preview.
+        clock.now = at(LocalDate.of(2027, 2, 26))
+        val preview = bracketOf(owner, league)
+        assertTrue(preview.preview)
+
+        // Saturday: the job fixes the field.
+        clock.now = at(LocalDate.of(2027, 2, 27), LocalTime.of(0, 1))
+        leagues.settleDue()
+
+        // Sunday: a player from Few Ducks can still join, but the field stays as it was.
+        clock.now = at(LocalDate.of(2027, 2, 28))
+        inLeague(leagues.join(newPlayer(homeCounty = FEW_DUCKS), checkNotNull(league.inviteCode)))
+        val fixed = bracketOf(owner, league)
+        assertFalse(fixed.preview)
+        assertEquals(preview.teams, fixed.teams)
+
+        // Monday: the season starts with that field.
+        clock.now = at(START)
+        leagues.settleDue()
+        assertEquals(LeagueState.IN_SEASON, leagues.mine(owner).single().state)
+        assertEquals(fixed, bracketOf(owner, league))
+    }
+
+    @Test
+    fun `only a member sees a bracket, and only once there is a field`() {
+        val owner = newPlayer()
+        val league = create(owner)
+
+        assertEquals(BracketOutcome.NotFound, leagues.bracket(newPlayer(), league.id))
+        assertEquals(BracketOutcome.NotFound, leagues.bracket(owner, UUID.randomUUID().toString()))
+        assertEquals(BracketOutcome.NotFound, leagues.bracket(owner, "league-1"))
+
+        val sparseOwner = newPlayer(homeCounty = SPARSE)
+        val sparse = create(sparseOwner)
+        assertEquals(BracketOutcome.NotReady, leagues.bracket(sparseOwner, sparse.id))
+    }
+
+    // Picks (#35)
+
+    /** A whole bracket of [bracket]'s field in which the bird drawn above wins every matchup. */
+    protected fun upperWinsEverywhere(bracket: BracketResponse): Map<MatchupSlot, String> {
+        val picks = sortedMapOf<MatchupSlot, String>()
+        MatchupSlot.all.forEach { slot ->
+            picks[slot] = if (slot.round == Round.ROUND_OF_64) {
+                checkNotNull(bracket.matchups[slot.index].upper)
+            } else {
+                picks.getValue(MatchupSlot.of(Round.entries[slot.round.ordinal - 1], 2 * slot.position))
+            }
+        }
+        return picks
+    }
+
+    private fun submit(player: SignedInPlayer, league: LeagueSummary, picks: Map<MatchupSlot, String>): PicksOutcome =
+        leagues.submitPicks(player, league.id, SubmitPicksRequest(picks))
+
+    private fun shown(outcome: PicksOutcome): PicksResponse {
+        assertTrue(outcome.toString(), outcome is PicksOutcome.Shown)
+        return (outcome as PicksOutcome.Shown).picks
+    }
+
+    private fun memberKey(asking: SignedInPlayer, league: LeagueSummary, displayName: String): String =
+        checkNotNull(leagues.detail(asking, league.id)).members.single { it.displayName == displayName }.memberKey
+
+    @Test
+    fun `a whole bracket is stored and read back`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        val picks = upperWinsEverywhere(bracketOf(owner, league))
+
+        assertEquals(PicksResponse(picks, locked = false), shown(submit(owner, league, picks)))
+
+        assertEquals(PicksResponse(picks, locked = false), shown(leagues.picks(owner, league.id)))
+    }
+
+    @Test
+    fun `a part of a bracket is stored, in place of every pick before it`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        assertEquals(PicksResponse(emptyMap(), locked = false), shown(leagues.picks(owner, league.id)))
+        val whole = upperWinsEverywhere(bracketOf(owner, league))
+        shown(submit(owner, league, whole))
+
+        val firstRound = whole.filterKeys { it.round == Round.ROUND_OF_64 }
+        shown(submit(owner, league, firstRound))
+
+        assertEquals(firstRound, shown(leagues.picks(owner, league.id)).picks)
+        shown(submit(owner, league, emptyMap()))
+        assertEquals(emptyMap<MatchupSlot, String>(), shown(leagues.picks(owner, league.id)).picks)
+    }
+
+    @Test
+    fun `an inconsistent bracket is refused at its first bad slot, and nothing is stored`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        val bracket = bracketOf(owner, league)
+        val whole = upperWinsEverywhere(bracket)
+        shown(submit(owner, league, whole))
+
+        // The first matchup's lower bird is picked to win the next one, having lost the first.
+        val loserGoesOn = whole + (MatchupSlot(32) to checkNotNull(bracket.matchups[0].lower))
+        assertEquals(
+            PicksOutcome.Refused(PicksRefusal.NOT_PICKED_TO_REACH, MatchupSlot(32)),
+            submit(owner, league, loserGoesOn),
+        )
+        // The final with nothing before it.
+        assertEquals(
+            PicksOutcome.Refused(PicksRefusal.NOT_PICKED_TO_REACH, MatchupSlot(62)),
+            submit(owner, league, mapOf(MatchupSlot(62) to whole.getValue(MatchupSlot(62)))),
+        )
+        // A bird drawn in another matchup, and one in no matchup at all.
+        assertEquals(
+            PicksOutcome.Refused(PicksRefusal.NOT_IN_MATCHUP, MatchupSlot(5)),
+            submit(owner, league, mapOf(MatchupSlot(5) to checkNotNull(bracket.matchups[6].upper))),
+        )
+        assertEquals(
+            PicksOutcome.Refused(PicksRefusal.NOT_IN_MATCHUP, MatchupSlot(0)),
+            submit(owner, league, mapOf(MatchupSlot(0) to "Test Unknown Bird")),
+        )
+
+        assertEquals(whole, shown(leagues.picks(owner, league.id)).picks)
+    }
+
+    @Test
+    fun `picks lock at midnight on the first Monday in the league's time zone`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        fill(league, 7)
+        val picks = upperWinsEverywhere(bracketOf(owner, league))
+        val lock = at(START, LocalTime.MIDNIGHT)
+
+        clock.now = lock.minusSeconds(1)
+        shown(submit(owner, league, picks.filterKeys { it.round == Round.ROUND_OF_64 }))
+
+        clock.now = lock.plusSeconds(1)
+        assertEquals(PicksOutcome.Locked, submit(owner, league, picks))
+        assertEquals(
+            PicksResponse(picks.filterKeys { it.round == Round.ROUND_OF_64 }, locked = true),
+            shown(leagues.picks(owner, league.id)),
+        )
+    }
+
+    @Test
+    fun `a postponed league's picks stay open until its new start`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        fill(league, 6)
+        val picks = upperWinsEverywhere(bracketOf(owner, league))
+
+        // 7 players on 1 March: the start moves to 8 March.
+        clock.now = at(START, LocalTime.of(0, 1))
+
+        assertEquals(PicksResponse(picks, locked = false), shown(submit(owner, league, picks)))
+    }
+
+    @Test
+    fun `another member's picks are hidden until they lock`() {
+        val owner = newPlayer(displayName = "Kestrel")
+        val league = create(owner)
+        val other = fill(league, 7).first()
+        val picks = upperWinsEverywhere(bracketOf(other, league))
+        shown(submit(other, league, picks))
+        val otherKey = memberKey(owner, league, "Player 1")
+
+        assertEquals(PicksOutcome.Hidden, leagues.memberPicks(owner, league.id, otherKey))
+        // A player's own, by their own key, at any time.
+        assertEquals(PicksResponse(picks, locked = false), shown(leagues.memberPicks(other, league.id, otherKey)))
+
+        clock.now = at(START, LocalTime.of(0, 1))
+
+        assertEquals(PicksResponse(picks, locked = true), shown(leagues.memberPicks(owner, league.id, otherKey)))
+        assertEquals(PicksResponse(emptyMap(), locked = true), shown(leagues.memberPicks(other, league.id, memberKey(other, league, "Kestrel"))))
+    }
+
+    @Test
+    fun `picks only of a member, by a key that is not their account id`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        val other = fill(league, 1).single()
+        val otherKey = memberKey(owner, league, "Player 2")
+        val stranger = newPlayer()
+
+        assertNotEquals(other.id.toString(), otherKey)
+        assertEquals(PicksOutcome.NoSuchMember, leagues.memberPicks(owner, league.id, other.id.toString()))
+        assertEquals(PicksOutcome.NoSuchMember, leagues.memberPicks(owner, league.id, UUID.randomUUID().toString()))
+        assertEquals(PicksOutcome.NoSuchMember, leagues.memberPicks(owner, league.id, "member-1"))
+        assertEquals(PicksOutcome.NotFound, leagues.memberPicks(stranger, league.id, otherKey))
+        assertEquals(PicksOutcome.NotFound, leagues.picks(stranger, league.id))
+        assertEquals(PicksOutcome.NotFound, submit(stranger, league, emptyMap()))
+        assertEquals(PicksOutcome.NotFound, leagues.picks(owner, "league-1"))
+
+        // A member who left is no longer found by their key.
+        assertTrue(leagues.leave(other, league.id))
+        assertEquals(PicksOutcome.NoSuchMember, leagues.memberPicks(owner, league.id, otherKey))
+    }
+
+    @Test
+    fun `with no field there is nothing to pick`() {
+        val sparseOwner = newPlayer(homeCounty = SPARSE)
+        val sparse = create(sparseOwner)
+
+        assertEquals(PicksOutcome.NotReady, submit(sparseOwner, sparse, emptyMap()))
+    }
+
+    @Test
+    fun `leaving before the start takes the player's picks with them`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        val leaver = fill(league, 1).single()
+        shown(submit(leaver, league, upperWinsEverywhere(bracketOf(leaver, league))))
+
+        assertTrue(leagues.leave(leaver, league.id))
+        inLeague(leagues.join(leaver, checkNotNull(league.inviteCode)))
+
+        assertEquals(emptyMap<MatchupSlot, String>(), shown(leagues.picks(leaver, league.id)).picks)
+    }
+
+    @Test
+    fun `a new preview drops the picks for the matchups whose birds changed, and those that depended on them`() {
+        val owner = newPlayer(homeCounty = PLENTY)
+        val league = create(owner)
+        val whole = upperWinsEverywhere(bracketOf(owner, league))
+        shown(submit(owner, league, whole))
+
+        // A player from Few Ducks joins: the waterfowl quarter changes, and every matchup it feeds.
+        fill(league, 1, homeCounty = FEW_DUCKS)
+        val left = shown(leagues.picks(owner, league.id)).picks
+
+        val changed = previewChanges.single().second
+        assertTrue(changed.toString(), MatchupSlot(31) in changed && MatchupSlot(62) in changed)
+        assertEquals(whole - changed.toSet(), left)
+        // The songbird and waterbird quarters, and the semifinal between them, are untouched.
+        assertTrue(left.toString(), (0..23).all { MatchupSlot(it) in left })
+        assertEquals(whole.getValue(MatchupSlot(60)), left[MatchupSlot(60)])
+        assertNull(left[MatchupSlot(62)])
+        // What is left is still a sound part of the bracket the player now sees.
+        val now = bracketOf(owner, league)
+        assertEquals(PicksResponse(left, locked = false), shown(submit(owner, league, left)))
+        assertEquals(upperWinsEverywhere(now).filterKeys { it in left }, left)
     }
 
     /** Runs both at the same moment, each on its own thread. */
@@ -567,6 +987,14 @@ abstract class LeaguesTest {
 
         /** Monday 1 March 2027. */
         val START: LocalDate = LocalDate.of(2027, 3, 1)
+
+        /** Fieldland's counties (`testFieldPack`): 80 migrants, 66 with only 6 teal, and 40. */
+        const val PLENTY = "XX-FD-001"
+        const val FEW_DUCKS = "XX-FD-002"
+        const val SPARSE = "XX-FD-003"
+
+        /** A well-formed county code that no pack holds. */
+        const val OUTSIDE_EVERY_PACK = "XX-QQ-001"
 
         fun at(date: LocalDate, time: LocalTime = LocalTime.NOON, zone: ZoneId = DENVER): Instant =
             ZonedDateTime.of(date, time, zone).toInstant()

@@ -3,6 +3,20 @@ package io.cosgriff.flywaybracket.ui.screens
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import io.cosgriff.flywaybracket.R
+import io.cosgriff.flywaybracket.domain.bracket.Field
+import io.cosgriff.flywaybracket.domain.bracket.Round
+import io.cosgriff.flywaybracket.ui.bracket.BracketContent
+import io.cosgriff.flywaybracket.ui.bracket.BracketLayout
+import io.cosgriff.flywaybracket.ui.bracket.BracketScreenState
+import io.cosgriff.flywaybracket.ui.bracket.MatchupContent
+import io.cosgriff.flywaybracket.ui.bracket.MatchupState
+import io.cosgriff.flywaybracket.ui.bracket.previewBeforeLock
+import io.cosgriff.flywaybracket.ui.bracket.previewChangePick
+import io.cosgriff.flywaybracket.ui.bracket.previewLocked
+import io.cosgriff.flywaybracket.ui.bracket.previewMatchupHigherShare
+import io.cosgriff.flywaybracket.ui.bracket.previewMatchupTied
+import io.cosgriff.flywaybracket.ui.bracket.previewMatchupTooFew
+import io.cosgriff.flywaybracket.ui.bracket.previewPartlyPicked
 import io.cosgriff.flywaybracket.ui.components.NotBuiltYetContent
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.consent.ConsentContent
@@ -226,6 +240,50 @@ class ScreensScreenshotTest(private val shade: Shade) {
     @Test
     fun licences() = compose.shoot("licences", shade) {
         LicencesContent(previewLicences, onBack = {}, onOpenLink = {})
+    }
+
+    @Test
+    fun bracketBeforeLock() = bracket("bracket_before_lock", BracketScreenState.Ready(previewBeforeLock))
+
+    @Test
+    fun bracketPartlyPicked() = bracket("bracket_partly_picked", BracketScreenState.Ready(previewPartlyPicked), round = Round.ROUND_OF_32)
+
+    @Test
+    fun bracketChangePick() = compose.shootScreen("bracket_change_pick", shade) {
+        BracketContent(BracketScreenState.Ready(previewChangePick), BracketLayout.LIST, Round.ROUND_OF_64, Field.quarters.first(), onNavigate = {})
+    }
+
+    @Test
+    fun bracketLockedLive() = bracket("bracket_locked_live", BracketScreenState.Ready(previewLocked))
+
+    @Test
+    fun bracketRoundDone() = bracket("bracket_round_done", BracketScreenState.Ready(previewLocked), round = Round.ROUND_OF_64)
+
+    @Test
+    fun bracketTree() = bracket("bracket_tree", BracketScreenState.Ready(previewLocked), layout = BracketLayout.TREE)
+
+    @Test
+    fun bracketField() = bracket("bracket_field", BracketScreenState.Ready(previewLocked), layout = BracketLayout.FIELD)
+
+    @Test
+    fun bracketNoLeague() = bracket("bracket_no_league", BracketScreenState.NoLeague(forming = false))
+
+    private fun bracket(name: String, state: BracketScreenState, round: Round? = null, layout: BracketLayout = BracketLayout.LIST) =
+        compose.shoot(name, shade) {
+            BracketContent(state, layout, round, Field.quarters.first(), onNavigate = {})
+        }
+
+    @Test
+    fun matchupHigherShare() = matchup("matchup_higher_share", previewMatchupHigherShare)
+
+    @Test
+    fun matchupTied() = matchup("matchup_tied", previewMatchupTied)
+
+    @Test
+    fun matchupTooFew() = matchup("matchup_too_few", previewMatchupTooFew)
+
+    private fun matchup(name: String, state: MatchupState) = compose.shoot(name, shade) {
+        MatchupContent(state, onBack = {})
     }
 
     @Test

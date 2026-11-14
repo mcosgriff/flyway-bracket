@@ -1,8 +1,10 @@
 package io.cosgriff.flywaybracket.api
 
+import io.cosgriff.flywaybracket.domain.bracket.BirdGroup
 import io.cosgriff.flywaybracket.domain.bracket.Decision
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.domain.bracket.Season
+import io.cosgriff.flywaybracket.domain.league.CloseReason
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -33,8 +35,8 @@ class RoundTripTest {
     )
 
     private val standings = listOf(
-        Standing(displayName = "Player One", points = 12, rank = 1, you = true),
-        Standing(displayName = "Player Two", points = 9, rank = 2),
+        Standing(displayName = "Player One", points = 12, rank = 1, memberKey = "member-1", you = true, rightPicks = 5),
+        Standing(displayName = "Player Two", points = 9, rank = 2, memberKey = "member-2", rightPicks = 6),
     )
 
     /** One made-up bird per slot. */
@@ -46,6 +48,13 @@ class RoundTripTest {
 
         assertEquals("""{"code":"LEAGUE_FULL","detail":"16 of 16"}""", json)
         roundTrip(ApiError(ApiErrorCode.UNAUTHORIZED))
+    }
+
+    @Test
+    fun `a refusal of picks names its slot`() {
+        val json = roundTrip(ApiError(ApiErrorCode.PICKS_INCOMPLETE, slot = MatchupSlot(40)))
+
+        assertEquals("""{"code":"PICKS_INCOMPLETE","slot":40}""", json)
     }
 
     @Test
@@ -78,6 +87,8 @@ class RoundTripTest {
     @Test
     fun `reading a profile`() {
         roundTrip(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-001", league = summary))
+        val outside = roundTrip(ProfileResponse(homeCounty = "US-ZZ-001", homeCountyInPacks = false))
+        assertTrue(outside, outside.contains(""""homeCountyInPacks":false"""))
         assertEquals("{}", roundTrip(ProfileResponse()))
     }
 
@@ -101,7 +112,10 @@ class RoundTripTest {
         roundTrip(summary)
         roundTrip(summary.copy(inviteCode = null))
         roundTrip(LeagueListResponse(listOf(summary, summary.copy(id = "league-2", state = LeagueState.FINISHED))))
-        roundTrip(summary.copy(state = LeagueState.CLOSED))
+        roundTrip(summary.copy(state = LeagueState.CLOSED, closedBecause = CloseReason.TOO_FEW_PLAYERS))
+        val noBirds = roundTrip(summary.copy(state = LeagueState.CLOSED, closedBecause = CloseReason.TOO_FEW_BIRDS))
+        assertTrue(noBirds, noBirds.contains(""""closedBecause":"TOO_FEW_BIRDS""""))
+        assertFalse(roundTrip(summary).contains("closedBecause"))
         roundTrip(LeagueListResponse(emptyList()))
     }
 
@@ -121,7 +135,7 @@ class RoundTripTest {
 
     @Test
     fun `a bracket`() {
-        val teams = listOf("North", "East", "South", "West").flatMap { quarter ->
+        val teams = BirdGroup.entries.flatMap { quarter ->
             (1..16).map { seed -> BracketTeam(commonName = "$quarter Bird $seed", quarter = quarter, seed = seed) }
         }
         val matchups = MatchupSlot.all.map { slot ->
@@ -132,7 +146,11 @@ class RoundTripTest {
             }
         }
 
-        roundTrip(BracketResponse(teams, matchups))
+        val final = roundTrip(BracketResponse(teams, matchups))
+        assertFalse(final, final.contains("preview"))
+        assertTrue(final, final.contains(""""quarter":"WATERFOWL""""))
+        val preview = roundTrip(BracketResponse(teams, matchups, preview = true))
+        assertTrue(preview, preview.contains(""""preview":true"""))
         assertEquals("""{"slot":62}""", roundTrip(BracketMatchup(MatchupSlot(62))))
     }
 

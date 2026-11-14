@@ -35,11 +35,15 @@ data class UpdateProfileRequest(val displayName: String? = null, val homeCounty:
  * @property homeCounty null until the player sets it.
  * @property league the league the player is in, or null when they are in none: the one forming or in
  *   season, else their latest finished or closed one. [LeagueState.CLOSED] tells them their league never
- *   started for want of players.
+ *   started, and [LeagueSummary.closedBecause] why.
+ * @property homeCountyInPacks whether a pack the server holds has [homeCounty]; null while the home county
+ *   is not set. When false, the player is left out of their league's seeding and is never eligible for a
+ *   bird in their home county (#34).
  */
 @Serializable
 data class ProfileResponse(
     val displayName: String? = null,
     val homeCounty: String? = null,
     val league: LeagueSummary? = null,
+    val homeCountyInPacks: Boolean? = null,
 )

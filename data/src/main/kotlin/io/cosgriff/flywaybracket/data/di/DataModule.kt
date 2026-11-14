@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import io.cosgriff.flywaybracket.data.OutingRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
+import io.cosgriff.flywaybracket.data.db.BracketDao
 import io.cosgriff.flywaybracket.data.db.FlywayDatabase
 import io.cosgriff.flywaybracket.data.db.OutingDao
 import java.time.Clock
@@ -25,6 +26,9 @@ object DataModule {
 
     @Provides
     fun outingDao(db: FlywayDatabase): OutingDao = db.outings()
+
+    @Provides
+    fun bracketDao(db: FlywayDatabase): BracketDao = db.brackets()
 
     /** The phone's clock and time zone, read when asked for: a zone change is seen by the next screen opened. */
     @Provides

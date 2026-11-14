@@ -3,12 +3,18 @@ package io.cosgriff.flywaybracket.data.server
 import io.cosgriff.flywaybracket.api.ApiError
 import io.cosgriff.flywaybracket.api.ApiJson
 import io.cosgriff.flywaybracket.api.ApiPaths
+import io.cosgriff.flywaybracket.api.BracketResponse
 import io.cosgriff.flywaybracket.api.CreateAccountRequest
 import io.cosgriff.flywaybracket.api.CreateAccountResponse
 import io.cosgriff.flywaybracket.api.PackListResponse
+import io.cosgriff.flywaybracket.api.LeagueDetail
+import io.cosgriff.flywaybracket.api.PicksResponse
 import io.cosgriff.flywaybracket.api.ProfileResponse
+import io.cosgriff.flywaybracket.api.RoundResultsResponse
+import io.cosgriff.flywaybracket.api.SubmitPicksRequest
 import io.cosgriff.flywaybracket.api.UpdateProfileRequest
 import io.cosgriff.flywaybracket.data.MAX_PACK_BYTES
+import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
@@ -94,9 +100,10 @@ sealed interface PackFetch {
 }
 
 /**
- * The league server's account and pack endpoints (`docs/server/api.md`), with the messages of `:api`.
- * Bodies are written and read with `ApiJson`. Each call sends only what its message holds: ADR 0001's
- * table lists every field the app may send.
+ * The league server's account endpoints, a league's dates, bracket, picks and results, and the pack
+ * endpoints (`docs/server/api.md`), with the messages of `:api`. Bodies are written and read with
+ * `ApiJson`. Each call sends only what its message holds: ADR 0001's table lists every field the app may
+ * send.
  *
  * @param baseUrl the server's address with no path and no slash at the end, such as `https://example.org`.
  *   Whether a plain `http://` one may connect is the network security config's to say, not this class's.
@@ -197,6 +204,33 @@ class ServerClient(
         val version = response.headers[HttpHeaders.ETag]?.removePrefix(WEAK_TAG)?.removeSurrounding("\"")
         return PackFetch.Received(bytes.toByteArray(), version)
     }
+    /** `GET /v1/leagues/{leagueId}`: the league, its members and its season's dates. */
+    suspend fun league(credentials: Credentials, leagueId: String): ServerResult<LeagueDetail> =
+        call(HttpMethod.Get, ApiPaths.league(leagueId), credentials, body = null, answer = LeagueDetail.serializer())
+
+    /** `GET /v1/leagues/{leagueId}/bracket`: the league's 64 birds and its 63 matchups as they stand. */
+    suspend fun bracket(credentials: Credentials, leagueId: String): ServerResult<BracketResponse> =
+        call(HttpMethod.Get, ApiPaths.bracket(leagueId), credentials, body = null, answer = BracketResponse.serializer())
+
+    /** `GET /v1/leagues/{leagueId}/picks`: the player's own picks as the server holds them. */
+    suspend fun picks(credentials: Credentials, leagueId: String): ServerResult<PicksResponse> =
+        call(HttpMethod.Get, ApiPaths.picks(leagueId), credentials, body = null, answer = PicksResponse.serializer())
+
+    /**
+     * `PUT /v1/leagues/{leagueId}/picks`: [picks] replace every pick the player had. They are all it sends: the
+     * bracket picks of ADR 0001's table. The answer is the picks as the server stored them.
+     */
+    suspend fun submitPicks(credentials: Credentials, leagueId: String, picks: SubmitPicksRequest): ServerResult<PicksResponse> = call(
+        method = HttpMethod.Put,
+        path = ApiPaths.picks(leagueId),
+        credentials = credentials,
+        body = ApiJson.encodeToString(SubmitPicksRequest.serializer(), picks),
+        answer = PicksResponse.serializer(),
+    )
+
+    /** `GET /v1/leagues/{leagueId}/rounds/{round}/results`: how each matchup of a decided round went. */
+    suspend fun roundResults(credentials: Credentials, leagueId: String, round: Round): ServerResult<RoundResultsResponse> =
+        call(HttpMethod.Get, ApiPaths.roundResults(leagueId, round), credentials, body = null, answer = RoundResultsResponse.serializer())
 
     /** @param answer how to read a successful answer's body, or null when it has none worth reading */
     private suspend fun <T> call(

@@ -1,6 +1,7 @@
 package io.cosgriff.flywaybracket.data
 
 import io.cosgriff.flywaybracket.api.ApiErrorCode
+import io.cosgriff.flywaybracket.api.ProfileResponse
 import io.cosgriff.flywaybracket.api.UpdateProfileRequest
 import io.cosgriff.flywaybracket.data.account.AccountStore
 import io.cosgriff.flywaybracket.data.account.StoredAccount
@@ -121,7 +122,16 @@ class AccountRepository(
             .collect { (_, has) -> if (has) syncProfile() }
     }
 
-    /** The account's id and secret, for another call that needs them (#39); null with no account. */
+    /**
+     * What the server holds about the player (`GET /v1/account`), the league they are in among it (#42). With
+     * no account it makes no call and answers `UNAUTHORIZED`, as the server would.
+     */
+    suspend fun profile(): ServerResult<ProfileResponse> {
+        val current = loaded() ?: return ServerResult.Failed(ServerProblem.Refused(ApiErrorCode.UNAUTHORIZED))
+        return server.profile(current.credentials)
+    }
+
+    /** The account's id and secret, for another call that needs them (#39, #41); null with no account. */
     internal suspend fun credentials(): Credentials? = loaded()?.credentials
 
     private suspend fun loaded(): StoredAccount? {

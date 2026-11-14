@@ -52,7 +52,10 @@ enum class ApiErrorCode {
      */
     COUNTY_UNKNOWN,
 
-    /** The bird is not one the server knows (a sighting), or not one of the matchup's two (a pick). */
+    /**
+     * The bird is not one the server knows (a sighting), or not one of the birds that can play in the
+     * matchup (a pick; [ApiError.slot] is the first such pick).
+     */
     BIRD_UNKNOWN,
 
     /** A sighting's date is more than one day after today, wherever on Earth the player is. */
@@ -64,8 +67,17 @@ enum class ApiErrorCode {
     /** The season has started; picks can no longer change. */
     PICKS_LOCKED,
 
-    /** Fewer than 63 picks, or a later-round pick of a bird not picked to reach that matchup. */
+    /**
+     * A later-round pick of a bird not picked to win every earlier matchup on its path. [ApiError.slot] is
+     * the first such pick.
+     */
     PICKS_INCOMPLETE,
+
+    /** Another player's picks are hidden until they lock, when the season starts. */
+    PICKS_HIDDEN,
+
+    /** The league has no member with this key, or that member has left. */
+    MEMBER_NOT_FOUND,
 
     /** The league has no bracket yet. */
     BRACKET_NOT_READY,
@@ -89,10 +101,11 @@ enum class ApiErrorCode {
  * @property code the name of an [ApiErrorCode]. Text, so that an app older than the server can still
  *   read an error whose code it does not know: see [errorCode].
  * @property detail for logs only, never shown to the player.
+ * @property slot the matchup a refusal of picks is about: the first that cannot stand. Absent otherwise.
  */
 @Serializable
-data class ApiError(val code: String, val detail: String? = null) {
-    constructor(code: ApiErrorCode, detail: String? = null) : this(code.name, detail)
+data class ApiError(val code: String, val detail: String? = null, val slot: MatchupSlot? = null) {
+    constructor(code: ApiErrorCode, detail: String? = null, slot: MatchupSlot? = null) : this(code.name, detail, slot)
 
     /** The code, or null when it is one this build does not know. */
     val errorCode: ApiErrorCode? get() = ApiErrorCode.entries.firstOrNull { it.name == code }

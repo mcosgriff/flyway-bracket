@@ -4,18 +4,31 @@ import io.cosgriff.flywaybracket.api.ApiError
 import io.cosgriff.flywaybracket.api.ApiErrorCode
 import io.cosgriff.flywaybracket.api.ApiJson
 import io.cosgriff.flywaybracket.api.ApiPaths
+import io.cosgriff.flywaybracket.api.BracketResponse
 import io.cosgriff.flywaybracket.api.CreateAccountResponse
 import io.cosgriff.flywaybracket.api.LeagueDetail
 import io.cosgriff.flywaybracket.api.LeagueListResponse
 import io.cosgriff.flywaybracket.api.LeagueState
 import io.cosgriff.flywaybracket.api.LeagueSummary
+import io.cosgriff.flywaybracket.api.MatchupSlot
+import io.cosgriff.flywaybracket.api.PicksResponse
 import io.cosgriff.flywaybracket.api.ProfileResponse
+import io.cosgriff.flywaybracket.api.RoundResultsResponse
+import io.cosgriff.flywaybracket.api.SightingUpload
 import io.cosgriff.flywaybracket.api.Standing
+import io.cosgriff.flywaybracket.api.StandingsResponse
+import io.cosgriff.flywaybracket.api.SubmitPicksRequest
+import io.cosgriff.flywaybracket.api.UploadSightingsRequest
+import io.cosgriff.flywaybracket.domain.bracket.Decision
+import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.server.account.Accounts
 import io.cosgriff.flywaybracket.server.account.PlayerStore
 import io.cosgriff.flywaybracket.server.module
+import io.cosgriff.flywaybracket.server.pack.TEST_HOME_COUNTY
+import io.cosgriff.flywaybracket.server.pack.fieldPacks
 import io.cosgriff.flywaybracket.server.pack.noPacks
-import io.cosgriff.flywaybracket.server.sighting.InMemorySightingStore
+import io.cosgriff.flywaybracket.server.pack.testCharts
+import io.cosgriff.flywaybracket.server.sighting.SightingStore
 import io.cosgriff.flywaybracket.server.sighting.Sightings
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.basicAuth
@@ -23,6 +36,7 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
@@ -33,8 +47,11 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
+import java.time.LocalDate
+import java.util.UUID
 
 /**
  * The league endpoints over HTTP, the same cases for each pair of stores: [InMemoryLeagueEndpointsTest]
@@ -45,22 +62,29 @@ abstract class LeagueEndpointsTest {
     /** A store holding no player and no league. */
     protected abstract fun players(): PlayerStore
 
-    protected abstract fun leagueStore(players: PlayerStore): LeagueStore
+    /** The leagues of [players]' players, holding none, reading the sightings [sightings] holds. */
+    protected abstract fun leagueStore(players: PlayerStore, sightings: SightingStore): LeagueStore
+
+    /** A store holding no sighting. */
+    protected abstract fun sightingStore(players: PlayerStore): SightingStore
 
     /** Wednesday 17 February 2027, noon in Denver. */
     private val clock = HandClock(Instant.parse("2027-02-17T19:00:00Z"))
 
     private fun server(test: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         val players = players()
-        val leagues = Leagues(leagueStore(players), clock)
+        val charts = testCharts()
+        // The sightings the rounds are decided from are those the sighting endpoints took, in Fieldland.
+        val sightingStore = sightingStore(players)
+        val leagues = Leagues(leagueStore(players, sightingStore), charts, clock)
         val packs = noPacks()
         application {
             module(
                 database = { true },
-                accounts = Accounts(players, leagues),
+                accounts = Accounts(players, leagues, charts),
                 leagues = leagues,
                 packs = packs,
-                sightings = Sightings(InMemorySightingStore(players), packs),
+                sightings = Sightings(sightingStore, fieldPacks(), clock),
                 version = "1.2.3",
             )
         }
@@ -70,7 +94,7 @@ abstract class LeagueEndpointsTest {
     private fun HttpRequestBuilder.signedBy(account: CreateAccountResponse) = basicAuth(account.playerId, account.secret)
 
     /** A new account with a display name and a home county. */
-    private suspend fun ApplicationTestBuilder.player(displayName: String = "Player One"): CreateAccountResponse {
+    private suspend fun ApplicationTestBuilder.player(displayName: String = "Player One", homeCounty: String = COUNTY): CreateAccountResponse {
         val account = ApiJson.decodeFromString<CreateAccountResponse>(
             client.post(ApiPaths.ACCOUNTS) {
                 contentType(ContentType.Application.Json)
@@ -80,7 +104,7 @@ abstract class LeagueEndpointsTest {
         val patched = client.patch(ApiPaths.ACCOUNT) {
             signedBy(account)
             contentType(ContentType.Application.Json)
-            setBody("""{"displayName":"$displayName","homeCounty":"$COUNTY"}""")
+            setBody("""{"displayName":"$displayName","homeCounty":"$homeCounty"}""")
         }
         assertEquals(HttpStatusCode.NoContent, patched.status)
         return account
@@ -213,10 +237,15 @@ abstract class LeagueEndpointsTest {
 
         assertEquals(HttpStatusCode.OK, response.status)
         val detail = response.body<LeagueDetail>()
+        val keys = detail.members.map { it.memberKey }
         assertEquals(
-            listOf(Standing("Player One", points = 0, rank = 1, you = true), Standing("Player Two", points = 0, rank = 1)),
+            listOf(
+                Standing("Player One", points = 0, rank = 1, memberKey = keys[0], you = true),
+                Standing("Player Two", points = 0, rank = 1, memberKey = keys[1]),
+            ),
             detail.members,
         )
+        assertEquals(2, keys.toSet().size)
         assertEquals("America/Denver", detail.timeZone)
         val text = response.bodyAsText()
         assertFalse(text, text.contains(COUNTY))
@@ -277,13 +306,295 @@ abstract class LeagueEndpointsTest {
             client.post(ApiPaths.JOIN_LEAGUE),
             client.post(ApiPaths.AUTO_JOIN_LEAGUE),
             client.get(ApiPaths.league("league-1")),
+            client.get(ApiPaths.bracket("league-1")),
+            client.get(ApiPaths.picks("league-1")),
+            client.put(ApiPaths.picks("league-1")),
+            client.get(ApiPaths.memberPicks("league-1", "member-1")),
+            client.get(ApiPaths.standings("league-1")),
+            client.get(ApiPaths.roundResults("league-1", Round.ROUND_OF_64)),
             client.delete(ApiPaths.membership("league-1")),
         )
 
         unauthorized.forEach { it.assertRefused(HttpStatusCode.Unauthorized, ApiErrorCode.UNAUTHORIZED) }
     }
 
+    // The bracket (#34)
+
+    @Test
+    fun `before the season the bracket is a preview of 64 birds, with no county in it`() = server {
+        val owner = player()
+        val league = createLeague(owner).body<LeagueSummary>()
+
+        val response = client.get(ApiPaths.bracket(league.id)) { signedBy(owner) }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val bracket = response.body<BracketResponse>()
+        assertTrue(bracket.preview)
+        assertEquals(64, bracket.teams.size)
+        assertEquals(MatchupSlot.all, bracket.matchups.map { it.slot })
+        assertEquals("Test Warbler 20", bracket.matchups.first().upper)
+        val text = response.bodyAsText()
+        assertFalse(text, text.contains(COUNTY))
+    }
+
+    @Test
+    fun `once the season has started the bracket is the one it started with`() = server {
+        val owner = player()
+        val league = createLeague(owner).body<LeagueSummary>()
+        val code = checkNotNull(league.inviteCode)
+        repeat(7) { join(player("Player ${it + 2}"), code) }
+        val preview = client.get(ApiPaths.bracket(league.id)) { signedBy(owner) }.body<BracketResponse>()
+        // A minute after midnight on 1 March in Denver.
+        clock.now = Instant.parse("2027-03-01T07:01:00Z")
+
+        val started = client.get(ApiPaths.bracket(league.id)) { signedBy(owner) }.body<BracketResponse>()
+
+        assertFalse(started.preview)
+        assertEquals(preview.teams, started.teams)
+        assertEquals(LeagueState.IN_SEASON, client.get(ApiPaths.league(league.id)) { signedBy(owner) }.body<LeagueDetail>().league.state)
+    }
+
+    @Test
+    fun `a bracket the player cannot see is 404, and one with no field 409`() = server {
+        val league = createLeague(player()).body<LeagueSummary>()
+        val outsider = player("Player Two", homeCounty = "XX-QQ-001")
+
+        client.get(ApiPaths.bracket(league.id)) { signedBy(outsider) }.assertRefused(HttpStatusCode.NotFound, ApiErrorCode.LEAGUE_NOT_FOUND)
+        client.get(ApiPaths.bracket("league-1")) { signedBy(outsider) }.assertRefused(HttpStatusCode.NotFound, ApiErrorCode.LEAGUE_NOT_FOUND)
+
+        // No pack holds the outsider's county, so a league of theirs alone has no birds to seed.
+        val alone = createLeague(outsider).body<LeagueSummary>()
+        client.get(ApiPaths.bracket(alone.id)) { signedBy(outsider) }.assertRefused(HttpStatusCode.Conflict, ApiErrorCode.BRACKET_NOT_READY)
+        assertEquals(false, client.get(ApiPaths.ACCOUNT) { signedBy(outsider) }.body<ProfileResponse>().homeCountyInPacks)
+    }
+
+    // Picks (#35)
+
+    private suspend fun ApplicationTestBuilder.putPicks(account: CreateAccountResponse, leagueId: String, picks: Map<MatchupSlot, String>): HttpResponse =
+        client.put(ApiPaths.picks(leagueId)) {
+            signedBy(account)
+            contentType(ContentType.Application.Json)
+            setBody(ApiJson.encodeToString(SubmitPicksRequest(picks)))
+        }
+
+    /** A whole bracket in which the bird drawn above wins every matchup. */
+    private suspend fun ApplicationTestBuilder.upperWinsEverywhere(account: CreateAccountResponse, leagueId: String): Map<MatchupSlot, String> {
+        val bracket = client.get(ApiPaths.bracket(leagueId)) { signedBy(account) }.body<BracketResponse>()
+        val picks = sortedMapOf<MatchupSlot, String>()
+        MatchupSlot.all.forEach { slot ->
+            picks[slot] = if (slot.round == Round.ROUND_OF_64) {
+                checkNotNull(bracket.matchups[slot.index].upper)
+            } else {
+                picks.getValue(MatchupSlot.of(Round.entries[slot.round.ordinal - 1], 2 * slot.position))
+            }
+        }
+        return picks
+    }
+
+    /** A league of [owner] and 7 more, so that its season starts on 1 March. */
+    private suspend fun ApplicationTestBuilder.leagueOfEight(owner: CreateAccountResponse): Pair<LeagueSummary, List<CreateAccountResponse>> {
+        val league = createLeague(owner).body<LeagueSummary>()
+        val others = List(7) { player("Player ${it + 2}").also { joiner -> join(joiner, checkNotNull(league.inviteCode)) } }
+        return league to others
+    }
+
+    @Test
+    fun `a whole bracket is 200 with the picks, and reads back`() = server {
+        val owner = player()
+        val league = createLeague(owner).body<LeagueSummary>()
+        val picks = upperWinsEverywhere(owner, league.id)
+
+        val response = putPicks(owner, league.id, picks)
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(PicksResponse(picks, locked = false), response.body<PicksResponse>())
+        assertEquals(PicksResponse(picks, locked = false), client.get(ApiPaths.picks(league.id)) { signedBy(owner) }.body<PicksResponse>())
+    }
+
+    @Test
+    fun `a part of a bracket is 200, and replaces the whole`() = server {
+        val owner = player()
+        val league = createLeague(owner).body<LeagueSummary>()
+        val whole = upperWinsEverywhere(owner, league.id)
+        putPicks(owner, league.id, whole)
+        val topQuarter = whole.filterKeys { it.index < 8 || it.index in 32..35 || it.index in 48..49 || it.index == 56 }
+
+        val response = putPicks(owner, league.id, topQuarter)
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(topQuarter, client.get(ApiPaths.picks(league.id)) { signedBy(owner) }.body<PicksResponse>().picks)
+    }
+
+    @Test
+    fun `an inconsistent bracket is 422 naming its first bad slot`() = server {
+        val owner = player()
+        val league = createLeague(owner).body<LeagueSummary>()
+        val whole = upperWinsEverywhere(owner, league.id)
+
+        // The top semifinal's bird with no quarterfinal picked for it.
+        val response = putPicks(owner, league.id, whole - MatchupSlot(56))
+
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(ApiError(ApiErrorCode.PICKS_INCOMPLETE, slot = MatchupSlot(60)), response.body<ApiError>())
+        // A bird that cannot play in the matchup.
+        val elsewhere = putPicks(owner, league.id, mapOf(MatchupSlot(3) to whole.getValue(MatchupSlot(0))))
+        assertEquals(HttpStatusCode.UnprocessableEntity, elsewhere.status)
+        assertEquals(ApiError(ApiErrorCode.BIRD_UNKNOWN, slot = MatchupSlot(3)), elsewhere.body<ApiError>())
+        // Nothing was stored.
+        assertEquals(emptyMap<MatchupSlot, String>(), client.get(ApiPaths.picks(league.id)) { signedBy(owner) }.body<PicksResponse>().picks)
+    }
+
+    @Test
+    fun `a slot outside the bracket is 400`() = server {
+        val owner = player()
+        val league = createLeague(owner).body<LeagueSummary>()
+
+        val response = client.put(ApiPaths.picks(league.id)) {
+            signedBy(owner)
+            contentType(ContentType.Application.Json)
+            setBody("""{"picks":{"63":"Test Warbler 20"}}""")
+        }
+
+        response.assertRefused(HttpStatusCode.BadRequest, ApiErrorCode.INVALID_REQUEST)
+    }
+
+    @Test
+    fun `a submission one second after the lock is 409`() = server {
+        val owner = player()
+        val (league, _) = leagueOfEight(owner)
+        val picks = upperWinsEverywhere(owner, league.id)
+        // Midnight on 1 March in Denver is 07:00 UTC.
+        clock.now = Instant.parse("2027-03-01T06:59:59Z")
+        assertEquals(HttpStatusCode.OK, putPicks(owner, league.id, picks).status)
+
+        clock.now = Instant.parse("2027-03-01T07:00:01Z")
+
+        putPicks(owner, league.id, emptyMap()).assertRefused(HttpStatusCode.Conflict, ApiErrorCode.PICKS_LOCKED)
+        assertEquals(PicksResponse(picks, locked = true), client.get(ApiPaths.picks(league.id)) { signedBy(owner) }.body<PicksResponse>())
+    }
+
+    @Test
+    fun `another player's picks are 409 before the lock and 200 after`() = server {
+        val owner = player()
+        val (league, others) = leagueOfEight(owner)
+        val other = others.first()
+        val picks = upperWinsEverywhere(other, league.id)
+        putPicks(other, league.id, picks)
+        val members = client.get(ApiPaths.league(league.id)) { signedBy(owner) }.body<LeagueDetail>().members
+        val otherKey = members.single { it.displayName == "Player 2" }.memberKey
+
+        client.get(ApiPaths.memberPicks(league.id, otherKey)) { signedBy(owner) }
+            .assertRefused(HttpStatusCode.Conflict, ApiErrorCode.PICKS_HIDDEN)
+
+        clock.now = Instant.parse("2027-03-01T07:00:01Z")
+
+        val response = client.get(ApiPaths.memberPicks(league.id, otherKey)) { signedBy(owner) }
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(PicksResponse(picks, locked = true), response.body<PicksResponse>())
+        client.get(ApiPaths.memberPicks(league.id, other.playerId)) { signedBy(owner) }
+            .assertRefused(HttpStatusCode.NotFound, ApiErrorCode.MEMBER_NOT_FOUND)
+        client.get(ApiPaths.memberPicks(league.id, otherKey)) { signedBy(player("Player Nine")) }
+            .assertRefused(HttpStatusCode.NotFound, ApiErrorCode.LEAGUE_NOT_FOUND)
+    }
+
+    @Test
+    fun `picks of a league with no field are 409, and of one the player is not in 404`() = server {
+        val league = createLeague(player()).body<LeagueSummary>()
+        val outsider = player("Player Two", homeCounty = "XX-QQ-001")
+
+        client.get(ApiPaths.picks(league.id)) { signedBy(outsider) }.assertRefused(HttpStatusCode.NotFound, ApiErrorCode.LEAGUE_NOT_FOUND)
+        putPicks(outsider, league.id, emptyMap()).assertRefused(HttpStatusCode.NotFound, ApiErrorCode.LEAGUE_NOT_FOUND)
+
+        val alone = createLeague(outsider).body<LeagueSummary>()
+        putPicks(outsider, alone.id, emptyMap()).assertRefused(HttpStatusCode.Conflict, ApiErrorCode.BRACKET_NOT_READY)
+    }
+
+    // Results and standings (#37)
+
+    @Test
+    fun `a decided round's results and the standings carry counts and points, never a sighting, a county or an id`() = server {
+        val owner = player()
+        val league = createLeague(owner).body<LeagueSummary>()
+        val others = (2..8).map { n -> player("Player $n").also { join(it, checkNotNull(league.inviteCode)) } }
+        val bracket = client.get(ApiPaths.bracket(league.id)) { signedBy(owner) }.body<BracketResponse>()
+        val upper = checkNotNull(bracket.matchups[0].upper)
+        val lower = checkNotNull(bracket.matchups[0].lower)
+        val gap = bracket.teams.single { it.commonName == lower }.seed - bracket.teams.single { it.commonName == upper }.seed
+        assertEquals(HttpStatusCode.OK, putPicks(owner, league.id, mapOf(MatchupSlot(0) to lower)).status)
+        // Tuesday 2 March in Denver: another player logs the lower bird in Plenty.
+        clock.now = Instant.parse("2027-03-02T19:00:00Z")
+        val clientId = UUID.randomUUID().toString()
+        val uploaded = post(
+            ApiPaths.SIGHTINGS,
+            others[0],
+            ApiJson.encodeToString(UploadSightingsRequest(listOf(SightingUpload(clientId, lower, PLENTY, LocalDate.of(2027, 3, 2))))),
+        )
+        assertEquals(HttpStatusCode.NoContent, uploaded.status)
+        client.get(ApiPaths.roundResults(league.id, Round.ROUND_OF_64)) { signedBy(owner) }
+            .assertRefused(HttpStatusCode.Conflict, ApiErrorCode.ROUND_NOT_DECIDED)
+
+        // Noon on Monday 8 March in Denver: round 1 is decided.
+        clock.now = Instant.parse("2027-03-08T19:00:00Z")
+        val response = client.get(ApiPaths.roundResults(league.id, Round.ROUND_OF_64)) { signedBy(owner) }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val results = response.body<RoundResultsResponse>()
+        assertEquals(Round.ROUND_OF_64, results.round)
+        assertEquals(MatchupSlot.all.filter { it.round == Round.ROUND_OF_64 }, results.matchups.map { it.slot })
+        val first = results.matchups[0]
+        assertEquals(upper to (8 to 0), first.upper.commonName to (first.upper.eligible to first.upper.logged))
+        assertEquals(lower to (8 to 1), first.lower.commonName to (first.lower.eligible to first.lower.logged))
+        assertEquals(lower, first.winner)
+        assertEquals(Decision.Reason.HIGHER_SHARE, first.reason)
+        assertEquals(1 to gap, first.roundPoints to first.upsetBonus)
+        // Another player's view: the same counts, and their own points, none.
+        val theirs = client.get(ApiPaths.roundResults(league.id, Round.ROUND_OF_64)) { signedBy(others[1]) }.body<RoundResultsResponse>()
+        assertEquals(first.copy(roundPoints = 0, upsetBonus = 0), theirs.matchups[0])
+
+        val standingsResponse = client.get(ApiPaths.standings(league.id)) { signedBy(others[1]) }
+        assertEquals(HttpStatusCode.OK, standingsResponse.status)
+        val standings = standingsResponse.body<StandingsResponse>().standings
+        assertEquals(Standing("Player One", points = 1 + gap, rank = 1, memberKey = standings[0].memberKey, rightPicks = 1), standings[0])
+        assertEquals(8, standings.size)
+        val members = client.get(ApiPaths.league(league.id)) { signedBy(others[1]) }.body<LeagueDetail>().members
+        assertEquals(standings, members)
+
+        // No sighting, county or account id of anyone, in either.
+        for (text in listOf(response.bodyAsText(), standingsResponse.bodyAsText())) {
+            listOf(clientId, PLENTY, COUNTY, owner.playerId, others[0].playerId, others[1].playerId, "2027-03-02").forEach { secret ->
+                assertFalse("$secret in $text", text.contains(secret, ignoreCase = true))
+            }
+        }
+    }
+
+    @Test
+    fun `results of a round not decided are 409, of no such round 400, and of a league the player is not in 404`() = server {
+        val owner = player()
+        val league = createLeague(owner).body<LeagueSummary>()
+        val outsider = player("Player Two")
+
+        client.get(ApiPaths.roundResults(league.id, Round.FINAL)) { signedBy(owner) }
+            .assertRefused(HttpStatusCode.Conflict, ApiErrorCode.ROUND_NOT_DECIDED)
+        listOf("SWEET_16", "round_of_64", "0").forEach { round ->
+            client.get(ApiPaths.roundResults(league.id, round)) { signedBy(owner) }
+                .assertRefused(HttpStatusCode.BadRequest, ApiErrorCode.INVALID_REQUEST)
+        }
+        client.get(ApiPaths.roundResults(league.id, Round.ROUND_OF_64)) { signedBy(outsider) }
+            .assertRefused(HttpStatusCode.NotFound, ApiErrorCode.LEAGUE_NOT_FOUND)
+        client.get(ApiPaths.standings(league.id)) { signedBy(outsider) }
+            .assertRefused(HttpStatusCode.NotFound, ApiErrorCode.LEAGUE_NOT_FOUND)
+        client.get(ApiPaths.standings("league-1")) { signedBy(owner) }
+            .assertRefused(HttpStatusCode.NotFound, ApiErrorCode.LEAGUE_NOT_FOUND)
+        assertEquals(
+            listOf(Standing("Player One", points = 0, rank = 1, memberKey = "", you = true)),
+            client.get(ApiPaths.standings(league.id)) { signedBy(owner) }.body<StandingsResponse>().standings.map { it.copy(memberKey = "") },
+        )
+    }
+
     private companion object {
-        const val COUNTY = "US-ZZ-001"
+        const val COUNTY = TEST_HOME_COUNTY
+
+        /** A county of Fieldland's made-up pack, which the sighting endpoints know. */
+        const val PLENTY = "XX-FD-001"
     }
 }

@@ -16,6 +16,29 @@ data class Tally(val eligible: Int, val logged: Int) {
     val share: Double get() = if (eligible == 0) 0.0 else logged.toDouble() / eligible
 }
 
+/**
+ * One player's round, as a tally reads it (#37): their home county, and their sightings dated within the
+ * round, reduced to the counties and the birds.
+ *
+ * @property home the chart of their home county for the round; null when they have none, or none a pack
+ *   holds
+ * @property visited the charts of the counties where they have a sighting dated within the round
+ * @property logged the common names of the birds they have a sighting of dated within the round, in any
+ *   county
+ */
+data class PlayerRound(val home: CountyChart?, val visited: List<CountyChart> = emptyList(), val logged: Set<String> = emptySet())
+
+/**
+ * One player's part in one bird's tally for a round (#42): [MatchupRule.part].
+ *
+ * @property eligible the bird was expected in their home county or in a county where they logged a sighting
+ * @property logged they logged the bird in the round, in any county
+ */
+data class PlayerPart(val eligible: Boolean, val logged: Boolean) {
+    /** Whether they count among the bird's loggers: a sighting counts only from a player eligible for it. */
+    val counted: Boolean get() = eligible && logged
+}
+
 /** Who advanced, and why, so the screen can say it in the player's language. */
 data class Decision(val winner: Team, val loser: Team, val reason: Reason) {
     enum class Reason {
@@ -48,9 +71,31 @@ object MatchupRule {
      * Whether a player could have seen [commonName] in a round: it is expected, in any of the round's
      * [bins], in their home county or in any county they logged an outing in that week. A trip can
      * only add birds.
+     *
+     * @param home null when the player has no home county, or one no pack holds: then only a trip counts
      */
-    fun isEligible(commonName: String, bins: List<TimeBin>, home: CountyChart, visited: List<CountyChart> = emptyList()): Boolean =
-        (visited + home).any { county -> bins.any { bin -> county.isExpected(commonName, bin) } }
+    fun isEligible(commonName: String, bins: List<TimeBin>, home: CountyChart?, visited: List<CountyChart> = emptyList()): Boolean =
+        (visited + listOfNotNull(home)).any { county -> bins.any { bin -> county.isExpected(commonName, bin) } }
+
+    /**
+     * One bird's tally for a round (#37): of the [players] eligible for it ([isEligible]), how many logged
+     * it. A player who logged the bird but was not eligible for it is not counted at all (#17).
+     *
+     * @param bins the round's bins (`SeasonCalendar.bins`)
+     */
+    fun tally(commonName: String, bins: List<TimeBin>, players: List<PlayerRound>): Tally {
+        val eligible = players.filter { isEligible(commonName, bins, it.home, it.visited) }
+        return Tally(eligible = eligible.size, logged = eligible.count { commonName in it.logged })
+    }
+
+    /**
+     * One player's part in a bird's tally for a round (#42), as the Matchup screen tells them: whether they
+     * were eligible for it ([isEligible]) and whether they logged it. Only both together count ([tally]).
+     *
+     * @param bins the round's bins (`SeasonCalendar.bins`)
+     */
+    fun part(commonName: String, bins: List<TimeBin>, player: PlayerRound): PlayerPart =
+        PlayerPart(eligible = isEligible(commonName, bins, player.home, player.visited), logged = commonName in player.logged)
 
     fun decide(matchup: Matchup, upper: Tally, lower: Tally): Decision {
         val upperCounts = upper.eligible >= MIN_ELIGIBLE

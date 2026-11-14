@@ -40,11 +40,11 @@ class ApplicationTest {
     private fun server(databaseAnswers: Boolean = true, test: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
             val players = InMemoryPlayerStore()
-            val leagues = Leagues(InMemoryLeagueStore(players))
             val packs = noPacks()
+            val leagues = Leagues(InMemoryLeagueStore(players), packs)
             module(
                 database = { databaseAnswers },
-                accounts = Accounts(players, leagues),
+                accounts = Accounts(players, leagues, packs),
                 leagues = leagues,
                 packs = packs,
                 sightings = Sightings(InMemorySightingStore(players), packs),

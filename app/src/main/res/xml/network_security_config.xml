@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    HTTPS only, trusting the system's certificate authorities and not ones a user added. The server client
+    in :data runs on OkHttp, which keeps to this file (#38). A debug build replaces it (src/debug) to reach a
+    server on the developer's machine.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

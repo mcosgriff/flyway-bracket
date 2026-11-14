@@ -44,8 +44,12 @@ What exists:
 - Outings and sightings saved on the phone, and Home's figures for the calendar year counted from them:
   species, new lifers, outings and the five most recent outings.
 - The first run: the app asks for a display name (2 to 24 characters) and a home county, chosen from a
-  list by state. Both stay on the phone. The list ships with the app (codes and names from the US Census
+  list by state. Both stay on the phone until you agree to play in a league (below). The list ships with the app (codes and names from the US Census
   Bureau's list of counties) and holds Colorado only for now.
+- An anonymous account on the league server, asked for on a consent page the first time you open League
+  or Bracket. The page says what is sent, what other players see and how deleting works; Continue creates
+  the account, Not now sends nothing and goes back Home. Without a network, or when the server does not
+  answer, the page says which and offers Try again. League and Bracket themselves are not built yet.
 - The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen, which shows the home
   county, and the Packs screen. Bracket and League are placeholders. Every screen is screenshot-tested in light and dark and
   checked for accessibility (touch targets, contrast, labels) on each build.
@@ -105,8 +109,9 @@ No trackers, analytics, crash reporting or ads. Every build's release APK is sca
 [Exodus Privacy](https://exodus-privacy.eu.org); a tracker fails the build, and so does a permission that
 is not listed in [`.github/privacy/permissions.txt`](.github/privacy/permissions.txt).
 
-Today the app asks for one permission, approximate location (below), and makes no network calls. Adding a pack uses the phone's file
-picker, which needs no permission: the app is handed the one file you choose and sees no others.
+The app asks for two permissions: approximate location (below), and `INTERNET`, to talk to the league
+server (further below). Adding a pack uses the phone's file picker, which needs no permission: the app is
+handed the one file you choose and sees no others.
 
 **Approximate location** (`ACCESS_COARSE_LOCATION`) is used once, when an outing starts, to find the county
 you are in. A county is far larger than the error of an approximate location, so the app never asks for
@@ -116,22 +121,23 @@ never saved, logged or sent. Only the county is kept, with the outing. The app e
 before Android asks, the first time you start an outing. If you say no, outings are in your home county,
 and you can change an outing's county by hand.
 
-### Planned: the league server
+### The league server
 
-None of this is built yet. It is the plan, written down in
-[`docs/adr/0001-server-and-network.md`](docs/adr/0001-server-and-network.md).
+Written down in [`docs/adr/0001-server-and-network.md`](docs/adr/0001-server-and-network.md). The account
+is built: creating it, and sending your display name and home county when you set or change them.
+Leagues, picks and sightings are not sent yet; the lines below say what will be.
 
-- The app will talk to one server, the project's own, over HTTPS, and to nothing else.
-- Nothing will be sent before you say yes. Outings will work with no account. The first time you open
-  League or Bracket, a page will say what will be sent and ask.
-- An account will be anonymous: no email, no password, no phone number. The server gives the app an id and
-  a secret, and the secret is kept encrypted on the phone.
+- The app talks to one server, the project's own, over HTTPS, and to nothing else.
+- Nothing is sent before you say yes. Outings work with no account. When you open League or Bracket
+  without an account, a page says what will be sent and asks. "Not now" sends nothing.
+- An account is anonymous: no email, no password, no phone number. The server gives the app an id and a
+  secret, and the app keeps them encrypted on the phone with a key in the Android Keystore.
 - The server will store your display name, your home county, your leagues, your bracket picks, and each
   sighting as a bird name, a county and a date. It will never get coordinates, the time of day or the
   place name you typed.
 - Other players in your league will see your display name, your picks once they lock, your points, and how
   many birds you logged in a round. They will not see your county or your individual sightings.
-- You will be able to delete your account from Settings. The server then deletes your name, picks and
+- You will be able to delete your account from Settings (not built yet). The server then deletes your name, picks and
   sightings.
 - In the beta, losing the phone loses the account. Moving an account to a new phone comes later.
 

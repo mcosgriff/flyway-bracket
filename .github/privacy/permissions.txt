@@ -11,6 +11,10 @@ android.permission.ACCESS_COARSE_LOCATION
 # (ADR 0001, #38). Nothing is sent before the player agrees on the consent page that League and Bracket
 # show first; README.md, Privacy, says what.
 android.permission.INTERNET
+# ACCESS_NETWORK_STATE (install-time; the user is never asked): whether the connection is metered, so that
+# a pack download over 5 MB asks first on mobile data (#39). Only that yes or no is read. README.md,
+# Privacy, says so.
+android.permission.ACCESS_NETWORK_STATE
 
 # Merged in from libraries. Install-time; the user is never asked for it.
 # androidx.core, which protects the app's own unexported receivers with it:

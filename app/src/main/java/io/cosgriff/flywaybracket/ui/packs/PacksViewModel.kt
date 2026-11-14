@@ -6,13 +6,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import io.cosgriff.flywaybracket.api.PackSummary
+import io.cosgriff.flywaybracket.data.AccountRepository
 import io.cosgriff.flywaybracket.data.BundledCounties
+import io.cosgriff.flywaybracket.data.Downloads
 import io.cosgriff.flywaybracket.data.InstalledPack
+import io.cosgriff.flywaybracket.data.MAX_PACK_BYTES
+import io.cosgriff.flywaybracket.data.NetworkMeter
+import io.cosgriff.flywaybracket.data.PackDownloads
 import io.cosgriff.flywaybracket.data.PackInstall
+import io.cosgriff.flywaybracket.data.PackListing
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
+import io.cosgriff.flywaybracket.data.asksBeforeDownload
 import io.cosgriff.flywaybracket.domain.pack.StatePackResult
 import io.cosgriff.flywaybracket.domain.place.CountyTable
+import io.cosgriff.flywaybracket.ui.components.MeteredAsk
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import javax.inject.Inject
@@ -20,30 +29,86 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The packs on the phone and the home county's line (#24). A pack is added from a file the player
- * chooses; downloading takes its place in #39.
+ * The packs on the phone and the home county's line (#24), and the server's packs to download (#39). The
+ * server's list is asked for once the phone has an account, and again when the player tries again. In
+ * debug builds a pack can also be added from a file the player chooses.
  */
 @HiltViewModel
 class PacksViewModel @Inject constructor(
     private val packs: PackRepository,
     private val settings: SettingsRepository,
     counties: BundledCounties,
+    private val downloads: PackDownloads,
+    accounts: AccountRepository,
+    private val meter: NetworkMeter,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private val problem = MutableStateFlow<PackProblem?>(null)
 
-    val state: StateFlow<PacksState> = combine(packs.installed(), settings.settings(), problem) { installed, player, problem ->
-        packsState(installed, player.homeCountyCode, counties.table(), problem)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), PacksState())
+    // Null while the server is being asked.
+    private val listing = MutableStateFlow<PackListing?>(null)
+    private val retries = MutableStateFlow(0)
+    private val askMetered = MutableStateFlow<MeteredAsk?>(null)
 
-    /** The player chose a file in the system's file picker. */
+    val state: StateFlow<PacksState> = combine(
+        combine(packs.installed(), settings.settings(), problem, listing, downloads.state) { installed, player, problem, listing, running ->
+            packsState(installed, player.homeCountyCode, counties.table(), problem, listing, running)
+        },
+        askMetered,
+    ) { state, ask -> state.copy(askMetered = ask) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), PacksState())
+
+    init {
+        // With no account, available() asks nothing. Once one is made, the list is asked for.
+        viewModelScope.launch {
+            combine(accounts.hasAccount(), retries) { has, _ -> has }.collectLatest {
+                listing.value = null
+                listing.value = downloads.available()
+            }
+        }
+    }
+
+    /** Asks the server for its list again, after it failed. */
+    fun onRetry() {
+        retries.update { it + 1 }
+    }
+
+    /**
+     * Downloads the state's pack, or the newer version of it. Over 5 MB on a metered connection, it asks
+     * first, and the answer comes to [onMeteredConfirmed] or [onMeteredDismissed].
+     */
+    fun onDownload(stateCode: String) {
+        val pack = listed(stateCode) ?: return
+        if (asksBeforeDownload(pack.sizeBytes, meter.isMetered())) {
+            askMetered.value = MeteredAsk(pack.stateCode, pack.name, pack.sizeBytes)
+        } else {
+            downloads.start(pack)
+        }
+    }
+
+    fun onMeteredConfirmed() {
+        val ask = askMetered.value ?: return
+        askMetered.value = null
+        listed(ask.stateCode)?.let(downloads::start)
+    }
+
+    fun onMeteredDismissed() {
+        askMetered.value = null
+    }
+
+    private fun listed(stateCode: String): PackSummary? =
+        (listing.value as? PackListing.Listed)?.packs?.firstOrNull { it.stateCode == stateCode }
+
+    /** The player chose a file in the system's file picker (debug builds). */
     fun onFileChosen(file: Uri) {
         viewModelScope.launch { problem.value = add(file) }
     }
@@ -106,12 +171,6 @@ class PacksViewModel @Inject constructor(
     }
 }
 
-/**
- * The most a chosen file is read before it is turned away: a wrong file, a film say, must not be read
- * whole into memory. A state's pack is a few megabytes.
- */
-internal const val MAX_PACK_BYTES = 32 * 1024 * 1024
-
 /** Whether the pack of the state [stateCode] holds the county [homeCountyCode]. */
 internal fun holds(installed: List<InstalledPack>, stateCode: String, homeCountyCode: String?): Boolean =
     installed.any { it.pack.state.code == stateCode && it.pack.counties.any { county -> county.code == homeCountyCode } }
@@ -127,13 +186,32 @@ internal fun packProblem(reason: StatePackResult.Reason): PackProblem = when (re
  * What the Packs screen shows for the [installed] packs and the home county [homeCountyCode]. The pack
  * that holds the home county is set apart from the others. The county's name and its number of species
  * come from that pack; with no such pack, the name comes from the bundled [table] and there is no number.
+ *
+ * The server's [listing] gives the packs to download, those not installed, and an update for each
+ * installed pack whose version differs from the server's; null while it is asked for. [downloads] gives
+ * how far each download has come.
  */
 internal fun packsState(
     installed: List<InstalledPack>,
     homeCountyCode: String?,
     table: CountyTable,
     problem: PackProblem? = null,
+    listing: PackListing? = null,
+    downloads: Downloads = Downloads(),
 ): PacksState {
+    val onServer = (listing as? PackListing.Listed)?.packs.orEmpty().associateBy { it.stateCode }
+    fun InstalledPack.toRow() = PackRow(
+        stateCode = pack.state.code,
+        state = pack.state.name,
+        counties = pack.counties.size,
+        builtOn = pack.builtOn,
+        sizeBytes = sizeBytes,
+        source = pack.source,
+        update = onServer[pack.state.code]
+            ?.takeIf { it.version != version }
+            ?.let { PackUpdate(it.sizeBytes, downloads.running[it.stateCode]) },
+    )
+
     val homeInstalled = installed.firstOrNull { it.pack.counties.any { county -> county.code == homeCountyCode } }
     val inPack = homeInstalled?.pack?.counties?.firstOrNull { it.code == homeCountyCode }
     val inTable = homeCountyCode?.let(table::locate)
@@ -148,14 +226,22 @@ internal fun packsState(
         homePack = homeInstalled?.toRow(),
         extraPacks = installed.filter { it !== homeInstalled }.map { it.toRow() },
         problem = problem,
+        server = serverPacks(listing, installed, downloads),
+        failedDownload = downloads.failed,
     )
 }
 
-private fun InstalledPack.toRow() = PackRow(
-    stateCode = pack.state.code,
-    state = pack.state.name,
-    counties = pack.counties.size,
-    builtOn = pack.builtOn,
-    sizeBytes = sizeBytes,
-    source = pack.source,
-)
+private fun serverPacks(listing: PackListing?, installed: List<InstalledPack>, downloads: Downloads): ServerPacks = when (listing) {
+    null -> ServerPacks.Loading
+    PackListing.NoAccount -> ServerPacks.NeedsAccount
+    is PackListing.Failed -> ServerPacks.Failed(listing.problem)
+    is PackListing.Listed -> {
+        val held = installed.map { it.pack.state.code }.toSet()
+        ServerPacks.Listed(
+            available = listing.packs.filter { it.stateCode !in held }.map {
+                ServerPackRow(it.stateCode, it.name, it.sizeBytes, it.builtOn, downloads.running[it.stateCode])
+            },
+            onServer = listing.packs.size,
+        )
+    }
+}

@@ -3,17 +3,25 @@ package io.cosgriff.flywaybracket.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.cosgriff.flywaybracket.api.PackSummary
+import io.cosgriff.flywaybracket.data.AccountRepository
 import io.cosgriff.flywaybracket.data.BundledCounties
 import io.cosgriff.flywaybracket.data.CountyFix
 import io.cosgriff.flywaybracket.data.CountyLocator
+import io.cosgriff.flywaybracket.data.Downloads
+import io.cosgriff.flywaybracket.data.NetworkMeter
 import io.cosgriff.flywaybracket.data.OutingRepository
+import io.cosgriff.flywaybracket.data.PackDownloads
+import io.cosgriff.flywaybracket.data.PackListing
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
+import io.cosgriff.flywaybracket.data.asksBeforeDownload
 import io.cosgriff.flywaybracket.domain.outing.OutingLog
 import io.cosgriff.flywaybracket.domain.outing.newLifersSince
 import io.cosgriff.flywaybracket.domain.outing.outingsSince
 import io.cosgriff.flywaybracket.domain.outing.speciesSince
 import io.cosgriff.flywaybracket.domain.place.CountyTable
+import io.cosgriff.flywaybracket.ui.components.MeteredAsk
 import io.cosgriff.flywaybracket.ui.outing.CountyFallback
 import java.time.Clock
 import java.time.Duration
@@ -25,7 +33,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -36,8 +46,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 /**
  * Home's figures, from the outings saved on the phone (#25), and its region, from the home county in the
  * player's settings (#23). Start outing continues the outing in progress, or starts one (#26) in the
- * county the phone is in, found from its approximate location, else in the home county (#27). The league
- * and tournament parts stay empty until there is something to read them from.
+ * county the phone is in, found from its approximate location, else in the home county (#27). With an
+ * account, when the server has the pack of the home county's state and the phone does not, Home offers to
+ * download it (#39). The league and tournament parts stay empty until there is something to read them from.
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -47,28 +58,75 @@ class HomeViewModel @Inject constructor(
     private val packs: PackRepository,
     private val locator: CountyLocator,
     clock: Clock,
+    private val downloads: PackDownloads,
+    accounts: AccountRepository,
+    private val meter: NetworkMeter,
 ) : ViewModel() {
     private val starting = MutableStateFlow(Starting())
     private val opened = Channel<OpenOuting>(Channel.BUFFERED)
 
+    // The server's pack of the home county's state, while the phone does not have it (#39).
+    private val offered = MutableStateFlow<PackSummary?>(null)
+    private val askMetered = MutableStateFlow<MeteredAsk?>(null)
+
     val state: StateFlow<HomeState> = combine(
-        outings.finishedLogs(),
-        settings.settings(),
-        outings.inProgress(),
-        starting,
-    ) { logs, player, inProgress, start ->
-        homeState(
-            finished = logs,
-            today = LocalDate.now(clock),
-            zone = clock.zone,
-            region = homeRegion(player.homeCountyCode, counties.table()),
-        ).copy(
-            outingInProgress = inProgress != null,
-            packMissing = start.packMissing,
-            askLocation = start.askLocation,
-            findingCounty = start.findingCounty,
-        )
+        combine(
+            outings.finishedLogs(),
+            settings.settings(),
+            outings.inProgress(),
+            starting,
+        ) { logs, player, inProgress, start ->
+            homeState(
+                finished = logs,
+                today = LocalDate.now(clock),
+                zone = clock.zone,
+                region = homeRegion(player.homeCountyCode, counties.table()),
+            ).copy(
+                outingInProgress = inProgress != null,
+                packMissing = start.packMissing,
+                askLocation = start.askLocation,
+                findingCounty = start.findingCounty,
+            )
+        },
+        offered,
+        downloads.state,
+        askMetered,
+    ) { home, offer, running, ask ->
+        home.copy(packOffer = offer?.let { packOffer(it, running) }, askMetered = ask)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), HomeState())
+
+    init {
+        // Asked only with an account, and only while the home county's state has no pack on the phone. Once
+        // the pack is installed, the offer goes.
+        viewModelScope.launch {
+            combine(settings.settings(), packs.installed(), accounts.hasAccount()) { player, installed, has ->
+                val state = player.homeCountyCode?.let(::stateCodeOf)
+                state?.takeIf { has && installed.none { it.pack.state.code == state } }
+            }.distinctUntilChanged().collectLatest { state ->
+                offered.value = null
+                if (state != null) offered.value = (downloads.available() as? PackListing.Listed)?.packs?.firstOrNull { it.stateCode == state }
+            }
+        }
+    }
+
+    /** Downloads the offered pack. Over 5 MB on a metered connection, it asks first. */
+    fun onDownloadPack() {
+        val pack = offered.value ?: return
+        if (asksBeforeDownload(pack.sizeBytes, meter.isMetered())) {
+            askMetered.value = MeteredAsk(pack.stateCode, pack.name, pack.sizeBytes)
+        } else {
+            downloads.start(pack)
+        }
+    }
+
+    fun onMeteredConfirmed() {
+        askMetered.value = null
+        offered.value?.let(downloads::start)
+    }
+
+    fun onMeteredDismissed() {
+        askMetered.value = null
+    }
 
     /** Emits once each time the Outing screen should open, with an outing in progress. */
     val openOuting: Flow<OpenOuting> = opened.receiveAsFlow()
@@ -168,6 +226,18 @@ internal fun fallbackFor(fix: CountyFix): CountyFallback? = when (fix) {
     CountyFix.OutsidePacks -> CountyFallback.OUTSIDE_PACKS
     CountyFix.NoLocation -> CountyFallback.NO_LOCATION
 }
+
+/** The state a county code names: `US-CO` of `US-CO-059`, as eBird's region codes go. */
+internal fun stateCodeOf(countyCode: String): String = countyCode.substringBeforeLast('-')
+
+/** The offer of the server's pack [pack], with how its download stands in [downloads]. */
+internal fun packOffer(pack: PackSummary, downloads: Downloads): PackOffer = PackOffer(
+    stateCode = pack.stateCode,
+    state = pack.name,
+    sizeBytes = pack.sizeBytes,
+    progress = downloads.running[pack.stateCode],
+    failure = downloads.failed?.takeIf { it.stateCode == pack.stateCode }?.outcome,
+)
 
 /** How many outings Home lists under "Recent outings". */
 internal const val RECENT_OUTINGS = 5

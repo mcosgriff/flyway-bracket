@@ -51,6 +51,8 @@ the only proof that an account belongs to a phone, so it is not stored in plain 
 | Sighting: bird name | When the player logs a bird | To decide the matchup |
 | Sighting: county code | With the sighting | A county where the player logged makes them eligible there |
 | Sighting: date | With the sighting | To know which round the sighting belongs to |
+| State code of a bird pack | When the player downloads or updates that state's pack (#39) | To send that state's pack |
+| Version of the pack held | When the player updates a pack the phone has (#39) | So that an unchanged pack is not sent again |
 
 The request that creates an account carries nothing about the player.
 
@@ -77,8 +79,8 @@ the others where that person was. Picks are hidden until they lock so that no pl
 
 ### Nothing is sent before the player says yes
 
-Outings work with no account. The first time the player opens League or Bracket, a page says what will be
-sent and asks. Until the player agrees, the app makes no network call.
+Outings work with no account. The first time the player opens League or Bracket, or asks for bird packs
+(#39), a page says what will be sent and asks. Until the player agrees, the app makes no network call.
 
 Reason: a player should know what leaves the phone before it leaves. A person who only wants to log
 outings never needs an account and never sends anything.

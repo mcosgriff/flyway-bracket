@@ -23,11 +23,14 @@ What exists:
   pack from files downloaded by hand ([`docs/packs.md`](docs/packs.md)). The app does not download or
   read a pack yet.
 - Outings and sightings saved on the phone, and Home's figures for the calendar year counted from them:
-  species, new lifers, outings and the five most recent outings. No screen logs an outing yet, so Home
-  still shows its empty state.
-- The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen.
-  The other screens are placeholders. Every screen is screenshot-tested in light and dark and checked
-  for accessibility (touch targets, contrast, labels) on each build.
+  species, new lifers, outings and the five most recent outings. No screen logs an outing yet, so those
+  parts of Home still show their empty state.
+- The first run: the app asks for a display name (2 to 24 characters) and a home county, chosen from a
+  list by state. Both stay on the phone. The list ships with the app (codes and names from the US Census
+  Bureau's list of counties) and holds Colorado only for now.
+- The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen, which shows the home
+  county. The other screens are placeholders. Every screen is screenshot-tested in light and dark and
+  checked for accessibility (touch targets, contrast, labels) on each build.
 
 - The [user guide](https://mcosgriff.github.io/flyway-bracket/), a small website built from `site/` and
   served by GitHub Pages. Its pages about things the app cannot do yet are marked "Coming in the beta".

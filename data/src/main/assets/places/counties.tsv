@@ -1,0 +1,68 @@
+# States and counties to choose a home county from before a pack is on the phone (#23).
+# Codes and names only, from the US Census Bureau's list of counties (public domain).
+# A state, then its counties: code, tab, name. A county's code is US-<state>-<Census county code>.
+US-CO	Colorado
+US-CO-001	Adams
+US-CO-003	Alamosa
+US-CO-005	Arapahoe
+US-CO-007	Archuleta
+US-CO-009	Baca
+US-CO-011	Bent
+US-CO-013	Boulder
+US-CO-014	Broomfield
+US-CO-015	Chaffee
+US-CO-017	Cheyenne
+US-CO-019	Clear Creek
+US-CO-021	Conejos
+US-CO-023	Costilla
+US-CO-025	Crowley
+US-CO-027	Custer
+US-CO-029	Delta
+US-CO-031	Denver
+US-CO-033	Dolores
+US-CO-035	Douglas
+US-CO-037	Eagle
+US-CO-039	Elbert
+US-CO-041	El Paso
+US-CO-043	Fremont
+US-CO-045	Garfield
+US-CO-047	Gilpin
+US-CO-049	Grand
+US-CO-051	Gunnison
+US-CO-053	Hinsdale
+US-CO-055	Huerfano
+US-CO-057	Jackson
+US-CO-059	Jefferson
+US-CO-061	Kiowa
+US-CO-063	Kit Carson
+US-CO-065	Lake
+US-CO-067	La Plata
+US-CO-069	Larimer
+US-CO-071	Las Animas
+US-CO-073	Lincoln
+US-CO-075	Logan
+US-CO-077	Mesa
+US-CO-079	Mineral
+US-CO-081	Moffat
+US-CO-083	Montezuma
+US-CO-085	Montrose
+US-CO-087	Morgan
+US-CO-089	Otero
+US-CO-091	Ouray
+US-CO-093	Park
+US-CO-095	Phillips
+US-CO-097	Pitkin
+US-CO-099	Prowers
+US-CO-101	Pueblo
+US-CO-103	Rio Blanco
+US-CO-105	Rio Grande
+US-CO-107	Routt
+US-CO-109	Saguache
+US-CO-111	San Juan
+US-CO-113	San Miguel
+US-CO-115	Sedgwick
+US-CO-117	Summit
+US-CO-119	Teller
+US-CO-121	Washington
+US-CO-123	Weld
+US-CO-125	Yuma

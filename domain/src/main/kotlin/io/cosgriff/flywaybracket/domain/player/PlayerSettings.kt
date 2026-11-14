@@ -10,4 +10,7 @@ package io.cosgriff.flywaybracket.domain.player
 data class PlayerSettings(
     val displayName: String? = null,
     val homeCountyCode: String? = null,
-)
+) {
+    /** Whether the player has given both. Until then the app asks for them before anything else (#23). */
+    val isComplete: Boolean get() = displayName != null && homeCountyCode != null
+}

@@ -8,6 +8,11 @@ import io.cosgriff.flywaybracket.ui.home.HomeContent
 import io.cosgriff.flywaybracket.ui.home.HomeState
 import io.cosgriff.flywaybracket.ui.home.previewState
 import io.cosgriff.flywaybracket.ui.home.previewToday
+import io.cosgriff.flywaybracket.ui.onboarding.OnboardingContent
+import io.cosgriff.flywaybracket.ui.onboarding.OnboardingState
+import io.cosgriff.flywaybracket.ui.onboarding.previewEmpty
+import io.cosgriff.flywaybracket.ui.onboarding.previewFilledIn
+import io.cosgriff.flywaybracket.ui.onboarding.previewNameTooShort
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,6 +40,19 @@ class ScreensScreenshotTest(private val shade: Shade) {
     @Test
     fun homeEmpty() = compose.shoot("home_empty", shade) {
         HomeContent(HomeState(), previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
+    fun onboardingEmpty() = onboarding("onboarding_empty", previewEmpty)
+
+    @Test
+    fun onboardingNameTooShort() = onboarding("onboarding_name_too_short", previewNameTooShort)
+
+    @Test
+    fun onboardingFilledIn() = onboarding("onboarding_filled_in", previewFilledIn)
+
+    private fun onboarding(name: String, state: OnboardingState) = compose.shoot(name, shade) {
+        OnboardingContent(state, onName = {}, onState = {}, onCounty = {}, onContinue = {})
     }
 
     @Test

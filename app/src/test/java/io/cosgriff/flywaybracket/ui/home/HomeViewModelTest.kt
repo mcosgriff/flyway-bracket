@@ -1,20 +1,28 @@
 package io.cosgriff.flywaybracket.ui.home
 
 import android.content.Context
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room3.Room
 import androidx.test.core.app.ApplicationProvider
+import io.cosgriff.flywaybracket.data.BundledCounties
 import io.cosgriff.flywaybracket.data.OutingRepository
+import io.cosgriff.flywaybracket.data.SettingsRepository
 import io.cosgriff.flywaybracket.data.db.FlywayDatabase
 import io.cosgriff.flywaybracket.domain.outing.Outing
 import io.cosgriff.flywaybracket.domain.outing.OutingLog
 import io.cosgriff.flywaybracket.domain.outing.Sighting
+import io.cosgriff.flywaybracket.domain.place.CountyTableParser
+import java.io.File
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -23,6 +31,7 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -91,11 +100,41 @@ class HomeViewModelTest {
         assertEquals(3, state.season.outings)
     }
 
+    // A made-up table: the codes have the real shape and name no real state.
+    private val table = CountyTableParser.parse("US-ZA\tAlder\nUS-ZA-001\tHeron\nUS-ZA-003\tLark Hollow\n")
+
     @Test
-    fun `the view model reads finished outings from the database`() = runBlocking {
+    fun `the region is the home county's name and its state's abbreviation`() {
+        assertEquals(HomeRegion(county = "Lark Hollow", stateAbbreviation = "ZA"), homeRegion("US-ZA-003", table))
+    }
+
+    @Test
+    fun `no home county, or one the table lacks, gives no region`() {
+        assertNull(homeRegion(null, table))
+        assertNull(homeRegion("US-ZZ-001", table))
+    }
+
+    @Test
+    fun `the region goes into Home's state beside the figures`() {
+        val region = HomeRegion(county = "Heron", stateAbbreviation = "ZA")
+        val state = homeState(listOf(log(LocalDate.of(2027, 3, 14), "Made-up Heron")), today, zone, region)
+        assertEquals(region, state.region)
+        assertEquals(1, state.season.outings)
+    }
+
+    @Test
+    fun `the view model reads finished outings from the database and the region from the settings`() = runBlocking {
         val context: Context = ApplicationProvider.getApplicationContext()
         val db = Room.inMemoryDatabaseBuilder<FlywayDatabase>(context).build()
+        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         try {
+            val file = File(context.filesDir, "home_test.preferences_pb").apply { delete() }
+            val settings = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            // The table that ships has no made-up county, so this one is real: the first of the bundled table.
+            val counties = BundledCounties(context)
+            val firstState = counties.table().states.first()
+            val home = firstState.counties.first()
+            settings.setHomeCountyCode(home.code)
             val clock = Clock.fixed(Instant.parse("2027-04-18T18:00:00Z"), zone)
             val outings = OutingRepository(db.outings(), clock)
             val finished = outings.start("Test Pond", "US-ZZ-001")
@@ -107,11 +146,16 @@ class HomeViewModelTest {
             val inProgress = outings.start("Sample Marsh", "US-ZZ-001")
             outings.addOrBump(inProgress.id, "Made-up Heron")
 
-            val state = withTimeout(10_000) { HomeViewModel(outings, clock).state.first { it.recentOutings.isNotEmpty() } }
+            val state = withTimeout(10_000) {
+                HomeViewModel(outings, settings, counties, clock).state.first { it.recentOutings.isNotEmpty() }
+            }
+
+            assertEquals(HomeRegion(county = home.name, stateAbbreviation = firstState.abbreviation), state.region)
 
             assertEquals(SeasonStats(species = 2, lifers = 2, outings = 1), state.season)
             assertEquals(listOf(OutingRow(finished.id, "Test Pond", today, Duration.ZERO, species = 2)), state.recentOutings)
         } finally {
+            scope.cancel()
             db.close()
         }
     }

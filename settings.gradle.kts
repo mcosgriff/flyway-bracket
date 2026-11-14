@@ -19,4 +19,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "flyway-bracket"
 
-include(":app", ":data", ":domain")
+include(":api", ":app", ":data", ":domain")

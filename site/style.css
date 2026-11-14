@@ -1,0 +1,109 @@
+/*
+ * Colors are the app's Flyway tokens, light and dark, under the same names as
+ * app/src/main/java/io/cosgriff/flywaybracket/ui/theme/Color.kt. check.py fails when a value here
+ * differs from that file. Nothing is loaded from another host: the font is copied from the app.
+ */
+@font-face {
+  font-family: "Inter";
+  src: url("fonts/inter.ttf") format("truetype");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --ground: #F4F6F1;
+  --surface: #FFFFFF;
+  --surfaceMuted: #DDE3D8;
+  --ink: #14231C;
+  --inkMuted: #4A5A51;
+  --border: #C9D1C6;
+  --borderStrong: #8A968D;
+  --divider: #E3E8DF;
+  --pick: #0B5D4B;
+  --pickContainer: #E6F3EE;
+  --warningContainer: #FFF1D6;
+  --warningBorder: #B77400;
+  --onWarningContainer: #6B4100;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0B1612;
+    --surface: #14231C;
+    --surfaceMuted: #223329;
+    --ink: #E8F0EB;
+    --inkMuted: #A3B3AA;
+    --border: #2F4238;
+    --borderStrong: #647A6E;
+    --divider: #24352C;
+    --pick: #7FD8BC;
+    --pickContainer: #173A30;
+    --warningContainer: #3A2A05;
+    --warningBorder: #D9A036;
+    --onWarningContainer: #FFD58A;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 106.25%; }
+
+body {
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+  max-width: 42rem;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Inter", system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+a { color: var(--pick); text-underline-offset: 0.15em; }
+a:focus-visible { outline: 3px solid var(--pick); outline-offset: 2px; border-radius: 4px; }
+
+.skip { position: absolute; left: -999rem; }
+.skip:focus { position: static; display: inline-block; margin-top: 0.5rem; }
+
+header { padding: 1.25rem 0 0.75rem; border-bottom: 1px solid var(--border); }
+.site-name { margin: 0 0 0.5rem; font-size: 1.25rem; font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase; }
+.site-name a { color: var(--ink); text-decoration: none; }
+
+nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; margin: 0; padding: 0; list-style: none; }
+nav li { margin: 0; }
+/* The padding makes each link a target at least 44px tall. */
+nav a { display: inline-block; padding: 0.6rem 0.5rem; font-weight: 500; }
+/* The current page is bold and boxed as well as tinted: color is never the only cue. */
+nav a[aria-current="page"] {
+  background: var(--pickContainer);
+  border: 1px solid var(--borderStrong);
+  border-radius: 8px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+h1 { margin: 2rem 0 1rem; font-size: 2rem; line-height: 1.2; font-weight: 800; }
+h2 { margin: 2.25rem 0 0.5rem; font-size: 1.3rem; line-height: 1.3; }
+h3 { margin: 1.5rem 0 0.25rem; font-size: 1.05rem; }
+p, ul, ol { margin: 0 0 1rem; }
+li { margin-bottom: 0.35rem; }
+
+.beta-note {
+  padding: 0.75rem 1rem;
+  background: var(--warningContainer);
+  border: 1px solid var(--warningBorder);
+  border-radius: 12px;
+  color: var(--onWarningContainer);
+}
+
+.example { padding: 1rem 1rem 0.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+
+figure { margin: 1.5rem 0; }
+figure img { display: block; width: 100%; max-width: 20rem; height: auto; border: 1px solid var(--border); border-radius: 16px; }
+figcaption { margin-top: 0.5rem; color: var(--inkMuted); font-size: 0.9rem; }
+
+table { width: 100%; margin: 0 0 1rem; border-collapse: collapse; background: var(--surface); }
+th, td { padding: 0.5rem 0.75rem; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { background: var(--surfaceMuted); }
+
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--divider); color: var(--inkMuted); font-size: 0.9rem; }
+footer p { margin-bottom: 0.5rem; }

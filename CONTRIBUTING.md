@@ -24,13 +24,34 @@ git config core.hooksPath .githooks
 | `./gradlew :domain:test` | The game rules: pure Kotlin, fast. Run it often. |
 | `./gradlew build` | Everything: unit tests, screenshot and accessibility tests, lint. Lint fails on a warning. |
 | `./gradlew :app:recordRoborazziDebug` | Re-records the reference screenshots in `app/src/test/screenshots/`. Look at every image it changes before committing. |
-| `./gradlew koverHtmlReportCoverage` | Test coverage of `:domain`, `:data` and `:app`, in `build/reports/kover/htmlCoverage/`. |
+| `./gradlew koverHtmlReportCoverage` | Test coverage of `:domain`, `:api`, `:data` and `:app`, in `build/reports/kover/htmlCoverage/`. |
 
 Every screen's `…Content` composable is drawn under Robolectric in light and dark (`shoot` in
 `app/src/test/java/io/cosgriff/flywaybracket/ui/screens/Screenshots.kt`), checked with Google's
 Accessibility Test Framework (a warning fails), and compared pixel for pixel with its reference. On a
 mismatch, CI uploads the new image and the difference as the `screenshot-differences` artifact. Record
 references on Linux, as CI runs: text is drawn slightly differently on other systems.
+
+## The user guide
+
+The website for players is built from `site/` and published to GitHub Pages by
+`.github/workflows/pages.yml` on each push to `main` that changes it.
+
+- A page is a Markdown file in `site/pages/`. Its front matter has a `title` and a `description`. A new
+  page also needs a link in the menu in `site/template.html`.
+- `site/build.sh` builds the site into `site/build/` with [pandoc](https://pandoc.org) (3.13, the version
+  the workflow installs). It copies the screenshots from `app/src/test/screenshots/` and the font from the
+  app, so neither is kept twice.
+- `python3 site/check.py` checks the built pages: links, nothing loaded from another host, the markup an
+  accessible page needs, color contrast, and that the colors in `site/style.css` match `Color.kt`. The
+  workflow also runs pa11y (`cd site && npm ci && npm run a11y`).
+- Links between pages are relative (`install.html`), so the site works at any address. The pages load
+  nothing from another host and use no JavaScript.
+- A page about something the app cannot do yet has `beta: true` in its front matter, which puts the
+  "Coming in the beta" note under its title. Remove the line when the feature ships.
+  `grep -l '^beta: true' site/pages/*.md` lists the pages still marked.
+- Write for a reader who has never done a bracket or used eBird: short sentences, no jargon, one idea per
+  paragraph. A rule stated on the site must match `CLAUDE.md` and the tests in `:domain`.
 
 ## Bird data
 

@@ -36,7 +36,7 @@ the `CODECOV_TOKEN` secret.
 - `./gradlew :app:recordRoborazziDebug` — re-record the reference screenshots (`app/src/test/screenshots/`)
   after a change meant to alter a screen; look at every image it changes.
 - `./gradlew :data:testDebugUnitTest` — the database, migration and settings tests, on the JVM (Robolectric).
-- `./gradlew koverHtmlReportCoverage` — coverage of `:domain`, `:data` and `:app`; CI sends the XML to
+- `./gradlew koverHtmlReportCoverage` — coverage of `:domain`, `:api`, `:data` and `:app`; CI sends the XML to
   Codecov.
 - `./gradlew :app:installDebug` — install on a connected phone (debug app id
   `io.cosgriff.flywaybracket.debug`).
@@ -56,6 +56,11 @@ the `CODECOV_TOKEN` secret.
   - `domain/player` — `PlayerSettings` (display name, home county code).
   - `domain/outing` — `Outing`, `Sighting`, `OutingLog`, and Home's season figures (`speciesSince`,
     `outingsSince`, `newLifersSince`).
+- `:api` — pure Kotlin, no Android: the messages the app and the server exchange (`kotlinx.serialization`
+  JSON, read and written with `ApiJson`), `ApiPaths` (every path, under `/v1/`), `ApiErrorCode` and
+  `MatchupSlot` (a bracket's 63 matchups, numbered by round, then from the top). Depends on `:domain`.
+  Nothing calls it yet. `docs/server/api.md` lists the endpoints; change the two together. A field the app
+  sends must be in ADR 0001's table first. Test: `./gradlew :api:test`.
 - `:data` — what the app saves on the phone, mapped to and from `:domain` types. Depends on `:domain`.
   - `data/db` — `FlywayDatabase` (Room 3), its entities and DAOs. Each version's schema is exported to
     `data/schemas` and committed (CI fails if it isn't). A schema change raises the version and adds a
@@ -65,6 +70,10 @@ the `CODECOV_TOKEN` secret.
   - Tests run on the JVM under Robolectric; Gradle resolves its Android jar (root `build.gradle.kts`).
 - `:app` — Compose UI, theme, navigation (Navigation 3, `@Serializable` `NavKey` routes in
   `ui/FlywayNavHost.kt`). Hilt: `FlywayApp` is the application, `MainActivity` an entry point.
+- `site/` — not a Gradle module: the user guide for players. Markdown in `site/pages/`, built with pandoc
+  (`site/build.sh`), checked by `site/check.py` and pa11y, published to GitHub Pages by `pages.yml`. No
+  JavaScript, nothing from another host. A page about something not built yet has `beta: true`; remove it
+  when the feature ships. A rule changed in `:domain` is changed on the site in the same PR.
 
 Add `:baselineprofile` once the screens settle.
 

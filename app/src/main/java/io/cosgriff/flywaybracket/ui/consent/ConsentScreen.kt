@@ -1,6 +1,5 @@
 package io.cosgriff.flywaybracket.ui.consent
 
-import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.cosgriff.flywaybracket.R
 import io.cosgriff.flywaybracket.data.server.ServerProblem
 import io.cosgriff.flywaybracket.ui.components.FlywayBottomBar
+import io.cosgriff.flywaybracket.ui.components.PrivacyList
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.components.message
 import io.cosgriff.flywaybracket.ui.theme.FlywayDimens
@@ -102,16 +102,7 @@ fun ConsentContent(
                     modifier = Modifier.semantics { heading() },
                 )
                 Text(stringResource(R.string.consent_intro), style = MaterialTheme.typography.bodyLarge)
-                Section(
-                    R.string.consent_sent_title,
-                    R.string.consent_sent_account,
-                    R.string.consent_sent_profile,
-                    R.string.consent_sent_leagues,
-                    R.string.consent_sent_sightings,
-                    R.string.consent_never_sent,
-                )
-                Section(R.string.consent_seen_title, R.string.consent_seen_body, R.string.consent_not_seen_body)
-                Section(R.string.consent_delete_title, R.string.consent_delete_body, R.string.consent_lost_body)
+                PrivacyList()
                 Text(
                     text = stringResource(R.string.consent_not_now_hint),
                     style = MaterialTheme.typography.bodyMedium,
@@ -120,31 +111,6 @@ fun ConsentContent(
             }
             state.problem?.let { Problem(it) }
             Buttons(state, onContinue, onNotNow)
-        }
-    }
-}
-
-/** A card: its title, then a paragraph for each of [paragraphs]. Flat, with a border. */
-@Composable
-private fun Section(@StringRes title: Int, @StringRes vararg paragraphs: Int) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = MaterialTheme.shapes.large,
-        border = BorderStroke(FlywayDimens.border, FlywayTheme.colors.border),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = FlywayDimens.space4, vertical = FlywayDimens.space3),
-            verticalArrangement = Arrangement.spacedBy(FlywayDimens.space2),
-        ) {
-            Text(
-                text = stringResource(title).toUpperCase(Locale.current),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.semantics { heading() },
-            )
-            paragraphs.forEach { Text(stringResource(it), style = MaterialTheme.typography.bodyMedium) }
         }
     }
 }

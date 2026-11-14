@@ -5,7 +5,7 @@ What the app and the server say to each other. The types are in the `:api` modul
 the endpoints that carry them. Change the two together.
 
 The server (`:server`, [running.md](running.md)) answers the health check, the account endpoints, the
-league endpoints, the pack endpoints and the sighting endpoints, and the app calls the account endpoints,
+league endpoints, a league's bracket, the pack endpoints and the sighting endpoints, and the app calls the account endpoints,
 after the player agrees (#38). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
 new field sent to the server needs a change to that record first.
 
@@ -19,8 +19,8 @@ new field sent to the server needs a change to that record first.
   message carries an instant today.
 - A bird is named by its common name, as in the bracket and the packs. A county is its region code
   (`US-CO-059`), a state its region code (`US-CO`).
-- Enums travel as their Kotlin names: `Round`, `Season` and `Decision.Reason` from `:domain`,
-  `LeagueState` from `:api`.
+- Enums travel as their Kotlin names: `Round`, `Season`, `Decision.Reason`, `BirdGroup` and `CloseReason`
+  from `:domain`, `LeagueState` from `:api`.
 - **Who is asking.** Every call except `POST /v1/accounts` and `GET /v1/health` carries the account id and secret as HTTP Basic
   credentials (`Authorization: Basic`, the id as the user and the secret as the password). They are never
   in a path, a query or a body.
@@ -108,7 +108,11 @@ list only the codes an endpoint adds to these.
 - `GET /v1/account` is the asking player's own profile: their display name and home county, each absent
   until set, and `league`, the `LeagueSummary` of their league: the one forming or in season, else their
   latest finished or closed one; absent when they are in none. A league whose state is `CLOSED` never
-  started for want of players; this is how its players are told.
+  started; this is how its players are told, and `LeagueSummary.closedBecause` says why: `TOO_FEW_PLAYERS`
+  or `TOO_FEW_BIRDS` ([The field](#the-field)). `homeCountyInPacks` says whether a pack the server holds
+  has the home county; it is absent while no home county is set. When it is `false` the player is left out
+  of their league's seeding and is never eligible for a bird in their home county, and the app can tell
+  them so.
 - `PATCH /v1/account` checks both fields before it changes either. The display name follows the app's rule
   (`DisplayName` in `:domain`): 2 to 24 characters after trimming, stored trimmed. The home county must be
   a well-formed county code (`CountyCode` in `:domain`, such as `US-CO-059`), otherwise `COUNTY_UNKNOWN`; it
@@ -159,14 +163,18 @@ The rules are `domain/league` in `:domain` (#32); the server applies them.
   league between them.
 - **The start.** A bracket needs at least 8 players when the season starts. With fewer when the start date
   arrives, the start moves back one week and the league goes on taking players; this happens up to four
-  times. If it is still short on the fifth date, the league is `CLOSED`, and its players see that in
-  `GET /v1/account`. A postponed league's `seasonStart` and `seasonEnd` are its new dates.
+  times. If it is still short on the fifth date, the league is `CLOSED` (`closedBecause` is
+  `TOO_FEW_PLAYERS`), and its players see that in `GET /v1/account`. A league with 8 players whose field
+  has fewer than 64 birds is `CLOSED` on its start date (`TOO_FEW_BIRDS`, [The field](#the-field)). A
+  postponed league's `seasonStart` and `seasonEnd` are its new dates.
 - **States.** `LeagueState` is the server's league phase (`LeaguePhase` in `:domain`):
   `BEFORE_SEASON` is forming, `IN_SEASON` running, `FINISHED` after the final's Sunday has ended, and
   `CLOSED` never started.
-- **Nothing runs when a date passes.** The server settles a league, bringing it up to today, whenever it is
-  read, and saves that under the league's lock before any change to its players. The count of players at
-  each date is therefore the count when that date passed.
+- **Settling.** The server settles a league, bringing it up to today, whenever it is read, and saves that
+  under the league's lock before any change to its players. The count of players at each date is therefore
+  the count when that date passed. A job also settles, once a minute, every forming league whose field is
+  due to be fixed or whose start has arrived in its time zone, so both happen on time when no one reads the
+  league. It takes the same step under the same lock, so a league settled twice is seeded once.
 - `GET /v1/leagues` lists the leagues the player is in and has not left, latest start first: at most one
   forming or in season, and any finished or closed.
 - `GET /v1/leagues/{leagueId}` is for members only; any other player gets `LEAGUE_NOT_FOUND`.
@@ -187,6 +195,21 @@ The rules are `domain/league` in `:domain` (#32); the server applies them.
 | `GET /v1/leagues/{leagueId}/picks` | none | `PicksResponse` | `LEAGUE_NOT_FOUND` |
 | `PUT /v1/leagues/{leagueId}/picks` | `SubmitPicksRequest` | `PicksResponse` | `LEAGUE_NOT_FOUND`, `BRACKET_NOT_READY`, `PICKS_LOCKED`, `PICKS_INCOMPLETE`, `BIRD_UNKNOWN` |
 
+- `GET …/bracket` is for members only; any other player gets `LEAGUE_NOT_FOUND`. `BracketResponse.teams`
+  is the 64 birds by quarter from the top of the bracket, then by seed; `matchups` is all 63 by slot. A
+  first-round matchup has its two birds (`upper` is drawn above); a later one has none until the matchup
+  feeding it is decided, and `winner` is absent until its round is decided. No round is decided yet
+  (#37).
+- **Preview.** Before the season starts the bracket is a preview (`preview` is `true`), seeded from the
+  members as they are now, so players can fill in picks. It is seeded again whenever it is asked for, and
+  stored when it differs from the last: a member joined or left, or changed home county. Picks made against
+  the earlier preview are then dropped for the matchups whose birds changed (once the server holds picks,
+  #35). From 48 hours before the start the field is fixed and `preview` is absent. Joining still closes
+  only at the start, but a late joiner's county no longer changes the field. A league whose start moves
+  back a week is previewed again for its new start.
+- `BRACKET_NOT_READY` when there is no field: before the start, the members' home counties give fewer than
+  64 candidates (a member with no home county, or one in no pack, counts for none); or the league closed
+  before its season started.
 - `PUT …/picks` replaces the player's whole bracket: 63 picks, one per slot. `GET …/picks` returns the
   asking player's own picks.
 - **Matchup slots.** A matchup is a `MatchupSlot`: one number, 0 to 62, counted by round, then by position
@@ -203,6 +226,32 @@ The rules are `domain/league` in `:domain` (#32); the server applies them.
 
   The winners of positions `2p` and `2p + 1` of a round meet at position `p` of the next, the winner of
   the even one drawn above.
+
+### The field
+
+The rules are `Field` and `BirdGroup` in `:domain` (`domain/bracket`, #34); the server applies them to the
+members' home counties and the packs it holds.
+
+- **Candidates** are the birds that are migrants (`CountyChart.migrants`) in at least one member's home
+  county and expected (on at least 3% of checklists) in at least one member's home county in at least one
+  bin of the season. A member whose home county is not set, or is in no pack the server holds, is left
+  out.
+- **Strength** is `Seeding.strength`: a bird's best smoothed frequency in the season's bins, averaged over
+  the members' home counties, one per member.
+- **Four quarters of 16**, top of the bracket first: `SONGBIRDS`, `WATERBIRDS`, `FLIERS` (hummingbirds,
+  swifts, swallows, nighthawks and raptors) and `WATERFOWL` (`BracketTeam.quarter`). A bird's group comes
+  from the family word in its common name ("Warbler", "Sandpiper", "Swallow", "Teal" and so on); a name
+  with none in the table is a songbird. Each quarter takes its group's 16 strongest and seeds them 1 to 16,
+  strongest first. Seeds 1 and 16 meet first; the first round is `Seeding.firstRound`, quarter by quarter.
+- **A short quarter** (fewer than 16 of its group) is filled with the strongest candidates the other
+  quarters did not take, from any group, so the field is always 64. Such a bird plays in that quarter.
+- **Too few birds.** With fewer than 64 candidates in all there is no field. A league in that state when
+  its season would start is closed (`CloseReason.TOO_FEW_BIRDS`): not enough migrating birds where its
+  players live.
+- **Once.** The field is fixed 48 hours before the start (the Saturday, at midnight in the league's time
+  zone) and stored; the season starts with it. Fixing and starting happen in the settle that finds their
+  day, in one transaction under the league's lock, so a league is seeded once however many requests and
+  job runs settle it.
 
 ## Results and standings
 

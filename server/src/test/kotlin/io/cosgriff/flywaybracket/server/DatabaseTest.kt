@@ -58,6 +58,8 @@ class DatabaseTest {
                 "season_start" to ("date" to "NO"),
                 "postponements" to ("integer" to "NO"),
                 "created_at" to ("timestamp with time zone" to "NO"),
+                // Added by the fourth migration.
+                "closed_reason" to ("text" to "YES"),
             ),
             columns("leagues"),
         )
@@ -69,6 +71,28 @@ class DatabaseTest {
                 "left_at" to ("timestamp with time zone" to "YES"),
             ),
             columns("league_members"),
+        )
+    }
+
+    @Test
+    fun `the fourth migration makes the field tables`() {
+        assertEquals(
+            mapOf(
+                "league_id" to ("uuid" to "NO"),
+                "season_start" to ("date" to "NO"),
+                "fixed" to ("boolean" to "NO"),
+                "candidates" to ("integer" to "NO"),
+            ),
+            columns("league_fields"),
+        )
+        assertEquals(
+            mapOf(
+                "league_id" to ("uuid" to "NO"),
+                "quarter" to ("text" to "NO"),
+                "seed" to ("integer" to "NO"),
+                "common_name" to ("text" to "NO"),
+            ),
+            columns("league_field_teams"),
         )
     }
 
@@ -164,10 +188,10 @@ class DatabaseTest {
 
     @Test
     fun `health says the database answers`() = testApplication {
-        val leagues = Leagues(PostgresLeagueStore(database.dataSource))
         val packs = noPacks()
+        val leagues = Leagues(PostgresLeagueStore(database.dataSource), packs)
         val sightings = Sightings(PostgresSightingStore(database.dataSource), packs)
-        application { module(database, Accounts(PostgresPlayerStore(database.dataSource), leagues), leagues, packs, sightings, version = "1.2.3") }
+        application { module(database, Accounts(PostgresPlayerStore(database.dataSource), leagues, packs), leagues, packs, sightings, version = "1.2.3") }
 
         val health = ApiJson.decodeFromString<HealthResponse>(client.get(ApiPaths.HEALTH).bodyAsText())
 
@@ -194,7 +218,7 @@ class DatabaseTest {
         fun startPostgres() {
             postgres.start()
             database = Database.connect(postgres.jdbcUrl, postgres.username, postgres.password)
-            assertEquals(3, database.migrate())
+            assertEquals(4, database.migrate())
         }
 
         @AfterClass

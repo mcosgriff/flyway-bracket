@@ -67,8 +67,9 @@ What exists:
 
 - The league server (`server/`, [`docs/server/api.md`](docs/server/api.md)): anonymous accounts,
   creating, joining, auto-joining and leaving leagues, listing and downloading the state packs it is
-  given (to signed-in players only), and taking and deleting a player's sightings, each kept as a bird
-  name, a county and a date only. The app does not talk to it yet.
+  given (to signed-in players only), taking and deleting a player's sightings, each kept as a bird
+  name, a county and a date only, and seeding each league's bracket: a preview before the season, fixed
+  48 hours before it starts. The app does not talk to it yet.
 
 What does not exist yet: downloading bird packs, the bracket screens, the League screen, and the app's side
 of the server.
@@ -81,8 +82,9 @@ of the server.
   without a league is added to the open league that starts first and has room, or to a new one starting
   on the second Monday from today. Joining closes when the season starts. A bracket needs at least 8
   players: a league short of 8 when its start date arrives starts a week later, up to four times, and is
-  then closed. A player can leave at any time; after the start, their picks stop scoring and they no
-  longer count toward any matchup.
+  then closed. A league is also closed on its start date when too few migrating birds pass through its
+  players' home counties to fill a field of 64. A player can leave at any time; after the start, their
+  picks stop scoring and they no longer count toward any matchup.
 - **Seasons.** Two tournaments a year, spring and fall. Each seeds its own field of 64 birds in four
   quarters of 16.
 - **Calendar.** A league's season starts on a Monday and runs six rounds, one a week, Monday through
@@ -92,8 +94,16 @@ of the server.
   ends. A round covers every time bin (four per month) that one of its seven days falls in: a bird is
   expected for the round when it is expected in any of them, and seeding looks at the bins of all six
   rounds.
-- **Seeding.** Birds are seeded by how often they are reported in the league members' home counties during
-  the season.
+- **Seeding.** A league's field is drawn from the birds that migrate through its members' home counties and
+  are expected there during the season; residents, there all year, are left out. The four quarters are
+  Songbirds, Waterbirds, Fliers (hummingbirds, swifts, swallows, nighthawks and raptors) and Waterfowl,
+  each bird in its group's quarter by the family word in its name. Each quarter takes its 16 birds most
+  often reported in the members' home counties during the season, seeded 1 to 16, and seed 1 meets seed
+  16 first. A quarter whose group is short is filled with the strongest birds left over from the others.
+  Until 48 hours before the start the bracket is a preview, seeded again as players join, leave or change
+  home county, so picks can be made early; a pick for a matchup whose birds changed is dropped. From then
+  on the field is fixed: a late joiner's county no longer changes it. A player whose home county is in no
+  pack the server holds is left out of seeding, and is told so.
 - **Picks.** A right pick scores 1, 2, 4, 8, 16 and 32 points by round. Calling an upset adds the gap
   between the two seeds.
 - **Matchups.** Friends in one league can live far apart, so a bird is judged only among *eligible*

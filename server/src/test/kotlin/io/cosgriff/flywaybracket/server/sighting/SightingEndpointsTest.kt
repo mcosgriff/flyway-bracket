@@ -61,13 +61,13 @@ abstract class SightingEndpointsTest {
     private fun server(test: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         writePack(folder.root.toPath(), testStatePack())
         val players = players()
-        val leagues = Leagues(InMemoryLeagueStore(players))
         val packs = Packs(folder.root.toPath())
+        val leagues = Leagues(InMemoryLeagueStore(players), packs)
         store = sightingStore(players)
         application {
             module(
                 database = { true },
-                accounts = Accounts(players, leagues),
+                accounts = Accounts(players, leagues, packs),
                 leagues = leagues,
                 packs = packs,
                 sightings = Sightings(store, packs, clock),

@@ -84,6 +84,15 @@ class SeasonCalendarTest {
         assertEquals(spring.roundDates(Round.ROUND_OF_64).start, spring.picksLockOn)
     }
 
+    @Test
+    fun `the field is fixed 48 hours before picks lock, on the Saturday`() {
+        assertEquals(LocalDate.of(2027, 2, 27), spring.fieldFixedOn)
+        assertEquals(java.time.DayOfWeek.SATURDAY, spring.fieldFixedOn.dayOfWeek)
+        assertEquals(false, spring.isFieldFixed(LocalDate.of(2027, 2, 26)))
+        assertEquals(true, spring.isFieldFixed(LocalDate.of(2027, 2, 27)))
+        assertEquals(true, spring.isFieldFixed(LocalDate.of(2027, 3, 1)))
+    }
+
     // Season
 
     @Test

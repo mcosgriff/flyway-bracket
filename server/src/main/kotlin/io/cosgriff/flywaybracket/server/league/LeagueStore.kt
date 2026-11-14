@@ -1,5 +1,10 @@
 package io.cosgriff.flywaybracket.server.league
 
+import io.cosgriff.flywaybracket.domain.bracket.BirdGroup
+import io.cosgriff.flywaybracket.domain.bracket.Field
+import io.cosgriff.flywaybracket.domain.bracket.FieldResult
+import io.cosgriff.flywaybracket.domain.bracket.Team
+import io.cosgriff.flywaybracket.domain.league.CloseReason
 import io.cosgriff.flywaybracket.domain.league.LeaguePhase
 import io.cosgriff.flywaybracket.domain.league.LeagueStatus
 import java.sql.Connection
@@ -25,13 +30,29 @@ data class StoredLeague(
     val players: Int = 0,
 )
 
-/** A player in a league. */
-data class StoredMember(val playerId: UUID, val displayName: String)
+/**
+ * A player in a league.
+ *
+ * @property homeCounty the county code the player set, or null while it is not set
+ */
+data class StoredMember(val playerId: UUID, val displayName: String, val homeCounty: String? = null)
 
 /** What a locked player has that a league needs. */
 data class LockedPlayer(val displayName: String?)
 
-/** The `leagues` and `league_members` tables. Every call blocks; call it off the request threads. */
+/**
+ * A league's field as stored (#34): a preview, or the field fixed 48 hours before the start.
+ *
+ * @property seasonStart the start of the season it was seeded for
+ * @property fixed false for a preview
+ * @property result its teams in [Field.quarters] order, then by seed
+ */
+data class StoredField(val seasonStart: LocalDate, val fixed: Boolean, val result: FieldResult)
+
+/**
+ * The `leagues`, `league_members`, `league_fields` and `league_field_teams` tables. Every call blocks;
+ * call it off the request threads.
+ */
 interface LeagueStore {
     /** Runs [block] in one transaction: commits when it returns, rolls back when it throws. */
     fun <T> transaction(block: LeagueTransaction.() -> T): T
@@ -90,7 +111,17 @@ interface LeagueTransaction {
 
     /** Keeps the player's row, marked as left: they no longer count. */
     fun markLeft(leagueId: UUID, playerId: UUID)
+
+    /** The league's field, or null when none has been stored. */
+    fun field(leagueId: UUID): StoredField?
+
+    /** Stores the league's field in place of any it had. Only for a locked league. */
+    fun saveField(leagueId: UUID, field: StoredField)
 }
+
+/** Teams in the order a [StoredField] holds them: by quarter from the top of the bracket, then by seed. */
+internal fun List<Team>.inFieldOrder(): List<Team> =
+    sortedWith(compareBy<Team> { BirdGroup.valueOf(it.quarter).ordinal }.thenBy { it.seed })
 
 class PostgresLeagueStore(private val dataSource: DataSource) : LeagueStore {
     override fun <T> transaction(block: LeagueTransaction.() -> T): T = dataSource.connection.use { connection ->
@@ -146,12 +177,12 @@ private class PostgresLeagueTransaction(private val connection: Connection) : Le
 
     override fun members(leagueId: UUID): List<StoredMember> = query(
         """
-        SELECT m.player_id, COALESCE(p.display_name, '') FROM league_members m
+        SELECT m.player_id, COALESCE(p.display_name, ''), p.home_county FROM league_members m
         JOIN players p ON p.id = m.player_id
         WHERE m.league_id = ? AND m.left_at IS NULL
         """.trimIndent(),
         leagueId,
-    ) { StoredMember(it.getObject(1, UUID::class.java), it.getString(2)) }
+    ) { StoredMember(it.getObject(1, UUID::class.java), it.getString(2), it.getString(3)) }
 
     override fun openFormingLeagues(): List<UUID> = query(
         "SELECT id FROM leagues WHERE open AND phase = 'FORMING' ORDER BY season_start, created_at, id",
@@ -179,13 +210,59 @@ private class PostgresLeagueTransaction(private val connection: Connection) : Le
     ) == 1
 
     override fun saveStatus(leagueId: UUID, status: LeagueStatus) {
+        connection.prepareStatement(
+            "UPDATE leagues SET phase = ?, season_start = ?, postponements = ?, closed_reason = ? WHERE id = ?",
+        ).use { statement ->
+            statement.setString(1, status.phase.name)
+            statement.setObject(2, status.seasonStart)
+            statement.setInt(3, status.postponements)
+            statement.setString(4, status.closedBecause?.name)
+            statement.setObject(5, leagueId)
+            statement.executeUpdate()
+        }
+    }
+
+    override fun field(leagueId: UUID): StoredField? {
+        val teams = query("SELECT quarter, seed, common_name FROM league_field_teams WHERE league_id = ?", leagueId) {
+            Team(commonName = it.getString(3), quarter = it.getString(1), seed = it.getInt(2))
+        }.inFieldOrder()
+        return query("SELECT season_start, fixed, candidates FROM league_fields WHERE league_id = ?", leagueId) { row ->
+            val candidates = row.getInt("candidates")
+            StoredField(
+                seasonStart = row.getObject("season_start", LocalDate::class.java),
+                fixed = row.getBoolean("fixed"),
+                result = if (teams.isEmpty()) FieldResult.TooFewBirds(candidates) else FieldResult.Seeded(teams, candidates),
+            )
+        }.firstOrNull()
+    }
+
+    override fun saveField(leagueId: UUID, field: StoredField) {
+        // The teams go with it (ON DELETE CASCADE).
+        update("DELETE FROM league_fields WHERE league_id = ?", leagueId)
+        val (teams, candidates) = when (val result = field.result) {
+            is FieldResult.Seeded -> result.teams to result.candidates
+            is FieldResult.TooFewBirds -> emptyList<Team>() to result.candidates
+        }
         update(
-            "UPDATE leagues SET phase = ?, season_start = ?, postponements = ? WHERE id = ?",
-            status.phase.name,
-            status.seasonStart,
-            status.postponements,
+            "INSERT INTO league_fields (league_id, season_start, fixed, candidates) VALUES (?, ?, ?, ?)",
             leagueId,
+            field.seasonStart,
+            field.fixed,
+            candidates,
         )
+        if (teams.isEmpty()) return
+        connection.prepareStatement(
+            "INSERT INTO league_field_teams (league_id, quarter, seed, common_name) VALUES (?, ?, ?, ?)",
+        ).use { insert ->
+            teams.forEach { team ->
+                insert.setObject(1, leagueId)
+                insert.setString(2, team.quarter)
+                insert.setInt(3, team.seed)
+                insert.setString(4, team.commonName)
+                insert.addBatch()
+            }
+            insert.executeBatch()
+        }
     }
 
     override fun addMember(leagueId: UUID, playerId: UUID) {
@@ -227,6 +304,7 @@ private class PostgresLeagueTransaction(private val connection: Connection) : Le
             phase = LeaguePhase.valueOf(row.getString("phase")),
             seasonStart = row.getObject("season_start", LocalDate::class.java),
             postponements = row.getInt("postponements"),
+            closedBecause = row.getString("closed_reason")?.let(CloseReason::valueOf),
         ),
         players = row.getInt("players"),
     )
@@ -236,7 +314,7 @@ private class PostgresLeagueTransaction(private val connection: Connection) : Le
         const val AUTO_JOIN_LOCK = 3_200_001L
 
         const val SELECT_LEAGUE = """
-            SELECT l.id, l.name, l.open, l.time_zone, l.invite_code, l.phase, l.season_start, l.postponements,
+            SELECT l.id, l.name, l.open, l.time_zone, l.invite_code, l.phase, l.season_start, l.postponements, l.closed_reason,
                 (SELECT count(*) FROM league_members c WHERE c.league_id = l.id AND c.left_at IS NULL) AS players
             FROM leagues l"""
     }

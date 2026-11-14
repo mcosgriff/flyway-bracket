@@ -24,7 +24,8 @@ private const val LEAGUE_ID = "leagueId"
 
 /**
  * `POST /v1/leagues`, `GET /v1/leagues`, `POST /v1/leagues/join`, `POST /v1/leagues/auto-join`,
- * `GET /v1/leagues/{leagueId}` and `DELETE /v1/leagues/{leagueId}/membership` (docs/server/api.md).
+ * `GET /v1/leagues/{leagueId}`, `GET /v1/leagues/{leagueId}/bracket` and
+ * `DELETE /v1/leagues/{leagueId}/membership` (docs/server/api.md).
  */
 fun Route.leagueRoutes(leagues: Leagues) {
     authenticate(SIGNED_IN) {
@@ -50,6 +51,15 @@ fun Route.leagueRoutes(leagues: Leagues) {
             val leagueId = call.parameters[LEAGUE_ID].orEmpty()
             val detail = withContext(Dispatchers.IO) { leagues.detail(player(), leagueId) }
             if (detail == null) call.respondNotFound() else call.respond(detail)
+        }
+
+        get(ApiPaths.bracket("{$LEAGUE_ID}")) {
+            val leagueId = call.parameters[LEAGUE_ID].orEmpty()
+            when (val outcome = withContext(Dispatchers.IO) { leagues.bracket(player(), leagueId) }) {
+                is BracketOutcome.Ready -> call.respond(outcome.bracket)
+                BracketOutcome.NotFound -> call.respondNotFound()
+                BracketOutcome.NotReady -> call.refuse(HttpStatusCode.Conflict, ApiErrorCode.BRACKET_NOT_READY)
+            }
         }
 
         delete(ApiPaths.membership("{$LEAGUE_ID}")) {

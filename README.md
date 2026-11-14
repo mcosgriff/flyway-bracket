@@ -64,6 +64,15 @@ What exists:
   logged each bird, from the outings and packs on the phone. With no league, or a league still forming,
   the tab says so and points to League. If picks locked before your latest changes reached the server, or
   the preview's birds changed and cleared picks, the tab says so.
+- Sending sightings and fetching results in the background, once the phone has an account. Finishing an
+  outing queues its sightings; removing one the server may have queues a delete. Android's WorkManager
+  sends the queue when the phone is online, tries again later after a failure, and keeps it across a
+  restart. Only
+  sightings dated inside your league's season are sent: ones logged before you joined go once you have,
+  and the rest stay on the phone. The same background job fetches your league, bracket and results when
+  the app is opened, and every hour at most while a season is running. The Summary screen says whether an
+  outing has been sent, is waiting, or stays on the phone; Home shows a note with "Send now" when
+  sightings have waited more than a day.
 - Settings, from the gear on Home. Profile: the display name and home county, changed with the first
   run's rules, and sent to the server when there is an account. Account: whether the phone has one, and
   "Delete my account", which says what the server deletes and that outings stay on the phone, asks twice,
@@ -83,10 +92,10 @@ What exists:
   creating, joining, auto-joining and leaving leagues, listing and downloading the state packs it is
   given (to signed-in players only), taking and deleting a player's sightings, each kept as a bird
   name, a county and a date only, and seeding each league's bracket: a preview before the season, fixed
-  48 hours before it starts. The app uses it for the account and the bracket so far.
+  48 hours before it starts. The app uses it for the account, the bracket and sightings so far.
 
 What does not exist yet: downloading bird packs, the League screen, and the rest of the app's side of the
-server (leagues and sightings).
+server (joining and leaving leagues).
 
 ## How the game works
 
@@ -150,8 +159,12 @@ No trackers, analytics, crash reporting or ads. Every build's release APK is sca
 is not listed in [`.github/privacy/permissions.txt`](.github/privacy/permissions.txt).
 
 The app asks for two permissions: approximate location (below), and `INTERNET`, to talk to the league
-server (further below). Adding a pack uses the phone's file picker, which needs no permission: the app is
-handed the one file you choose and sees no others.
+server (further below). Android's WorkManager library, which sends sightings in the background, adds four
+that are granted at install and never asked for: `ACCESS_NETWORK_STATE` (to wait for a network),
+`WAKE_LOCK` (to finish a send), `RECEIVE_BOOT_COMPLETED` (to keep the queue across a restart) and
+`FOREGROUND_SERVICE` (declared by the library; the app never starts a foreground service or shows a
+notification, and asks for no notification permission). Adding a pack uses the phone's file picker, which
+needs no permission: the app is handed the one file you choose and sees no others.
 
 **Approximate location** (`ACCESS_COARSE_LOCATION`) is used once, when an outing starts, to find the county
 you are in. A county is far larger than the error of an approximate location, so the app never asks for
@@ -166,16 +179,23 @@ and you can change an outing's county by hand.
 Written down in [`docs/adr/0001-server-and-network.md`](docs/adr/0001-server-and-network.md). The account
 is built: creating it, and sending your display name and home county when you set or change them. The
 Bracket tab reads your league from your account, fetches its bracket and results, and sends your picks as
-you make them. Joining leagues and sightings are not sent yet; the lines below say what will be.
+you make them. Sightings are sent in the background. Joining leagues is not built in the app yet; the
+lines below say what will be sent then.
 
 - The app talks to one server, the project's own, over HTTPS, and to nothing else.
 - Nothing is sent before you say yes. Outings work with no account. When you open League or Bracket
   without an account, a page says what will be sent and asks. "Not now" sends nothing.
+- When data is sent, once you have an account: your display name and home county when you set or change
+  them; your picks as you make them; your sightings when you finish an outing (or, offline, as soon as
+  the phone is online again, or when you tap "Send now" on Home), and only those dated inside your
+  league's season, so ones logged before you joined go once you have; a delete when you remove a sighting
+  the server may have. Opening the app, and every hour at most while a season is running, fetches your
+  league, bracket and results, which sends nothing but your account id and secret.
 - An account is anonymous: no email, no password, no phone number. The server gives the app an id and a
   secret, and the app keeps them encrypted on the phone with a key in the Android Keystore.
-- The server will store your display name, your home county, your leagues, your bracket picks, and each
-  sighting as a bird name, a county and a date. It will never get coordinates, the time of day or the
-  place name you typed.
+- The server stores your display name, your home county, your leagues, your bracket picks, and each
+  sighting as a bird name, a county, a date and a random id the app makes for it. It never gets
+  coordinates, the time of day, how many of a bird you counted or the place name you typed.
 - Other players in your league will see your display name, your picks once they lock, your points, and how
   many birds you logged in a round. They will not see your county or your individual sightings.
 - You can delete your account from Settings. The server then deletes your name, picks and

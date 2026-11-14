@@ -20,7 +20,7 @@ import java.util.UUID
 class PostgresLeaguesTest : LeaguesTest() {
     override fun players(): PlayerStore {
         // Each test starts with no players and no leagues: auto-join would find another test's.
-        update("TRUNCATE league_members, leagues, players")
+        update("TRUNCATE sightings, league_members, leagues, players")
         return PostgresPlayerStore(database.dataSource)
     }
 

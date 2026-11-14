@@ -15,7 +15,7 @@ class PostgresLeagueEndpointsTest : LeagueEndpointsTest() {
     override fun players(): PlayerStore {
         // Each test starts with no players and no leagues: auto-join would find another test's.
         database.dataSource.connection.use { connection ->
-            connection.createStatement().use { it.executeUpdate("TRUNCATE league_members, leagues, players") }
+            connection.createStatement().use { it.executeUpdate("TRUNCATE sightings, league_members, leagues, players") }
         }
         return PostgresPlayerStore(database.dataSource)
     }

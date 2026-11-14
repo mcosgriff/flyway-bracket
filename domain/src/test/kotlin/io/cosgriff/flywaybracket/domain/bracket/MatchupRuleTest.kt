@@ -159,4 +159,19 @@ class MatchupRuleTest {
         assertTrue(MatchupRule.isEligible("Test Oriole", spring, home = arrivesMidRound))
         assertFalse(MatchupRule.isEligible("Test Oriole", listOf(TimeBin.of(5, 1)), home = arrivesMidRound))
     }
+
+    // A player's part
+
+    @Test
+    fun `a player's part says whether they were eligible and whether they logged the bird`() {
+        val traveler = PlayerRound(home = foothills, visited = listOf(plains), logged = setOf("Test Kingbird", "Test Oriole"))
+
+        assertEquals(PlayerPart(eligible = true, logged = true), MatchupRule.part("Test Kingbird", spring, traveler))
+        assertTrue(MatchupRule.part("Test Kingbird", spring, traveler).counted)
+        assertEquals(PlayerPart(eligible = true, logged = false), MatchupRule.part("Test Hummingbird", spring, traveler))
+        // Logged where it is not expected: not eligible, so the sighting does not count.
+        val oriole = MatchupRule.part("Test Oriole", spring, traveler)
+        assertEquals(PlayerPart(eligible = false, logged = true), oriole)
+        assertFalse(oriole.counted)
+    }
 }

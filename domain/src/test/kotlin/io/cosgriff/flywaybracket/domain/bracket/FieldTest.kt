@@ -159,4 +159,17 @@ class FieldTest {
 
         assertEquals(emptyList<DrawPosition>(), Field.changedMatchups(before, after))
     }
+
+    @Test
+    fun `each quarter holds its share of every round up to the quarterfinals`() {
+        assertEquals("SONGBIRDS", Field.quarterOf(DrawPosition(Round.ROUND_OF_64, 7)))
+        assertEquals("WATERBIRDS", Field.quarterOf(DrawPosition(Round.ROUND_OF_64, 8)))
+        assertEquals("WATERFOWL", Field.quarterOf(DrawPosition(Round.ROUND_OF_64, 31)))
+        assertEquals("FLIERS", Field.quarterOf(DrawPosition(Round.ROUND_OF_32, 9)))
+        assertEquals("WATERBIRDS", Field.quarterOf(DrawPosition(Round.ROUND_OF_16, 3)))
+        assertEquals(Field.quarters, (0 until 4).map { Field.quarterOf(DrawPosition(Round.QUARTERFINAL, it)) })
+        // Two quarters meet in a semifinal, and all four in the final.
+        assertEquals(null, Field.quarterOf(DrawPosition(Round.SEMIFINAL, 0)))
+        assertEquals(null, Field.quarterOf(DrawPosition(Round.FINAL, 0)))
+    }
 }

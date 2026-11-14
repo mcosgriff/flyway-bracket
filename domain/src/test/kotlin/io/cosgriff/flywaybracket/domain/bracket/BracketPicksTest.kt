@@ -132,4 +132,19 @@ class BracketPicksTest {
         assertEquals(picks, BracketPicks.withoutChanged(picks, listOf(at(Round.ROUND_OF_64, 0), at(Round.FINAL, 0))))
         assertEquals(emptyMap<DrawPosition, String>(), BracketPicks.withoutChanged(emptyMap(), listOf(at(Round.ROUND_OF_64, 0))))
     }
+
+    @Test
+    fun `changing a pick says which later picks it clears`() {
+        val whole = upperWinsEverywhere()
+        val first = at(Round.ROUND_OF_64, 0)
+
+        // The top bird is picked to win every round: picking the other bird clears all five later picks.
+        assertEquals(Round.entries.drop(1).map { at(it, 0) }.toSet(), BracketPicks.clearedBy(whole, first, drawn[1]))
+        // So does clearing the pick.
+        assertEquals(Round.entries.drop(1).map { at(it, 0) }.toSet(), BracketPicks.clearedBy(whole, first, null))
+        // Picking the bird already picked, or in a matchup no later pick depends on, clears nothing else.
+        assertEquals(emptySet<DrawPosition>(), BracketPicks.clearedBy(whole, first, drawn[0]))
+        assertEquals(emptySet<DrawPosition>(), BracketPicks.clearedBy(whole, at(Round.ROUND_OF_64, 1), drawn[3]))
+        assertEquals(emptySet<DrawPosition>(), BracketPicks.clearedBy(emptyMap(), first, drawn[1]))
+    }
 }

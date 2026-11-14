@@ -16,3 +16,9 @@ allow-licenses:
   - Zlib
   - CC0-1.0
   - Unlicense
+
+# Packages whose licence GitHub cannot read (it reports NOASSERTION), each checked by hand. Recheck on a
+# major version bump.
+#   flyway-database-postgresql: Apache-2.0, declared in its parent POM (org.flywaydb:flyway-parent).
+allow-dependencies-licenses:
+  - pkg:maven/org.flywaydb/flyway-database-postgresql

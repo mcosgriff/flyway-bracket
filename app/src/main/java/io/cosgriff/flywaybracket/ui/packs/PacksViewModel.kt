@@ -19,6 +19,7 @@ import io.cosgriff.flywaybracket.data.PackListing
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
 import io.cosgriff.flywaybracket.data.asksBeforeDownload
+import io.cosgriff.flywaybracket.data.server.ServerActivity
 import io.cosgriff.flywaybracket.domain.pack.StatePackResult
 import io.cosgriff.flywaybracket.domain.place.CountyTable
 import io.cosgriff.flywaybracket.ui.components.MeteredAsk
@@ -51,7 +52,11 @@ class PacksViewModel @Inject constructor(
     accounts: AccountRepository,
     private val meter: NetworkMeter,
     @ApplicationContext private val context: Context,
+    activity: ServerActivity,
 ) : ViewModel() {
+    /** Whether the server is most likely waking while the screen waits on it (#93). */
+    val waking: StateFlow<Boolean> = activity.waking
+
     private val problem = MutableStateFlow<PackProblem?>(null)
 
     // Null while the server is being asked.

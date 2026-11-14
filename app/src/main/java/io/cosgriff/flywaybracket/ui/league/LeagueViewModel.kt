@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.cosgriff.flywaybracket.data.League
 import io.cosgriff.flywaybracket.data.LeagueRepository
+import io.cosgriff.flywaybracket.data.server.ServerActivity
 import io.cosgriff.flywaybracket.data.server.ServerProblem
 import io.cosgriff.flywaybracket.data.server.ServerResult
 import io.cosgriff.flywaybracket.domain.league.LeaguePhase
@@ -24,7 +25,14 @@ import kotlinx.coroutines.launch
  * with none, the Join view. Only shown once the phone has an account (#38).
  */
 @HiltViewModel
-class LeagueViewModel @Inject constructor(private val leagues: LeagueRepository, private val clock: Clock) : ViewModel() {
+class LeagueViewModel @Inject constructor(
+    private val leagues: LeagueRepository,
+    private val clock: Clock,
+    activity: ServerActivity,
+) : ViewModel() {
+    /** Whether the server is most likely waking while the tab waits on it (#93). */
+    val waking: StateFlow<Boolean> = activity.waking
+
     /** Where reading the league from the server stands. */
     private sealed interface Refresh {
         data object Running : Refresh

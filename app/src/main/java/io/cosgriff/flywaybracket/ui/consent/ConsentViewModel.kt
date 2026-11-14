@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.cosgriff.flywaybracket.data.AccountRepository
+import io.cosgriff.flywaybracket.data.server.ServerActivity
 import io.cosgriff.flywaybracket.data.server.ServerResult
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,10 @@ import kotlinx.coroutines.launch
  * before [onContinue].
  */
 @HiltViewModel
-class ConsentViewModel @Inject constructor(private val accounts: AccountRepository) : ViewModel() {
+class ConsentViewModel @Inject constructor(private val accounts: AccountRepository, activity: ServerActivity) : ViewModel() {
+    /** Whether the server is most likely waking while the account is asked for (#93). */
+    val waking: StateFlow<Boolean> = activity.waking
+
     /** Whether there is an account; null until the phone's store has been read. */
     val hasAccount: StateFlow<Boolean?> = accounts.hasAccount().stateIn(viewModelScope, SharingStarted.Eagerly, null)
 

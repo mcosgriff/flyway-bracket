@@ -500,6 +500,8 @@
     <string name="server_problem_season_start_too_soon">A season starts at least a week from today. Choose a later Monday.</string>
     <string name="server_problem_time_zone_unknown">The server does not know that time zone. Choose another.</string>
     <string name="server_problem_pack_not_found">The server no longer has this pack.</string>
+    <!-- Under a screen's waiting words, while a call has waited long or is being tried again (#93). -->
+    <string name="server_waking">Waking the server. This can take a few seconds.</string>
 
     <!-- A pack download, on Packs and Home (#39). -->
     <string name="download_in_progress">Downloading…</string>

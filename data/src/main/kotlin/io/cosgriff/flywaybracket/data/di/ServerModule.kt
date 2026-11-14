@@ -9,11 +9,13 @@ import dagger.hilt.components.SingletonComponent
 import io.cosgriff.flywaybracket.data.AccountRepository
 import io.cosgriff.flywaybracket.data.BracketRepository
 import io.cosgriff.flywaybracket.data.BuildConfig
+import io.cosgriff.flywaybracket.data.LeagueRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
 import io.cosgriff.flywaybracket.data.account.AccountStore
 import io.cosgriff.flywaybracket.data.account.EncryptedAccountStore
 import io.cosgriff.flywaybracket.data.account.keystoreKey
 import io.cosgriff.flywaybracket.data.db.BracketDao
+import io.cosgriff.flywaybracket.data.db.LeagueDao
 import io.cosgriff.flywaybracket.data.db.OutingDao
 import io.cosgriff.flywaybracket.data.server.ServerClient
 import io.cosgriff.flywaybracket.data.server.serverEngine
@@ -22,7 +24,7 @@ import java.io.File
 import java.time.Clock
 import javax.inject.Singleton
 
-/** The league server's client, the account kept on the phone (#38), and what is fetched with it (#41). */
+/** The league server's client, the account kept on the phone (#38), and what is fetched with it (#40, #41). */
 @Module
 @InstallIn(SingletonComponent::class)
 object ServerModule {
@@ -43,6 +45,10 @@ object ServerModule {
     @Provides @Singleton
     fun bracketRepository(server: ServerClient, accounts: AccountRepository, brackets: BracketDao, outings: OutingDao, clock: Clock): BracketRepository =
         BracketRepository(server, accounts, brackets, outings, clock)
+
+    @Provides @Singleton
+    fun leagueRepository(server: ServerClient, accounts: AccountRepository, leagues: LeagueDao, clock: Clock): LeagueRepository =
+        LeagueRepository(server, accounts, leagues, clock)
 
     private const val KEY_ALIAS = "flyway_account"
 }

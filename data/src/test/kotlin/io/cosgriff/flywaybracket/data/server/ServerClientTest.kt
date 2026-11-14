@@ -4,6 +4,9 @@ import io.cosgriff.flywaybracket.api.ApiError
 import io.cosgriff.flywaybracket.api.ApiErrorCode
 import io.cosgriff.flywaybracket.api.ApiJson
 import io.cosgriff.flywaybracket.api.CreateAccountResponse
+import io.cosgriff.flywaybracket.api.CreateLeagueRequest
+import io.cosgriff.flywaybracket.api.LeagueState
+import io.cosgriff.flywaybracket.api.LeagueSummary
 import io.cosgriff.flywaybracket.api.ProfileResponse
 import io.cosgriff.flywaybracket.api.UpdateProfileRequest
 import io.ktor.client.engine.mock.MockEngine
@@ -23,6 +26,7 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.net.UnknownServiceException
 import java.security.cert.CertificateException
+import java.time.LocalDate
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLPeerUnverifiedException
 import java.util.Base64
@@ -100,6 +104,35 @@ class ServerClientTest {
         assertEquals(ServerResult.Ok(Unit), server.deleteAccount(credentials))
         assertEquals(HttpMethod.Delete, requests.single().method)
         assertEquals("$BASE_URL/v1/account", requests.single().url.toString())
+    }
+
+    @Test
+    fun `the league calls send only what their messages hold`() = runBlocking {
+        val league = LeagueSummary(id = "test-league-1", name = "Test League", inviteCode = "TESTWREN", players = 1, capacity = 64, state = LeagueState.BEFORE_SEASON)
+        val server = client { request ->
+            if (request.method == HttpMethod.Delete) {
+                respond("", HttpStatusCode.NoContent)
+            } else {
+                json(HttpStatusCode.OK, ApiJson.encodeToString(LeagueSummary.serializer(), league))
+            }
+        }
+        val create = CreateLeagueRequest(name = "Test League", open = true, timeZone = "America/Denver", seasonStart = LocalDate.of(2027, 3, 1))
+
+        assertEquals(ServerResult.Ok(league), server.createLeague(credentials, create))
+        assertEquals(ServerResult.Ok(league), server.joinLeague(credentials, "TESTWREN"))
+        assertEquals(ServerResult.Ok(league), server.autoJoinLeague(credentials))
+        assertEquals(ServerResult.Ok(Unit), server.leaveLeague(credentials, "test-league-1"))
+
+        assertEquals(
+            listOf("/v1/leagues", "/v1/leagues/join", "/v1/leagues/auto-join", "/v1/leagues/test-league-1/membership"),
+            requests.map { it.url.encodedPath },
+        )
+        assertEquals(listOf(HttpMethod.Post, HttpMethod.Post, HttpMethod.Post, HttpMethod.Delete), requests.map { it.method })
+        assertEquals(
+            listOf("""{"name":"Test League","open":true,"timeZone":"America/Denver","seasonStart":"2027-03-01"}""", """{"inviteCode":"TESTWREN"}""", null, null),
+            requests.map { it.text },
+        )
+        requests.forEach { assertEquals(true, it.headers[HttpHeaders.Authorization]?.startsWith("Basic ")) }
     }
 
     @Test

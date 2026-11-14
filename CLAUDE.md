@@ -45,7 +45,10 @@ the `CODECOV_TOKEN` secret, `:data`.
 
 - `:domain` — pure Kotlin, **no Android imports**. All game rules live here and get unit tests. Results
   are typed values, never English text.
-  - `domain/pack` — `TimeBin` (48 a year, four per month), `CountyChart`, `BarChartParser`.
+  - `domain/pack` — `TimeBin` (48 a year, four per month), `CountyChart`, `BarChartParser`, `StatePack`
+    (a state's counties, charts and outlines) and `StatePackCodec` (the `.fbpack` file: gzipped JSON).
+  - `src/testFixtures` — made-up charts and a made-up pack (`testStatePack()`) for any module's tests:
+    `testImplementation(testFixtures(project(":domain")))`.
   - `domain/bracket` — `Round`, `Team`, `Matchup`, `Seeding`, `MatchupRule`, `PickScore`.
 - `:app` — Compose UI, theme, navigation (Navigation 3, `@Serializable` `NavKey` routes in
   `ui/FlywayNavHost.kt`).

@@ -37,6 +37,7 @@ data class FlywayColors(
     val inverse: Color, // inv
     val onInverse: Color, // oninv
     val danger: Color,
+    val dangerContainer: Color,
 )
 
 val LightFlywayColors = FlywayColors(
@@ -63,6 +64,7 @@ val LightFlywayColors = FlywayColors(
     inverse = Color(0xFF14231C),
     onInverse = Color(0xFFFFFFFF),
     danger = Color(0xFFB3261E),
+    dangerContainer = Color(0xFFFCE8E6),
 )
 
 val DarkFlywayColors = FlywayColors(
@@ -89,6 +91,7 @@ val DarkFlywayColors = FlywayColors(
     inverse = Color(0xFFE8F0EB),
     onInverse = Color(0xFF0B1612),
     danger = Color(0xFFF2A19A),
+    dangerContainer = Color(0xFF3B1714),
 )
 
 val LocalFlywayColors = staticCompositionLocalOf { LightFlywayColors }
@@ -124,7 +127,9 @@ fun FlywayColors.toColorScheme(dark: Boolean): ColorScheme =
         inverseOnSurface = onInverse,
         error = danger,
         onError = surface,
-        errorContainer = surface,
+        // Not `surface`: Material's contentColorFor checks errorContainer before surface, so a card on
+        // surface would get onErrorContainer (danger red) as its text color (#64).
+        errorContainer = dangerContainer,
         onErrorContainer = danger,
         outline = borderStrong,
         outlineVariant = border,

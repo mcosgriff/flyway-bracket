@@ -1,6 +1,7 @@
 # ADR 0001: what the app sends to the server, and when
 
-- Status: accepted. This is the plan; no code exists yet, and the app makes no network call today.
+- Status: accepted. The account endpoints are built, in the server (#31) and the app (#38); the rest is the
+  plan.
 - Date: 2026-11-13
 - Issue: #28
 

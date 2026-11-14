@@ -10,6 +10,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!--
+        The league server, the project's own and the only host the app talks to (ADR 0001, #38). Nothing is
+        sent before the player agrees on the consent page that League and Bracket show first.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
         No Android auto-backup: outings and sightings stay on this phone until the app has its own sync.
     -->
     <application
@@ -20,6 +26,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@style/Theme.Flyway.Starting"
         tools:targetApi="37">
         <activity

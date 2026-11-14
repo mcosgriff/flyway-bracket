@@ -4,6 +4,10 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import io.cosgriff.flywaybracket.R
 import io.cosgriff.flywaybracket.ui.components.NotBuiltYetContent
 import io.cosgriff.flywaybracket.ui.components.TopLevel
+import io.cosgriff.flywaybracket.ui.consent.ConsentContent
+import io.cosgriff.flywaybracket.ui.consent.ConsentState
+import io.cosgriff.flywaybracket.ui.consent.previewAsking
+import io.cosgriff.flywaybracket.ui.consent.previewNoNetwork
 import io.cosgriff.flywaybracket.ui.home.HomeContent
 import io.cosgriff.flywaybracket.ui.home.HomeState
 import io.cosgriff.flywaybracket.ui.home.LocationExplainContent
@@ -147,6 +151,16 @@ class ScreensScreenshotTest(private val shade: Shade) {
     @Test
     fun summary() = compose.shoot("summary", shade) {
         SummaryContent(previewSummary, onDone = {})
+    }
+
+    @Test
+    fun consent() = consent("consent", previewAsking, TopLevel.League)
+
+    @Test
+    fun consentNoNetwork() = consent("consent_no_network", previewNoNetwork, TopLevel.Bracket)
+
+    private fun consent(name: String, state: ConsentState, place: TopLevel) = compose.shoot(name, shade) {
+        ConsentContent(state, place, onNavigate = {}, onContinue = {}, onNotNow = {})
     }
 
     @Test

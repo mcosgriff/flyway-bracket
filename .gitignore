@@ -14,6 +14,9 @@ build/
 *.keystore
 keystore.properties
 
+# The server's local configuration (server/.env.example is the template) — never commit
+.env
+
 # Python caches from helper scripts
 __pycache__/
 

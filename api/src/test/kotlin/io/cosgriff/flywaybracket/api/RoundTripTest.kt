@@ -57,6 +57,13 @@ class RoundTripTest {
     }
 
     @Test
+    fun `the health check`() {
+        val json = roundTrip(HealthResponse(version = "0.1.0", database = true))
+
+        assertEquals("""{"version":"0.1.0","database":true}""", json)
+    }
+
+    @Test
     fun `creating an account`() {
         assertEquals("{}", roundTrip(CreateAccountRequest))
         roundTrip(CreateAccountResponse(playerId = "player-1", secret = "made-up-secret"))

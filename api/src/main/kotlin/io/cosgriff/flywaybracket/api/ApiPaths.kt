@@ -9,6 +9,7 @@ import io.cosgriff.flywaybracket.domain.bracket.Round
 object ApiPaths {
     const val V1 = "/v1"
 
+    const val HEALTH = "$V1/health"
     const val ACCOUNTS = "$V1/accounts"
     const val ACCOUNT = "$V1/account"
     const val LEAGUES = "$V1/leagues"

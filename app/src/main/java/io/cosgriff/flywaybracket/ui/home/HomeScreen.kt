@@ -322,8 +322,8 @@ private val Season.label: Int
     }
 
 // Made-up figures for previews: no real person, place data or sighting.
-private val previewToday: LocalDate = LocalDate.of(2027, 4, 18)
-private val previewState = HomeState(
+internal val previewToday: LocalDate = LocalDate.of(2027, 4, 18)
+internal val previewState = HomeState(
     regionName = "Jefferson Co., CO",
     tournament = TournamentSummary(Season.SPRING, Round.ROUND_OF_32, points = 27, picksRight = 21, picksDecided = 32, picksNotYetSeen = 4),
     league = LeagueSummary("Flyway Friends", players = 12, rank = 3),

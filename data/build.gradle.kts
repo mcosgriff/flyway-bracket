@@ -87,6 +87,12 @@ dependencies {
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
 
+    // Sends sightings and fetches results in the background (#43). api: the app hands WorkManager its worker
+    // factory (FlywayApp), so it must see WorkManager's types.
+    api(libs.androidx.work.runtime.ktx)
+    // The lifecycle version the app ships, in place of the older one WorkManager asks for.
+    implementation(libs.androidx.lifecycle.service)
+
     testImplementation(libs.junit)
     testImplementation(libs.ktor.client.mock)
     // The made-up state pack (testStatePack()).
@@ -95,6 +101,7 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.work.testing)
 }
 
 // Feeds the merged coverage report (root build.gradle.kts).

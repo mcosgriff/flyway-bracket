@@ -15,6 +15,7 @@ import io.cosgriff.flywaybracket.data.SettingsRepository
 import io.cosgriff.flywaybracket.data.db.BracketDao
 import io.cosgriff.flywaybracket.data.db.FlywayDatabase
 import io.cosgriff.flywaybracket.data.db.OutingDao
+import io.cosgriff.flywaybracket.data.db.SyncDao
 import java.time.Clock
 import javax.inject.Singleton
 
@@ -29,6 +30,9 @@ object DataModule {
 
     @Provides
     fun bracketDao(db: FlywayDatabase): BracketDao = db.brackets()
+
+    @Provides
+    fun syncDao(db: FlywayDatabase): SyncDao = db.sync()
 
     /** The phone's clock and time zone, read when asked for: a zone change is seen by the next screen opened. */
     @Provides

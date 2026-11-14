@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room3.Room
 import androidx.test.core.app.ApplicationProvider
 import io.cosgriff.flywaybracket.data.db.FlywayDatabase
+import io.cosgriff.flywaybracket.data.db.SyncAction
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -230,5 +231,63 @@ class OutingRepositoryTest {
         assertEquals(pond, log?.outing?.id)
         assertEquals(listOf("Test Warbler", "Sample Sparrow"), log?.sightings?.map { it.birdName })
         assertNull(outings.log(pond + 1).first())
+    }
+
+    // The queue for the league server (#43)
+
+    @Test
+    fun `an ended outing queues an upload of each sighting with its bird, county and date`() = runBlocking {
+        val id = outings.start("Test Pond", "US-ZZ-001").id
+        outings.addOrBump(id, "Test Warbler")
+        outings.addOrBump(id, "Sample Sparrow")
+        assertEquals(emptyList<Any>(), db.sync().uploads())
+
+        clock.pass(minutes = 30)
+        outings.end()
+
+        val sightings = db.outings().sightingsOf(id)
+        val queued = db.sync().uploads()
+        assertEquals(sightings.map { it.clientId }.toSet(), queued.map { it.clientId }.toSet())
+        assertEquals(setOf("Test Warbler", "Sample Sparrow"), queued.map { it.commonName }.toSet())
+        assertEquals(setOf("US-ZZ-001"), queued.map { it.countyCode }.toSet())
+        assertEquals(setOf("2027-04-18"), queued.map { it.date }.toSet())
+        assertEquals(setOf(SyncAction.UPLOAD.name), queued.map { it.action }.toSet())
+        // Every sighting has an id of its own.
+        assertEquals(2, sightings.map { it.clientId }.distinct().size)
+    }
+
+    @Test
+    fun `removing a sighting of the outing in progress queues nothing`() = runBlocking {
+        val id = outings.start("Test Pond", "US-ZZ-001").id
+        val sighting = outings.addOrBump(id, "Test Warbler")
+        outings.remove(sighting.id)
+        assertEquals(emptyList<Any>(), db.sync().deletes())
+        assertEquals(emptyList<Any>(), db.sync().uploads())
+    }
+
+    @Test
+    fun `removing a finished sighting never tried takes it off the queue, and one tried queues a delete`() = runBlocking {
+        val id = finishedOuting("Test Pond", "Test Warbler", "Sample Sparrow")
+        val (warbler, sparrow) = db.outings().sightingsOf(id).sortedBy { it.birdName != "Test Warbler" }
+        db.sync().claim(listOf(sparrow.clientId))
+
+        outings.remove(warbler.id)
+        outings.remove(sparrow.id)
+
+        assertEquals(emptyList<Any>(), db.sync().uploads())
+        val delete = db.sync().deletes().single()
+        assertEquals(sparrow.clientId, delete.clientId)
+        assertEquals(SyncAction.DELETE.name, delete.action)
+    }
+
+    @Test
+    fun `removing a finished sighting already sent queues a delete`() = runBlocking {
+        val id = finishedOuting("Test Pond", "Test Warbler")
+        val warbler = db.outings().sightingsOf(id).single()
+        db.sync().uploaded(listOf(warbler.clientId))
+
+        outings.remove(warbler.id)
+
+        assertEquals(listOf(warbler.clientId), db.sync().deletes().map { it.clientId })
     }
 }

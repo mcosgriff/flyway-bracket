@@ -37,7 +37,6 @@ data class HomeCounty(val state: StateEntry, val county: CountyEntry)
  */
 object CountyTableParser {
     private val stateCode = Regex("[A-Z]{2}-[A-Z]{2}")
-    private val countyCode = Regex("[A-Z]{2}-[A-Z]{2}-[0-9]{3}")
 
     /** @throws IllegalArgumentException for a line that is not a state or a county of the state above it */
     fun parse(text: String): CountyTable {
@@ -53,7 +52,7 @@ object CountyTableParser {
             require(codes.add(code)) { "Line ${index + 1}: $code is listed twice" }
             when {
                 stateCode.matches(code) -> states += StateEntry(code, name, emptyList()) to mutableListOf()
-                countyCode.matches(code) -> {
+                CountyCode.isWellFormed(code) -> {
                     val current = states.lastOrNull()
                     require(current != null && code.startsWith(current.first.code + "-")) {
                         "Line ${index + 1}: county $code is not under its state"

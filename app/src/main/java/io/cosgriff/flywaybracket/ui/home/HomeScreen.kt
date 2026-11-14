@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -22,8 +23,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -42,6 +46,7 @@ import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.domain.bracket.Season
 import io.cosgriff.flywaybracket.ui.components.FlywayBottomBar
 import io.cosgriff.flywaybracket.ui.components.TopLevel
+import io.cosgriff.flywaybracket.ui.components.lengthText
 import io.cosgriff.flywaybracket.ui.theme.FlywayDimens
 import io.cosgriff.flywaybracket.ui.theme.FlywayTheme
 import java.time.Duration
@@ -52,13 +57,27 @@ import java.time.format.FormatStyle
 /**
  * Home, with the home county from the settings and the season figures and recent outings saved on the
  * phone. No league or tournament exists yet.
+ *
+ * @param onOpenOuting called once an outing is in progress, to show it
  */
 @Composable
-fun HomeScreen(onNavigate: (TopLevel) -> Unit, onStartOuting: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(onNavigate: (TopLevel) -> Unit, onOpenOuting: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    HomeContent(state = state, today = LocalDate.now(), onNavigate = onNavigate, onStartOuting = onStartOuting)
+    val open by rememberUpdatedState(onOpenOuting)
+    LaunchedEffect(viewModel) { viewModel.openOuting.collect { open() } }
+    HomeContent(
+        state = state,
+        today = LocalDate.now(),
+        onNavigate = onNavigate,
+        onStartOuting = viewModel::onStartOuting,
+        onDismissPackMissing = viewModel::onPackMissingDismissed,
+    )
 }
 
+/**
+ * @param onStartOuting the start button: starts an outing, or continues the one in progress
+ * @param onDismissPackMissing closes the note that the home county's pack is missing
+ */
 @Composable
 fun HomeContent(
     state: HomeState,
@@ -66,6 +85,7 @@ fun HomeContent(
     onNavigate: (TopLevel) -> Unit,
     onStartOuting: () -> Unit,
     modifier: Modifier = Modifier,
+    onDismissPackMissing: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -85,12 +105,52 @@ fun HomeContent(
             } else {
                 NoLeagueHero(onFindLeague = { onNavigate(TopLevel.League) })
             }
-            StartOutingButton(onStartOuting)
+            StartOutingButton(continuing = state.outingInProgress, onClick = onStartOuting)
             if (state.league != null) LeagueRow(state.league, onClick = { onNavigate(TopLevel.League) })
             SeasonTiles(state.season)
             RecentOutings(state.recentOutings, today)
         }
     }
+    if (state.packMissing) {
+        PackMissingDialog(
+            region = state.region,
+            onGoToPacks = {
+                onDismissPackMissing()
+                onNavigate(TopLevel.Packs)
+            },
+            onDismiss = onDismissPackMissing,
+        )
+    }
+}
+
+/** Start outing was tapped and the home county's pack is not on the phone: says so, and offers Packs. */
+@Composable
+private fun PackMissingDialog(region: HomeRegion?, onGoToPacks: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(stringResource(R.string.home_pack_missing_title), style = MaterialTheme.typography.titleLarge) },
+        text = {
+            Text(
+                text = if (region != null) {
+                    stringResource(R.string.home_pack_missing_body, region.county, region.stateAbbreviation)
+                } else {
+                    stringResource(R.string.home_pack_missing_body_no_region)
+                },
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onGoToPacks, colors = ButtonDefaults.textButtonColors(contentColor = FlywayTheme.colors.pick)) {
+                Text(stringResource(R.string.home_pack_missing_go), style = MaterialTheme.typography.labelLarge)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
+                Text(stringResource(R.string.home_pack_missing_cancel), style = MaterialTheme.typography.labelLarge)
+            }
+        },
+    )
 }
 
 @Composable
@@ -203,7 +263,7 @@ private fun NoLeagueHero(onFindLeague: () -> Unit) {
 }
 
 @Composable
-private fun StartOutingButton(onClick: () -> Unit) {
+private fun StartOutingButton(continuing: Boolean, onClick: () -> Unit) {
     val colors = FlywayTheme.colors
     Button(
         onClick = onClick,
@@ -213,9 +273,16 @@ private fun StartOutingButton(onClick: () -> Unit) {
         shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = colors.action, contentColor = colors.onAction),
     ) {
-        Icon(painterResource(R.drawable.ic_add), contentDescription = null, modifier = Modifier.size(FlywayDimens.space5))
+        Icon(
+            painter = painterResource(if (continuing) R.drawable.ic_forward else R.drawable.ic_add),
+            contentDescription = null,
+            modifier = Modifier.size(FlywayDimens.space5),
+        )
         Spacer(Modifier.width(FlywayDimens.space2))
-        Text(stringResource(R.string.home_start_outing), style = MaterialTheme.typography.titleLarge)
+        Text(
+            text = stringResource(if (continuing) R.string.home_continue_outing else R.string.home_start_outing),
+            style = MaterialTheme.typography.titleLarge,
+        )
     }
 }
 
@@ -307,7 +374,7 @@ private fun OutingRowItem(outing: OutingRow, today: LocalDate) {
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    text = stringResource(R.string.home_outing_when, day(outing.date, today), length(outing.length)),
+                    text = stringResource(R.string.home_outing_when, day(outing.date, today), lengthText(outing.length)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -323,13 +390,6 @@ private fun OutingRowItem(outing: OutingRow, today: LocalDate) {
 @Composable
 private fun day(date: LocalDate, today: LocalDate): String =
     if (date == today) stringResource(R.string.home_outing_today) else date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
-
-@Composable
-private fun length(length: Duration): String {
-    val hours = length.toHours().toInt()
-    val minutes = (length.toMinutes() % 60).toInt()
-    return if (hours > 0) stringResource(R.string.duration_hours_minutes, hours, minutes) else stringResource(R.string.duration_minutes, minutes)
-}
 
 private val Season.label: Int
     get() = when (this) {

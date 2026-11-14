@@ -54,4 +54,14 @@ class OutingTest {
         )
         assertEquals(setOf("Test Warbler", "Sample Sparrow"), log.species)
     }
+
+    @Test
+    fun `a log's birds are its sightings' counts added up`() {
+        val log = OutingLog(
+            outing(),
+            listOf(Sighting(1, 1, "Test Warbler", 3, start), Sighting(2, 1, "Sample Sparrow", 1, start)),
+        )
+        assertEquals(4, log.birds)
+        assertEquals(0, OutingLog(outing(), emptyList()).birds)
+    }
 }

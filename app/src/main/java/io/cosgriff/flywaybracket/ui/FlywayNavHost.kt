@@ -13,6 +13,8 @@ import io.cosgriff.flywaybracket.ui.components.NotBuiltYetContent
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.home.HomeScreen
 import io.cosgriff.flywaybracket.ui.onboarding.OnboardingScreen
+import io.cosgriff.flywaybracket.ui.outing.OutingScreen
+import io.cosgriff.flywaybracket.ui.outing.SummaryScreen
 import io.cosgriff.flywaybracket.ui.packs.PacksScreen
 import kotlinx.serialization.Serializable
 
@@ -27,7 +29,11 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object PacksRoute : NavKey
 
+/** The outing in progress, with the Add sighting sheet (#26). */
 @Serializable data object OutingRoute : NavKey
+
+/** A finished outing, by its id (#26). */
+@Serializable data class SummaryRoute(val outingId: Long) : NavKey
 
 /**
  * The app's screens. Each entry gets its own ViewModels, cleared when it leaves the back stack. The
@@ -68,7 +74,7 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
                 OnboardingScreen()
             }
             entry<HomeRoute> {
-                HomeScreen(onNavigate = navigate, onStartOuting = { backStack.add(OutingRoute) })
+                HomeScreen(onNavigate = navigate, onOpenOuting = { if (backStack.lastOrNull() != OutingRoute) backStack.add(OutingRoute) })
             }
             entry<BracketRoute> {
                 NotBuiltYetContent(title = R.string.nav_bracket, place = TopLevel.Bracket, onNavigate = navigate)
@@ -80,7 +86,18 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
                 PacksScreen(onNavigate = navigate)
             }
             entry<OutingRoute> {
-                NotBuiltYetContent(title = R.string.outing_title, onBack = back)
+                OutingScreen(
+                    onBack = back,
+                    // The summary takes the outing's place, so Back from it goes Home.
+                    onFinished = { id ->
+                        backStack.remove(OutingRoute)
+                        backStack.add(SummaryRoute(id))
+                    },
+                    onClosed = { backStack.remove(OutingRoute) },
+                )
+            }
+            entry<SummaryRoute> { route ->
+                SummaryScreen(outingId = route.outingId, onDone = back)
             }
         },
     )

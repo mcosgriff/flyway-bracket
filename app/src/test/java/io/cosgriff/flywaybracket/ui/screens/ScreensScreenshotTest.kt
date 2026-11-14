@@ -13,12 +13,25 @@ import io.cosgriff.flywaybracket.ui.onboarding.OnboardingState
 import io.cosgriff.flywaybracket.ui.onboarding.previewEmpty
 import io.cosgriff.flywaybracket.ui.onboarding.previewFilledIn
 import io.cosgriff.flywaybracket.ui.onboarding.previewNameTooShort
+import io.cosgriff.flywaybracket.ui.outing.AddSightingSheet
+import io.cosgriff.flywaybracket.ui.outing.AddSightingState
+import io.cosgriff.flywaybracket.ui.outing.OutingContent
+import io.cosgriff.flywaybracket.ui.outing.OutingState
+import io.cosgriff.flywaybracket.ui.outing.SummaryContent
+import io.cosgriff.flywaybracket.ui.outing.previewAddSighting
+import io.cosgriff.flywaybracket.ui.outing.previewAddSightingNoMatch
+import io.cosgriff.flywaybracket.ui.outing.previewAddSightingSearch
+import io.cosgriff.flywaybracket.ui.outing.previewElapsed
+import io.cosgriff.flywaybracket.ui.outing.previewOuting
+import io.cosgriff.flywaybracket.ui.outing.previewOutingEmpty
+import io.cosgriff.flywaybracket.ui.outing.previewSummary
 import io.cosgriff.flywaybracket.ui.packs.PacksContent
 import io.cosgriff.flywaybracket.ui.packs.PacksState
 import io.cosgriff.flywaybracket.ui.packs.previewHomePack
 import io.cosgriff.flywaybracket.ui.packs.previewNoPacks
 import io.cosgriff.flywaybracket.ui.packs.previewRejected
 import io.cosgriff.flywaybracket.ui.packs.previewTwoPacks
+import java.time.Duration
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,6 +62,16 @@ class ScreensScreenshotTest(private val shade: Shade) {
     }
 
     @Test
+    fun homeOutingInProgress() = compose.shoot("home_outing_in_progress", shade) {
+        HomeContent(previewState.copy(outingInProgress = true), previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
+    fun homePackMissing() = compose.shootScreen("home_pack_missing", shade) {
+        HomeContent(HomeState(region = previewState.region, packMissing = true), previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
     fun onboardingEmpty() = onboarding("onboarding_empty", previewEmpty)
 
     @Test
@@ -75,6 +98,36 @@ class ScreensScreenshotTest(private val shade: Shade) {
 
     private fun packs(name: String, state: PacksState) = compose.shoot(name, shade) {
         PacksContent(state, onNavigate = {}, onAddPack = {}, onRemove = {})
+    }
+
+    @Test
+    fun outingEmpty() = outing("outing_empty", previewOutingEmpty, Duration.ofSeconds(12))
+
+    @Test
+    fun outingWithSightings() = outing("outing_with_sightings", previewOuting, previewElapsed)
+
+    private fun outing(name: String, state: OutingState, elapsed: Duration) = compose.shoot(name, shade) {
+        OutingContent(state, elapsed, {}, {}, {}, {}, {}, {}, {}, {})
+    }
+
+    @Test
+    fun addSightingNoSearch() = addSighting("add_sighting_no_search", previewAddSighting, query = "")
+
+    @Test
+    fun addSightingSearch() = addSighting("add_sighting_search", previewAddSightingSearch, query = "warb")
+
+    @Test
+    fun addSightingNoMatch() = addSighting("add_sighting_no_match", previewAddSightingNoMatch, query = "pelicun")
+
+    /** The sheet over the outing it adds to. */
+    private fun addSighting(name: String, state: AddSightingState, query: String) = compose.shootScreen(name, shade) {
+        OutingContent(previewOuting, previewElapsed, {}, {}, {}, {}, {}, {}, {}, {})
+        AddSightingSheet(state, query, onQuery = {}, onPick = {}, onDismiss = {})
+    }
+
+    @Test
+    fun summary() = compose.shoot("summary", shade) {
+        SummaryContent(previewSummary, onDone = {})
     }
 
     @Test

@@ -4,31 +4,35 @@ description: What stays on your phone, what is sent, what your league sees, and 
 beta: true
 ---
 
-## Today
+## In short
 
-Today the app sends nothing. It makes no connection to the internet.
+The app has no trackers, no analytics, no crash reporting and no ads. That will not change.
+
+Outings work without an account, and then the app sends nothing. It connects to the internet only after
+you agree to make a league account, and then only to the project's own server.
 
 It asks for one permission: your approximate location, once when an outing starts, to find the county you
 are in. Your location is turned into a county on your phone, then forgotten. It is never saved and never
 sent. Only the county is kept, with the outing. If you say no, outings are in your home county.
 
-The app has no trackers, no analytics, no crash reporting and no ads. That will not change.
-
-The rest of this page is the plan for the beta. None of it is built yet.
+Android also gives the app two permissions when it is installed, without asking you: one to use the
+internet, for the server, and one to tell whether your connection may cost you for data, so that a bird
+pack over 5 MB asks before it downloads on mobile data.
 
 ## One server, and only when you say yes
 
 Leagues need a server. A matchup is decided by what every player in a league logged, so that information
 has to reach one place.
 
-The app will talk to one server, the project's own. It will talk to nothing else.
+The app talks to one server, the project's own. It talks to nothing else.
 
 The server runs on Cloudflare, which also handles the secure connection, so everything the app sends
 passes through Cloudflare. The server's database is stored by Neon, on Amazon Web Services in Oregon, USA
 (region us-west-2).
 
-Nothing is sent before you say yes. The first time you open the League or Bracket tab, a page says what
-will be sent and asks you. Until you agree, the app makes no connection.
+Nothing is sent before you say yes. The first time you open the League or Bracket tab, or ask for bird
+packs, a page says what will be sent and asks you. Until you agree, the app makes no connection. "Not now"
+sends nothing.
 
 Outings work with no account. If you only want to log birds, you never have to agree, and nothing is ever
 sent.
@@ -50,12 +54,19 @@ Android.
 | Your leagues | When you create, join or leave one | To know whose picks and sightings count together |
 | A league you create: its name, whether it is open, its time zone and its start date | When you create it | To show it to its players, let open leagues take players, and date its season |
 | Your bracket picks | When you make or change them | To score them |
-| Each sighting: the bird's name | When you log a bird | To decide the matchup |
+| Each sighting: the bird's name | When you finish an outing, or once the phone is online again | To decide the matchup |
 | Each sighting: the county | With the sighting | Logging in a county makes you eligible there |
 | Each sighting: the date | With the sighting | To know which round it belongs to |
 | Each sighting: a random code | With the sighting, and to delete it | So a sighting sent twice counts once, and the app can delete it. The phone makes it; it says nothing about you or your phone |
 
-The server stores these things.
+The server stores these things. Only sightings dated inside your league's season are sent; ones you
+logged before you joined go once you have. Removing a sighting the server may have sends a delete.
+
+Opening the app, and every hour at most while a season is running, fetches your league, bracket and
+results. That sends nothing but your account id and secret.
+
+Downloading a bird pack asks the server for its list of packs and for the pack of one state. To update a
+pack, the app sends the version it already has, so an unchanged pack is not sent again.
 
 ## What stays on your phone
 

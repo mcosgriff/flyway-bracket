@@ -18,9 +18,9 @@ This file holds the rules and the decisions behind them. How a feature works is 
 
 ## Status
 
-`:domain` has the game rules. `:data` has the database (one table, `outings`, not used by a screen yet) and
+`:domain` has the game rules. `:data` has the database (`outings` and `sightings`, behind `OutingRepository`) and
 the player's settings. `:app` has the theme, the bottom bar and the Home screen; Bracket, League, Packs and
-Outing are placeholders (`NotBuiltYetContent`). No screen reads or saves anything yet. No network, no server.
+Outing are placeholders (`NotBuiltYetContent`). Home reads its season figures and recent outings from the database; no screen saves anything yet. No network, no server.
 `./gradlew build` is green (Gradle 9.9.1, AGP 9.5.1, lint included). Keep it green; lint fails the build on
 a warning as on an error (`warningsAsErrors`, in `:app` and `:data`), and there is no baseline: fix a
 warning, or suppress that one case in `app/lint.xml` with a comment saying why.
@@ -54,6 +54,8 @@ the `CODECOV_TOKEN` secret.
     `testImplementation(testFixtures(project(":domain")))`.
   - `domain/bracket` — `Round`, `Team`, `Matchup`, `Seeding`, `MatchupRule`, `PickScore`.
   - `domain/player` — `PlayerSettings` (display name, home county code).
+  - `domain/outing` — `Outing`, `Sighting`, `OutingLog`, and Home's season figures (`speciesSince`,
+    `outingsSince`, `newLifersSince`).
 - `:data` — what the app saves on the phone, mapped to and from `:domain` types. Depends on `:domain`.
   - `data/db` — `FlywayDatabase` (Room 3), its entities and DAOs. Each version's schema is exported to
     `data/schemas` and committed (CI fails if it isn't). A schema change raises the version and adds a

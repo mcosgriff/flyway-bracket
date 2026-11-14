@@ -115,7 +115,9 @@ class Leagues(
         lockAutoJoin()
         // A league whose start has arrived may start, move back a week or close: settle each before
         // choosing, so the choice is among today's starts. No zone is more than a day ahead of UTC.
-        formingLeaguesStartingBy(today(ZoneOffset.UTC).plusDays(1)).forEach { id -> league(id, lock = true)?.let { settleAndSave(it) } }
+        for (id in formingLeaguesStartingBy(today(ZoneOffset.UTC).plusDays(1))) {
+            league(id, lock = true)?.let { settleAndSave(it) }
+        }
         for (id in openFormingLeagues()) {
             val league = league(id, lock = true)?.let { settleAndSave(it) } ?: continue
             enter(league, player.id)?.let { return@transaction it }

@@ -131,7 +131,9 @@ list only the codes an endpoint adds to these.
   their league places, their picks and their sightings with it (the tables' foreign keys are
   `ON DELETE CASCADE`). A matchup decided while they played keeps its counts, which name no one; they
   are in no table after it, in season or after it ([Not decided](#not-decided)). After it, the id and secret
-  are `UNAUTHORIZED`.
+  are `UNAUTHORIZED`. In the same statement as the row, the id is listed in `deleted_players` with the time,
+  and nothing else about the player; the server forgets it 35 days later. The list is there so that an
+  account a restore from a backup brings back is deleted again ([backups.md](backups.md#restore)).
 - **A home county change and rounds.** A change counts for the rounds that have not started. The server
   keeps each member's home county as each round begins (the first settle of the league in the round, so
   within a minute of its Monday's midnight in the league's time zone), decides the round with it, and

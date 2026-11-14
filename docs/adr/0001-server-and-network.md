@@ -94,6 +94,12 @@ outings never needs an account and never sends anything.
 
 A player can delete their account from Settings. The server then deletes their name, picks and sightings.
 
+Deleting an account removes it from the live database at once. Encrypted nightly backups keep a copy for
+up to 35 days, after which it is gone everywhere (#16, `docs/server/backups.md`). If the server ever has to
+be restored from a backup, accounts deleted since that backup are deleted again. For that, the server keeps
+each deleted account's random ID and the time it was deleted, and nothing else, for 35 days; after a
+restore the operator deletes those accounts again, as `docs/server/backups.md` says.
+
 Reason: the data is the player's. Leaving the game should remove it, without having to ask anyone.
 
 ### Losing the phone

@@ -13,6 +13,10 @@ import org.junit.BeforeClass
 import org.junit.Test
 import org.testcontainers.postgresql.PostgreSQLContainer
 import java.sql.SQLException
+import java.time.Duration
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.util.UUID
 
 /**
@@ -22,11 +26,15 @@ import java.util.UUID
 class PostgresLeaguesTest : LeaguesTest() {
     override fun players(): PlayerStore {
         // Each test starts with no players and no leagues: auto-join would find another test's.
-        update("TRUNCATE league_round_homes, league_results, league_picks, league_field_teams, league_fields, sightings, league_members, leagues, players")
+        update("TRUNCATE league_round_homes, league_results, league_picks, league_field_teams, league_fields, sightings, league_members, leagues, players, deleted_players")
         return PostgresPlayerStore(database.dataSource)
     }
 
     override fun leagueStore(players: PlayerStore): LeagueStore = PostgresLeagueStore(database.dataSource)
+
+    override fun listAsDeleted(id: UUID, at: Instant) {
+        update("INSERT INTO deleted_players (player_id, deleted_at) VALUES (?, ?)", id, OffsetDateTime.ofInstant(at, ZoneOffset.UTC))
+    }
 
     private fun update(sql: String, vararg parameters: Any): Int = database.dataSource.connection.use { connection ->
         connection.prepareStatement(sql).use { statement ->
@@ -57,6 +65,26 @@ class PostgresLeaguesTest : LeaguesTest() {
 
         assertEquals(0, count("SELECT count(*) FROM league_members WHERE player_id = ?", deleted.id))
         assertEquals(8, count("SELECT count(*) FROM league_members WHERE league_id = ? AND left_at IS NULL", leagueId))
+    }
+
+    @Test
+    fun `an account a restore brought back in season is deleted again as deleting it would`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        val restored = fill(league, 8).first()
+        clock.now = at(START.plusDays(1))
+        val leagueId = UUID.fromString(league.id)
+        val firstDeleted = clock.instant().minus(Duration.ofHours(6))
+        listAsDeleted(restored.id, firstDeleted)
+
+        assertEquals(1, Accounts(PostgresPlayerStore(database.dataSource), leagues, charts, clock = clock).deleteAgainListed())
+
+        assertEquals(0, count("SELECT count(*) FROM players WHERE id = ?", restored.id))
+        assertEquals(0, count("SELECT count(*) FROM league_members WHERE player_id = ?", restored.id))
+        assertEquals(0, count("SELECT count(*) FROM sightings WHERE player_id = ?", restored.id))
+        assertEquals(8, count("SELECT count(*) FROM league_members WHERE league_id = ? AND left_at IS NULL", leagueId))
+        // The time it was first deleted, not the time it was deleted again.
+        assertEquals(1, count("SELECT count(*) FROM deleted_players WHERE player_id = ? AND deleted_at = ?", restored.id, OffsetDateTime.ofInstant(firstDeleted, ZoneOffset.UTC)))
     }
 
     @Test

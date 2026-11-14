@@ -21,7 +21,7 @@ class PostgresRoundResultsTest : RoundResultsTest() {
     override fun players(): PlayerStore {
         update(
             "TRUNCATE league_round_homes, league_results, league_picks, league_field_teams, league_fields, sightings, " +
-                "league_members, leagues, players",
+                "league_members, leagues, players, deleted_players",
         )
         return PostgresPlayerStore(database.dataSource)
     }

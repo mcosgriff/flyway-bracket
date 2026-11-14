@@ -1,6 +1,7 @@
 package io.cosgriff.flywaybracket.server
 
 import io.cosgriff.flywaybracket.server.account.Accounts
+import io.cosgriff.flywaybracket.server.account.DeletedAccountsJob
 import io.cosgriff.flywaybracket.server.account.PostgresPlayerStore
 import io.cosgriff.flywaybracket.server.league.Leagues
 import io.cosgriff.flywaybracket.server.league.PostgresLeagueStore
@@ -25,11 +26,16 @@ fun main() {
     val accounts = Accounts(PostgresPlayerStore(database.dataSource), leagues, packs)
     val sightings = Sightings(PostgresSightingStore(database.dataSource), packs)
     val seasonStarts = SeasonStartJob(leagues)
+    val deletedAccounts = DeletedAccountsJob(accounts)
 
     embeddedServer(Netty, port = config.port) {
-        monitor.subscribe(ApplicationStarted) { seasonStarts.start() }
+        monitor.subscribe(ApplicationStarted) {
+            seasonStarts.start()
+            deletedAccounts.start()
+        }
         monitor.subscribe(ApplicationStopped) {
             seasonStarts.close()
+            deletedAccounts.close()
             database.close()
         }
         module(database, accounts, leagues, packs, sightings, ServerVersion.current, config.clientAddressHeader)

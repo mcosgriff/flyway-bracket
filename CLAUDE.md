@@ -61,6 +61,8 @@ the `CODECOV_TOKEN` secret.
 - `uv run server/neon-env.py .env.local` — write `server/.env` from the credentials `neon` pulled, for a
   run against a Neon development branch, never `production` (`docs/server/running.md`).
 - `./gradlew :server:installDist && docker build -t flyway-bracket-server server` — the server's image.
+- `gh workflow run backup-database.yml` — back up the hosted database to R2 now, encrypted (it also runs
+  nightly); setup and restore in `docs/server/backups.md`.
 - `./gradlew koverHtmlReportCoverage` — coverage of `:domain`, `:api`, `:data` and `:app`; CI sends the XML to
   Codecov.
 - `./gradlew :app:installDebug` — install on a connected phone (debug app id

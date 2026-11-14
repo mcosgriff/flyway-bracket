@@ -237,7 +237,10 @@ download bird packs. Sightings are sent in the background.
 - Other players in your league will see your display name, your picks once they lock, your points, and how
   many birds you logged in a round. They will not see your county or your individual sightings.
 - You can delete your account from Settings. The server then deletes your name, picks and
-  sightings.
+  sightings. Deleting your account removes it from the live database at once. Encrypted nightly backups
+  keep a copy for up to 35 days, after which it is gone everywhere. If the server ever has to be restored
+  from a backup, accounts deleted since that backup are deleted again. For that, the server keeps a deleted
+  account's random ID, and nothing else about it, for those 35 days.
 - In the beta, losing the phone loses the account. Moving an account to a new phone comes later.
 
 ## Build

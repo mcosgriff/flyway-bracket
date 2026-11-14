@@ -32,6 +32,27 @@ Accessibility Test Framework (a warning fails), and compared pixel for pixel wit
 mismatch, CI uploads the new image and the difference as the `screenshot-differences` artifact. Record
 references on Linux, as CI runs: text is drawn slightly differently on other systems.
 
+## The user guide
+
+The website for players is built from `site/` and published to GitHub Pages by
+`.github/workflows/pages.yml` on each push to `main` that changes it.
+
+- A page is a Markdown file in `site/pages/`. Its front matter has a `title` and a `description`. A new
+  page also needs a link in the menu in `site/template.html`.
+- `site/build.sh` builds the site into `site/build/` with [pandoc](https://pandoc.org) (3.13, the version
+  the workflow installs). It copies the screenshots from `app/src/test/screenshots/` and the font from the
+  app, so neither is kept twice.
+- `python3 site/check.py` checks the built pages: links, nothing loaded from another host, the markup an
+  accessible page needs, color contrast, and that the colors in `site/style.css` match `Color.kt`. The
+  workflow also runs pa11y (`cd site && npm ci && npm run a11y`).
+- Links between pages are relative (`install.html`), so the site works at any address. The pages load
+  nothing from another host and use no JavaScript.
+- A page about something the app cannot do yet has `beta: true` in its front matter, which puts the
+  "Coming in the beta" note under its title. Remove the line when the feature ships.
+  `grep -l '^beta: true' site/pages/*.md` lists the pages still marked.
+- Write for a reader who has never done a bracket or used eBird: short sentences, no jargon, one idea per
+  paragraph. A rule stated on the site must match `CLAUDE.md` and the tests in `:domain`.
+
 ## Bird data
 
 Never commit eBird data, or files built from it: eBird's terms of use don't allow it. Tests use made-up

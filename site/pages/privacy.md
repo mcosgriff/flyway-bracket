@@ -1,0 +1,101 @@
+---
+title: Your privacy
+description: What stays on your phone, what is sent, what your league sees, and how to delete your account.
+beta: true
+---
+
+## Today
+
+Today the app sends nothing. It makes no connection to the internet, and it asks for no permissions.
+
+The app has no trackers, no analytics, no crash reporting and no ads. That will not change.
+
+The rest of this page is the plan for the beta. None of it is built yet.
+
+## One server, and only when you say yes
+
+Leagues need a server. A matchup is decided by what every player in a league logged, so that information
+has to reach one place.
+
+The app will talk to one server, the project's own. It will talk to nothing else.
+
+Nothing is sent before you say yes. The first time you open the League or Bracket tab, a page says what
+will be sent and asks you. Until you agree, the app makes no connection.
+
+Outings work with no account. If you only want to log birds, you never have to agree, and nothing is ever
+sent.
+
+## Your account
+
+Your account is anonymous. The app does not ask for an email address, a password or a phone number.
+
+Instead, the server gives the app an id and a secret. The secret is kept on your phone, locked away by
+Android.
+
+## What is sent
+
+| What | When it is sent | Why the game needs it |
+| --- | --- | --- |
+| Your account id and secret | With each request | To know which player a request comes from |
+| Your display name | When you set or change it | To show you to the others in your league |
+| Your home county | When you set or change it | Seeds, and who is eligible, are judged by county |
+| Your leagues | When you create, join or leave one | To know whose picks and sightings count together |
+| Your bracket picks | When you make or change them | To score them |
+| Each sighting: the bird's name | When you log a bird | To decide the matchup |
+| Each sighting: the county | With the sighting | Logging in a county makes you eligible there |
+| Each sighting: the date | With the sighting | To know which round it belongs to |
+
+The server stores these things.
+
+## What stays on your phone
+
+Three things are never sent, and the server never stores them:
+
+- your coordinates, meaning your exact position;
+- the time of day of a sighting;
+- the place name you typed for an outing.
+
+No rule of the game uses them. They are also the details that could show where you live or walk. So they
+stay on your phone.
+
+## What your league sees
+
+The other players in your league can see:
+
+- your display name;
+- your picks, once they lock;
+- your points;
+- how many birds you logged in a round.
+
+They cannot see your county. They cannot see your individual sightings.
+
+## What the server still knows
+
+The server knows your home county. It knows the county and the date of each sighting. That is less exact
+than a location, but it is still information about you.
+
+Like any server, it also sees the internet address of each connection.
+
+## Deleting your account
+
+You can delete your account from Settings in the app. You do not have to ask anyone.
+
+The server then deletes your name, your picks and your sightings.
+
+Deleting cannot be undone.
+
+## If you lose your phone
+
+In the beta, losing your phone loses your account. So does resetting the phone, or clearing the app's
+data. Your place in your league and your points go with it.
+
+This is the cost of an account with no email and no password. Only the secret on your phone proves the
+account is yours.
+
+Moving an account to a new phone will come later.
+
+## Read the full plan
+
+The plan is written down in the project's
+[record of the decision](https://github.com/mcosgriff/flyway-bracket/blob/main/docs/adr/0001-server-and-network.md).
+This page must say the same thing. If the two ever differ, please [tell us](questions.html#report-a-problem).

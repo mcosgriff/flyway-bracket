@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="$description$">
+<title>$if(home)$Flyway Bracket: a bird-watching bracket game$else$$title$ · Flyway Bracket$endif$</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to the page</a>
+<header>
+<p class="site-name"><a href="index.html">Flyway Bracket</a></p>
+<nav aria-label="Pages">
+<ul>
+<li><a href="index.html"$if(page_index)$ aria-current="page"$endif$>Home</a></li>
+<li><a href="install.html"$if(page_install)$ aria-current="page"$endif$>Install</a></li>
+<li><a href="get-started.html"$if(page_get-started)$ aria-current="page"$endif$>Get started</a></li>
+<li><a href="leagues.html"$if(page_leagues)$ aria-current="page"$endif$>Leagues</a></li>
+<li><a href="how-the-game-works.html"$if(page_how-the-game-works)$ aria-current="page"$endif$>How the game works</a></li>
+<li><a href="fair-play.html"$if(page_fair-play)$ aria-current="page"$endif$>Fair play</a></li>
+<li><a href="privacy.html"$if(page_privacy)$ aria-current="page"$endif$>Your privacy</a></li>
+<li><a href="questions.html"$if(page_questions)$ aria-current="page"$endif$>Questions</a></li>
+</ul>
+</nav>
+</header>
+<main id="content">
+<h1>$title$</h1>
+$if(beta)$
+<p class="beta-note"><strong>Coming in the beta.</strong> The app cannot do this yet. This page says how it will work.</p>
+$endif$
+$body$
+</main>
+<footer>
+<p>Flyway Bracket has no trackers, no ads and no analytics. Neither does this site.</p>
+<p>Flyway Bracket is not affiliated with eBird or the Cornell Lab of Ornithology.</p>
+<p>The typeface is Inter, used under the <a href="licences/inter-OFL.txt">SIL Open Font License</a>.</p>
+</footer>
+</body>
+</html>

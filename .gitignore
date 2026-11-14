@@ -17,5 +17,8 @@ keystore.properties
 # Python caches from helper scripts
 __pycache__/
 
+# The user guide's accessibility checker (site/package.json)
+node_modules/
+
 # Real bird pack data built from eBird downloads: never commit (eBird terms; fixtures use made-up values)
 /packs-local/

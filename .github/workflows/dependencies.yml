@@ -5,7 +5,8 @@
 # and the review fails the PR if it adds a dependency with a known vulnerability or a licence that
 # .github/dependency-review-config.yml doesn't allow.
 #
-# Only the release runtime classpaths are sent: what goes into the APK. Build plugins and test
+# Only the release runtime classpaths are sent: what goes into the APK, and what goes into the
+# server's image. Build plugins and test
 # libraries aren't distributed, so their licences don't bind the app, and Gradle's dependency
 # verification already checks that every jar, theirs included, is the one in verification-metadata.xml.
 name: dependencies
@@ -43,10 +44,11 @@ jobs:
       - uses: gradle/actions/dependency-submission@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           dependency-graph: generate-and-upload
-          # :app's release classpath, and :domain's, which it takes in. :tools:packbuilder is a
-          # developer's tool that never ships, so it stays out.
+          # :app's release classpath, and :domain's, which it takes in; and :server's runtime
+          # classpath, which is what its image holds (:api and :domain among it). :tools:packbuilder
+          # is a developer's tool that never ships, so it stays out.
           dependency-graph-include-configurations: '^(releaseRuntimeClasspath|runtimeClasspath)$'
-          dependency-graph-include-projects: '^:(app|domain)$'
+          dependency-graph-include-projects: '^:(app|domain|server)$'
 
   submit:
     needs: graph

@@ -22,9 +22,21 @@ updates:
       androidx:
         patterns:
           - "androidx.*"
+      # The server's framework: its modules are released together and must be one version.
+      ktor:
+        patterns:
+          - "io.ktor*"
       everything-else:
         patterns:
           - "*"
+
+  # The base image of the server's container (server/Dockerfile).
+  - package-ecosystem: docker
+    directory: "/server"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 5
 
   # pa11y, the accessibility check of the user guide (site/package.json). Nothing here ships in the app
   # or on the site.

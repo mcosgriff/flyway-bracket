@@ -3,8 +3,8 @@
 # Any known vulnerability, of any severity, in a dependency the PR adds or moves to.
 fail-on-severity: low
 
-# The app has no licence of its own yet, so only permissive licences are allowed in the APK: they
-# fit whatever is chosen. Not listed, so a PR bringing one in stops for a decision: MPL, LGPL, GPL,
+# The app has no licence of its own yet, so only permissive licences are allowed in the APK and in
+# the server's image: they fit whatever is chosen. Not listed, so a PR bringing one in stops for a decision: MPL, LGPL, GPL,
 # EPL, CDDL, and anything proprietary or unknown.
 allow-licenses:
   - Apache-2.0

@@ -80,6 +80,15 @@ class SeasonCalendarTest {
     }
 
     @Test
+    fun `a running season is on the round played, else the first or the final`() {
+        assertEquals(Round.ROUND_OF_32, spring.roundOfSeason(LocalDate.of(2027, 3, 10)))
+        assertEquals(Round.ROUND_OF_64, spring.roundOfSeason(LocalDate.of(2027, 2, 28)))
+        // The final's Sunday is 11 April; it is decided on the Monday after.
+        assertEquals(Round.FINAL, spring.roundOfSeason(LocalDate.of(2027, 4, 11)))
+        assertEquals(Round.FINAL, spring.roundOfSeason(LocalDate.of(2027, 4, 12)))
+    }
+
+    @Test
     fun `decided matchups count every round decided so far`() {
         // Round 1 ends Sunday 7 March; it is decided at noon on Monday 8 March.
         assertEquals(0, spring.decidedMatchups(LocalDateTime.of(2027, 3, 8, 11, 59)))

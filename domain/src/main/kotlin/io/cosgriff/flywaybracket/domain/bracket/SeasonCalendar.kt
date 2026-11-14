@@ -72,6 +72,12 @@ class SeasonCalendar private constructor(val startDate: LocalDate) {
     fun roundOn(date: LocalDate): Round? = Round.entries.firstOrNull { date in roundDates(it) }
 
     /**
+     * The round a running season is on at [date]: the one played that day; the first before it starts, and the
+     * final after its Sunday, until the season is finished (#40).
+     */
+    fun roundOfSeason(date: LocalDate): Round = roundOn(date) ?: if (date < startDate) Round.ROUND_OF_64 else Round.FINAL
+
+    /**
      * Every [TimeBin] one of the round's seven days falls in, earliest first, each once. A bird is
      * expected for the round when it is expected in any of them.
      */

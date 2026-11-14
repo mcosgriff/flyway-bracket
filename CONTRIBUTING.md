@@ -24,7 +24,7 @@ git config core.hooksPath .githooks
 | `./gradlew :domain:test` | The game rules: pure Kotlin, fast. Run it often. |
 | `./gradlew build` | Everything: unit tests, screenshot and accessibility tests, lint. Lint fails on a warning. |
 | `./gradlew :app:recordRoborazziDebug` | Re-records the reference screenshots in `app/src/test/screenshots/`. Look at every image it changes before committing. |
-| `./gradlew koverHtmlReportCoverage` | Test coverage of `:domain`, `:data` and `:app`, in `build/reports/kover/htmlCoverage/`. |
+| `./gradlew koverHtmlReportCoverage` | Test coverage of `:domain`, `:api`, `:data` and `:app`, in `build/reports/kover/htmlCoverage/`. |
 
 Every screen's `…Content` composable is drawn under Robolectric in light and dark (`shoot` in
 `app/src/test/java/io/cosgriff/flywaybracket/ui/screens/Screenshots.kt`), checked with Google's

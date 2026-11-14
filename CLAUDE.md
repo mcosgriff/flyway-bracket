@@ -36,7 +36,7 @@ the `CODECOV_TOKEN` secret.
 - `./gradlew :app:recordRoborazziDebug` — re-record the reference screenshots (`app/src/test/screenshots/`)
   after a change meant to alter a screen; look at every image it changes.
 - `./gradlew :data:testDebugUnitTest` — the database, migration and settings tests, on the JVM (Robolectric).
-- `./gradlew koverHtmlReportCoverage` — coverage of `:domain`, `:data` and `:app`; CI sends the XML to
+- `./gradlew koverHtmlReportCoverage` — coverage of `:domain`, `:api`, `:data` and `:app`; CI sends the XML to
   Codecov.
 - `./gradlew :app:installDebug` — install on a connected phone (debug app id
   `io.cosgriff.flywaybracket.debug`).
@@ -54,6 +54,11 @@ the `CODECOV_TOKEN` secret.
     `testImplementation(testFixtures(project(":domain")))`.
   - `domain/bracket` — `Round`, `Team`, `Matchup`, `Seeding`, `MatchupRule`, `PickScore`.
   - `domain/player` — `PlayerSettings` (display name, home county code).
+- `:api` — pure Kotlin, no Android: the messages the app and the server exchange (`kotlinx.serialization`
+  JSON, read and written with `ApiJson`), `ApiPaths` (every path, under `/v1/`), `ApiErrorCode` and
+  `MatchupSlot` (a bracket's 63 matchups, numbered by round, then from the top). Depends on `:domain`.
+  Nothing calls it yet. `docs/server/api.md` lists the endpoints; change the two together. A field the app
+  sends must be in ADR 0001's table first. Test: `./gradlew :api:test`.
 - `:data` — what the app saves on the phone, mapped to and from `:domain` types. Depends on `:domain`.
   - `data/db` — `FlywayDatabase` (Room 3), its entities and DAOs. Each version's schema is exported to
     `data/schemas` and committed (CI fails if it isn't). A schema change raises the version and adds a

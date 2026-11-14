@@ -25,23 +25,31 @@ What exists:
   and then keeps in its own storage. The screen lists each pack (state, counties, the day it was built,
   its size), says where its figures came from, and shows how many species the home county expects at some
   time of year. A pack can be removed after a warning, except the one that holds the home county. A file
-  that is not a pack is turned away with the reason. The app does not download packs yet, and nothing
-  else reads them yet.
+  that is not a pack is turned away with the reason. The app does not download packs yet.
+- Logging an outing. Start outing on Home starts one in the home county (without that county's pack on
+  the phone, it says so and offers the Packs screen). The Outing screen shows the time since the start,
+  the place name (yours to type, or none), the county, and each bird with its count and plus and minus
+  buttons; minus at one removes the bird after asking. Add sighting opens a search over the birds in the
+  county's pack: birds expected there this week come first, most often reported first, then the rest by
+  name, marked "Not expected this week". The search matches the start of any word in a name and ignores
+  case and accents. Leaving the screen keeps the outing going, and Home's button becomes Continue
+  outing. Finish ends it and shows a summary: the place, the times, the length, the species, the birds
+  counted and the list. An outing can be discarded from the menu after a warning. The county is always
+  the home county for now; finding it by GPS comes later, and so does marking the birds in your bracket.
 - Outings and sightings saved on the phone, and Home's figures for the calendar year counted from them:
-  species, new lifers, outings and the five most recent outings. No screen logs an outing yet, so those
-  parts of Home still show their empty state.
+  species, new lifers, outings and the five most recent outings.
 - The first run: the app asks for a display name (2 to 24 characters) and a home county, chosen from a
   list by state. Both stay on the phone. The list ships with the app (codes and names from the US Census
   Bureau's list of counties) and holds Colorado only for now.
 - The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen, which shows the home
-  county, and the Packs screen. Bracket, League and Outing are placeholders. Every screen is screenshot-tested in light and dark and
+  county, and the Packs screen. Bracket and League are placeholders. Every screen is screenshot-tested in light and dark and
   checked for accessibility (touch targets, contrast, labels) on each build.
 
 - The [user guide](https://mcosgriff.github.io/flyway-bracket/), a small website built from `site/` and
   served by GitHub Pages. Its pages about things the app cannot do yet are marked "Coming in the beta".
 
-What does not exist yet: downloading bird packs, the screens for logging an outing, the bracket screens, leagues, and
-the server that leagues need.
+What does not exist yet: downloading bird packs, finding the county of an outing by GPS, the bracket
+screens, leagues, and the server that leagues need.
 
 ## How the game works
 
@@ -82,8 +90,9 @@ No trackers, analytics, crash reporting or ads. Every build's release APK is sca
 is not listed in [`.github/privacy/permissions.txt`](.github/privacy/permissions.txt).
 
 Today the app asks for no permissions and makes no network calls. Adding a pack uses the phone's file
-picker, which needs no permission: the app is handed the one file you choose and sees no others. Logging an outing will need location;
-that will be explained here and in the app when it is built.
+picker, which needs no permission: the app is handed the one file you choose and sees no others. Logging an
+outing uses no location today: an outing is in your home county. Finding the county by GPS will need the
+location permission; that will be explained here and in the app when it is built.
 
 ### Planned: the league server
 

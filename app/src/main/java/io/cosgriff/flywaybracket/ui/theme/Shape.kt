@@ -1,0 +1,30 @@
+package io.cosgriff.flywaybracket.ui.theme
+
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Shapes
+import androidx.compose.ui.unit.dp
+
+/** Corner radii from the design canvas. */
+val FlywayShapes = Shapes(
+    extraSmall = RoundedCornerShape(6.dp), // badges, bracket slots
+    small = RoundedCornerShape(10.dp), // round chips, inputs
+    medium = RoundedCornerShape(14.dp), // rows, result cards
+    large = RoundedCornerShape(18.dp), // cards, hero panels
+    extraLarge = RoundedCornerShape(28.dp), // full-width buttons, bottom sheets' top corners
+)
+
+/** Spacing and size tokens. Touch targets stay at least [tapMin]. */
+object FlywayDimens {
+    val space1 = 4.dp
+    val space2 = 8.dp
+    val space3 = 12.dp
+    val space4 = 16.dp
+    val space5 = 20.dp // screen side gutter
+    val space6 = 24.dp
+
+    // Material asks for 48dp targets; the canvas's 44px is its floor, so the larger wins.
+    val tapMin = 48.dp
+    val fieldHeight = 52.dp
+    val buttonHeight = 56.dp
+    val rowHeight = 64.dp
+}

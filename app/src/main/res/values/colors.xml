@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window and splash only; Compose takes its colors from ui/theme/Color.kt (design canvas tokens). -->
+    <color name="ground">#F4F6F1</color>
+    <color name="accent">#0B5D4B</color>
+</resources>

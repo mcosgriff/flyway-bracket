@@ -4,8 +4,8 @@ What the app and the server say to each other. The types are in the `:api` modul
 (`api/src/main/kotlin/io/cosgriff/flywaybracket/api/`), which both sides compile against; this page lists
 the endpoints that carry them. Change the two together.
 
-The server (`:server`, [running.md](running.md)) answers the health check and the account endpoints, and
-the app calls the account endpoints, after the player agrees (#38). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
+The server (`:server`, [running.md](running.md)) answers the health check, the account endpoints and the
+league endpoints, and the app calls the account endpoints, after the player agrees (#38). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
 new field sent to the server needs a change to that record first.
 
 ## Rules for every call
@@ -39,7 +39,11 @@ null) and must treat it as a general failure.
 | `INVITE_CODE_UNKNOWN` | 404 | No league has this invite code |
 | `LEAGUE_FULL` | 409 | The league is at its capacity |
 | `ALREADY_A_MEMBER` | 409 | The player is already in this league |
+| `ALREADY_IN_A_LEAGUE` | 409 | The player is already in a league that is forming or in season |
+| `JOINING_CLOSED` | 409 | The league's season has started, or the league is finished or closed |
+| `LEAGUE_NAME_INVALID` | 422 | A league's name is not 3 to 40 characters after trimming |
 | `SEASON_START_NOT_A_MONDAY` | 422 | A season starts on a Monday |
+| `SEASON_START_TOO_SOON` | 422 | A new league's season starts at least 7 days after the day it is created |
 | `TIME_ZONE_UNKNOWN` | 422 | The time zone is not an IANA zone the server knows |
 | `DISPLAY_NAME_INVALID` | 422 | The display name is empty, too long or not allowed |
 | `COUNTY_UNKNOWN` | 422 | A home county that is not a well-formed county code, or a sighting's county that is not a county of any pack |
@@ -52,7 +56,8 @@ null) and must treat it as a general failure.
 | `SERVER_ERROR` | 500 | The server failed; nothing the app sent was wrong |
 
 A path the server does not have answers 404, a method it does not have on that path 405, and a body that
-is not JSON 415. All three carry `INVALID_REQUEST`: the status tells them apart. `detail` is empty for
+is not JSON 415. All three carry `INVALID_REQUEST`: the status tells them apart. A 404 an endpoint gives
+itself (`LEAGUE_NOT_FOUND`, `INVITE_CODE_UNKNOWN`) carries its own code. `detail` is empty for
 these and for bad JSON, so that an error never repeats what was sent.
 
 Every endpoint can return `RATE_LIMITED` and `SERVER_ERROR`. Every endpoint except `POST /v1/accounts` and `GET /v1/health` can
@@ -96,16 +101,18 @@ list only the codes an endpoint adds to these.
   ends; they are not stored with the account or logged. Behind a proxy the server sees the proxy's address:
   where it is hosted is not decided (#16), and the proxy's forwarded address must be read then.
 - `GET /v1/account` is the asking player's own profile: their display name and home county, each absent
-  until set, and `league`, the league they are in. `league` is always absent today: the server has no
-  leagues yet.
+  until set, and `league`, the `LeagueSummary` of their league: the one forming or in season, else their
+  latest finished or closed one; absent when they are in none. A league whose state is `CLOSED` never
+  started for want of players; this is how its players are told.
 - `PATCH /v1/account` checks both fields before it changes either. The display name follows the app's rule
   (`DisplayName` in `:domain`): 2 to 24 characters after trimming, stored trimmed. The home county must be
   a well-formed county code (`CountyCode` in `:domain`, such as `US-CO-059`), otherwise `COUNTY_UNKNOWN`; it
   need not be a county of a pack the server holds.
-- `DELETE /v1/account` cannot be undone. Today it deletes the player's row (id, secret hash, display name,
-  home county), which is all the server holds. Once the server has leagues, picks and sightings, it also
-  deletes the player's picks and sightings and takes them out of their league; their results in a finished
-  season stay, under no name, as "a former player". After it, the id and secret are `UNAUTHORIZED`.
+- `DELETE /v1/account` cannot be undone. The player first leaves every league they are in, as
+  `DELETE …/membership` would; then their row (id, secret hash, display name, home county) is deleted, and
+  their league places with it. Once the server has picks and sightings, it also deletes those; their
+  results in a finished season stay, under no name, as "a former player". After it, the id and secret
+  are `UNAUTHORIZED`.
 - **A home county change and rounds.** The server stores only the current home county. A change is meant to
   count for rounds that have not started; that is for the issue that decides rounds on the server.
 
@@ -113,16 +120,58 @@ list only the codes an endpoint adds to these.
 
 | Endpoint | Request | Response | Errors it adds |
 | --- | --- | --- | --- |
-| `POST /v1/leagues` | `CreateLeagueRequest` | `LeagueSummary` | `SEASON_START_NOT_A_MONDAY`, `TIME_ZONE_UNKNOWN` |
+| `POST /v1/leagues` | `CreateLeagueRequest` | 201, `LeagueSummary` | `LEAGUE_NAME_INVALID`, `TIME_ZONE_UNKNOWN`, `SEASON_START_NOT_A_MONDAY`, `SEASON_START_TOO_SOON`, `DISPLAY_NAME_INVALID`, `ALREADY_IN_A_LEAGUE` |
 | `GET /v1/leagues` | none | `LeagueListResponse` | none |
-| `POST /v1/leagues/join` | `JoinLeagueRequest` | `LeagueSummary` | `INVITE_CODE_UNKNOWN`, `LEAGUE_FULL`, `ALREADY_A_MEMBER` |
+| `POST /v1/leagues/join` | `JoinLeagueRequest` | `LeagueSummary` | `DISPLAY_NAME_INVALID`, `INVITE_CODE_UNKNOWN`, `ALREADY_A_MEMBER`, `ALREADY_IN_A_LEAGUE`, `JOINING_CLOSED`, `LEAGUE_FULL` |
+| `POST /v1/leagues/auto-join` | none | `LeagueSummary` | `DISPLAY_NAME_INVALID`, `ALREADY_IN_A_LEAGUE` |
 | `GET /v1/leagues/{leagueId}` | none | `LeagueDetail` | `LEAGUE_NOT_FOUND` |
 | `DELETE /v1/leagues/{leagueId}/membership` | none | 204 | `LEAGUE_NOT_FOUND` |
 
-- `GET /v1/leagues` lists the leagues the player is in, and no others.
-- `DELETE …/membership` is the player leaving the league.
-- `LeagueDetail.members` and `StandingsResponse` are lists of `Standing`: display name, points, rank, and
-  whether the row is the asking player. A `Standing` has no account id, no county and no sightings.
+The rules are `domain/league` in `:domain` (#32); the server applies them.
+
+- **One league at a time.** A player is in at most one league that is forming or in season
+  (`ALREADY_IN_A_LEAGUE`). A finished or closed league does not count: its players can create or join the
+  next. A player needs a display name to create or join one, since the others see it
+  (`DISPLAY_NAME_INVALID` when it is not set).
+- **Creating.** A name of 3 to 40 characters, stored trimmed; open or invite-only; an IANA time zone such
+  as `America/Denver` (an offset such as `+02:00` is `TIME_ZONE_UNKNOWN`); and a season start on a
+  Monday at least 7 days after today, today being the date in that time zone. The player who creates it
+  is its first member.
+- **Invite codes.** Every league has one: 8 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, which has
+  no 0, O, 1, I or L. `POST /v1/leagues/join` reads the code without case and without spaces at either
+  end. Every member is given it in `LeagueSummary.inviteCode`.
+- **Size.** A league holds at most 64 players (`LeagueSummary.capacity`); the 65th is `LEAGUE_FULL`. The
+  check and the join happen under a lock on the league's row, so two players asking for the last seat at
+  once get one seat between them.
+- **Joining closes when the season starts**: midnight at the start of its first Monday, in the league's
+  time zone. After that, and for a finished or closed league, a join is `JOINING_CLOSED`.
+- **Auto-join** puts the player in the open league with the earliest start that has room and has not
+  started (the earliest made, when two start on the same day). When there is none it creates an open
+  league starting on the second Monday after today, named `Flyway` and four random characters. The
+  request has no body and that league's time zone is UTC: ADR 0001's table of what the app sends names
+  no time zone for a player. Auto-joins wait for one another, so two players who find no room open one
+  league between them.
+- **The start.** A bracket needs at least 8 players when the season starts. With fewer when the start date
+  arrives, the start moves back one week and the league goes on taking players; this happens up to four
+  times. If it is still short on the fifth date, the league is `CLOSED`, and its players see that in
+  `GET /v1/account`. A postponed league's `seasonStart` and `seasonEnd` are its new dates.
+- **States.** `LeagueState` is the server's league phase (`LeaguePhase` in `:domain`):
+  `BEFORE_SEASON` is forming, `IN_SEASON` running, `FINISHED` after the final's Sunday has ended, and
+  `CLOSED` never started.
+- **Nothing runs when a date passes.** The server settles a league, bringing it up to today, whenever it is
+  read, and saves that under the league's lock before any change to its players. The count of players at
+  each date is therefore the count when that date passed.
+- `GET /v1/leagues` lists the leagues the player is in and has not left, latest start first: at most one
+  forming or in season, and any finished or closed.
+- `GET /v1/leagues/{leagueId}` is for members only; any other player gets `LEAGUE_NOT_FOUND`.
+  `LeagueDetail.members` and `StandingsResponse` are lists of `Standing`: display name, points, rank, and
+  whether the row is the asking player, best rank first, then by name. A `Standing` has no account id, no
+  county and no sightings. Players level on points share a rank (10, 7, 7, 3 points rank 1, 2, 2, 4).
+  Points are 0 until the server scores picks.
+- `DELETE …/membership` is the player leaving the league. Before the season starts, or from a closed
+  league, they are taken out as if they had never joined, and can join again. After it starts they are
+  kept, marked as left: their picks stop scoring, they no longer count toward any matchup, and they are
+  not in the members or the count. Either way they are free to join another league.
 
 ## Bracket and picks
 
@@ -185,10 +234,12 @@ list only the codes an endpoint adds to these.
 ADR 0001 leaves these open, so no message or endpoint settles them:
 
 - **The league's own fields and who can see them.** `CreateLeagueRequest` (name, open, time zone, season
-  start) and `LeagueSummary` hold the fields issue #29 lists, but the ADR's table of what the app sends
-  does not name them yet. The ADR must be changed before the first call that sends them. There is no
-  endpoint that lists leagues the player is not in, and what `open` lets a stranger see or do is not
-  defined.
+  start) and `LeagueSummary` hold the fields issue #29 lists, and the server takes them, but the ADR's
+  table of what the app sends does not name them yet. The ADR must be changed before the app first sends
+  them. There is no endpoint that lists leagues the player is not in; `open` only lets auto-join choose
+  the league.
+- **A player's time zone.** Issue #32 has auto-join open a league in the player's time zone; the ADR does
+  not name one among what the app sends, so auto-join sends none and opens its league in UTC.
 - **An outing with no birds.** Eligibility counts the county of any outing, but only sightings are sent;
   there is no message for an outing without one.
 - **What deleting an account covers** beyond name, picks and sightings, and what it does to matchups

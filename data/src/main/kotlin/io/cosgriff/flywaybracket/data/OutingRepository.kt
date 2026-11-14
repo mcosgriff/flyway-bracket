@@ -72,6 +72,17 @@ class OutingRepository(private val dao: OutingDao, private val clock: Clock) {
         dao.renameInProgress(placeName.trim())
     }
 
+    /**
+     * Moves the outing in progress to another county, chosen by the player (#27). Nothing happens when none
+     * is.
+     *
+     * @param countyCode eBird region code of the county (`US-CO-059`).
+     */
+    suspend fun setCounty(countyCode: String) {
+        require(countyCode.isNotBlank()) { "an outing needs a county" }
+        dao.setCountyInProgress(countyCode.trim())
+    }
+
     /** Ends the outing in progress now. Nothing happens when none is. */
     suspend fun end() {
         dao.endInProgress(now())

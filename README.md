@@ -26,16 +26,21 @@ What exists:
   its size), says where its figures came from, and shows how many species the home county expects at some
   time of year. A pack can be removed after a warning, except the one that holds the home county. A file
   that is not a pack is turned away with the reason. The app does not download packs yet.
-- Logging an outing. Start outing on Home starts one in the home county (without that county's pack on
-  the phone, it says so and offers the Packs screen). The Outing screen shows the time since the start,
+- Logging an outing. Start outing on Home starts one in the county the phone is in, found from its
+  approximate location, so a trip to another county counts there. The first time, a page explains why
+  before Android asks for the permission; saying no is fine. With no permission, no location within five
+  seconds, or a location in no pack on the phone, the outing is in the home county, and the Outing screen
+  says why when it was not your choice (without the home county's pack on the phone, nothing starts, and
+  Home offers the Packs screen). The county can be changed by hand from the Outing screen's menu, from the
+  counties of the packs on the phone. The Outing screen shows the time since the start,
   the place name (yours to type, or none), the county, and each bird with its count and plus and minus
   buttons; minus at one removes the bird after asking. Add sighting opens a search over the birds in the
   county's pack: birds expected there this week come first, most often reported first, then the rest by
   name, marked "Not expected this week". The search matches the start of any word in a name and ignores
   case and accents. Leaving the screen keeps the outing going, and Home's button becomes Continue
   outing. Finish ends it and shows a summary: the place, the times, the length, the species, the birds
-  counted and the list. An outing can be discarded from the menu after a warning. The county is always
-  the home county for now; finding it by GPS comes later, and so does marking the birds in your bracket.
+  counted and the list. An outing can be discarded from the menu after a warning. Marking the birds in
+  your bracket comes later.
 - Outings and sightings saved on the phone, and Home's figures for the calendar year counted from them:
   species, new lifers, outings and the five most recent outings.
 - The first run: the app asks for a display name (2 to 24 characters) and a home county, chosen from a
@@ -52,13 +57,22 @@ What exists:
 - The [user guide](https://mcosgriff.github.io/flyway-bracket/), a small website built from `site/` and
   served by GitHub Pages. Its pages about things the app cannot do yet are marked "Coming in the beta".
 
-What does not exist yet: downloading bird packs, finding the county of an outing by GPS, the bracket
-screens, leagues, and the server that leagues need.
+- The league server (`server/`, [`docs/server/api.md`](docs/server/api.md)): anonymous accounts, and
+  creating, joining, auto-joining and leaving leagues. The app does not talk to it yet.
+
+What does not exist yet: downloading bird packs, the bracket screens, the League screen, and the app's side
+of the server.
 
 ## How the game works
 
-- **Leagues.** A league is a group of players. Anyone can create one. A player without a league is added to
-  an open one.
+- **Leagues.** A league is a group of players, at most 64, who play one bracket together. Anyone can
+  create one, open or invite-only, with a name, a time zone and a start on a Monday at least a week
+  ahead; others join it with its 8-character invite code. A player is in one league at a time. A player
+  without a league is added to the open league that starts first and has room, or to a new one starting
+  on the second Monday from today. Joining closes when the season starts. A bracket needs at least 8
+  players: a league short of 8 when its start date arrives starts a week later, up to four times, and is
+  then closed. A player can leave at any time; after the start, their picks stop scoring and they no
+  longer count toward any matchup.
 - **Seasons.** Two tournaments a year, spring and fall. Each seeds its own field of 64 birds in four
   quarters of 16.
 - **Calendar.** A league's season starts on a Monday and runs six rounds, one a week, Monday through
@@ -93,10 +107,17 @@ No trackers, analytics, crash reporting or ads. Every build's release APK is sca
 [Exodus Privacy](https://exodus-privacy.eu.org); a tracker fails the build, and so does a permission that
 is not listed in [`.github/privacy/permissions.txt`](.github/privacy/permissions.txt).
 
-The app asks for one permission, `INTERNET`, to talk to the league server (below). Adding a pack uses the phone's file
-picker, which needs no permission: the app is handed the one file you choose and sees no others. Logging an
-outing uses no location today: an outing is in your home county. Finding the county by GPS will need the
-location permission; that will be explained here and in the app when it is built.
+The app asks for two permissions: approximate location (below), and `INTERNET`, to talk to the league
+server (further below). Adding a pack uses the phone's file picker, which needs no permission: the app is
+handed the one file you choose and sees no others.
+
+**Approximate location** (`ACCESS_COARSE_LOCATION`) is used once, when an outing starts, to find the county
+you are in. A county is far larger than the error of an approximate location, so the app never asks for
+your precise location, and it never asks in the background. It uses Android's own location service, not
+Google Play services. The coordinates are turned into a county on the phone and then forgotten: they are
+never saved, logged or sent. Only the county is kept, with the outing. The app explains this on a page
+before Android asks, the first time you start an outing. If you say no, outings are in your home county,
+and you can change an outing's county by hand.
 
 ### The league server
 

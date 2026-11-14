@@ -14,6 +14,7 @@ object ApiPaths {
     const val ACCOUNT = "$V1/account"
     const val LEAGUES = "$V1/leagues"
     const val JOIN_LEAGUE = "$V1/leagues/join"
+    const val AUTO_JOIN_LEAGUE = "$V1/leagues/auto-join"
     const val SIGHTINGS = "$V1/sightings"
     const val PACKS = "$V1/packs"
 

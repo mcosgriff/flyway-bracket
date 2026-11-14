@@ -3,6 +3,13 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
+        Approximate location, read once when an outing starts to find its county (#27). Never precise, never
+        in the background, never saved or sent. The page before Android's prompt explains it:
+        ui/home/LocationExplain.kt.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
         The league server, the project's own and the only host the app talks to (ADR 0001, #38). Nothing is
         sent before the player agrees on the consent page that League and Bracket show first.
     -->

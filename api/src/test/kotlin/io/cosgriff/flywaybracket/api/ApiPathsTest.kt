@@ -12,6 +12,7 @@ class ApiPathsTest {
         ApiPaths.ACCOUNT,
         ApiPaths.LEAGUES,
         ApiPaths.JOIN_LEAGUE,
+        ApiPaths.AUTO_JOIN_LEAGUE,
         ApiPaths.SIGHTINGS,
         ApiPaths.PACKS,
         ApiPaths.league("league-1"),

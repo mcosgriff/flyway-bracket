@@ -70,6 +70,8 @@ dependencies {
     api(project(":domain"))
 
     implementation(libs.kotlinx.coroutines.android)
+    // LocationManagerCompat: the phone's approximate location from Android itself, not Play services (#27).
+    implementation(libs.androidx.core.ktx)
     api(libs.androidx.datastore.preferences)
 
     // api: Hilt generates the app's component in :app, so it must see these binding types.

@@ -25,8 +25,20 @@ enum class ApiErrorCode {
     /** The player is already in this league. */
     ALREADY_A_MEMBER,
 
+    /** The player is already in a league that has not finished; a player is in one at a time. */
+    ALREADY_IN_A_LEAGUE,
+
+    /** The league's season has started, or the league is finished or closed: no one can join it. */
+    JOINING_CLOSED,
+
+    /** A league's name is empty, too short or too long. */
+    LEAGUE_NAME_INVALID,
+
     /** A season starts on a Monday. */
     SEASON_START_NOT_A_MONDAY,
+
+    /** A new league's season starts at least 7 days after the day it is created. */
+    SEASON_START_TOO_SOON,
 
     /** The time zone is not one the server knows. */
     TIME_ZONE_UNKNOWN,

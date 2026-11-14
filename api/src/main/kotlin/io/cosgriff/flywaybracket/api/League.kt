@@ -27,6 +27,12 @@ enum class LeagueState {
 
     /** The final is decided. */
     FINISHED,
+
+    /**
+     * The season never started: the league had fewer than 8 players when its start date arrived, and
+     * still did after the start had moved back a week four times. Its players can join another league.
+     */
+    CLOSED,
 }
 
 /**
@@ -47,7 +53,7 @@ data class LeagueSummary(
     val state: LeagueState,
 )
 
-/** The leagues the player is in. */
+/** The leagues the player is in: at most one forming or in season, and any finished or closed. */
 @Serializable
 data class LeagueListResponse(val leagues: List<LeagueSummary>)
 

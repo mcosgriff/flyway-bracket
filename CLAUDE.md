@@ -19,11 +19,12 @@ This file holds the rules and the decisions behind them. How a feature works is 
 ## Status
 
 `:domain` has the game rules. `:data` has the database (`outings` and `sightings`, behind `OutingRepository`),
-the player's settings, and the bundled table of states and counties (`assets/places/counties.tsv`,
-Colorado only). `:app` has the theme, the bottom bar, the first-run screen (display name and home county,
-saved in the settings) and the Home screen; Bracket, League, Packs and Outing are placeholders
-(`NotBuiltYetContent`). Home reads its region from the settings and its season figures and recent outings
-from the database; no screen saves an outing yet. No network, no server.
+the player's settings, the bundled table of states and counties (`assets/places/counties.tsv`,
+Colorado only) and the state packs on the phone (`PackRepository`). `:app` has the theme, the bottom bar,
+the first-run screen (display name and home county, saved in the settings), the Home screen and the Packs
+screen, which adds a pack from a `.fbpack` file the player chooses (downloading is #39); Bracket, League
+and Outing are placeholders (`NotBuiltYetContent`). Home reads its region from the settings and its season
+figures and recent outings from the database; no screen saves an outing yet. No network, no server.
 `./gradlew build` is green (Gradle 9.9.1, AGP 9.5.1, lint included). Keep it green; lint fails the build on
 a warning as on an error (`warningsAsErrors`, in `:app` and `:data`), and there is no baseline: fix a
 warning, or suppress that one case in `app/lint.xml` with a comment saying why.
@@ -72,6 +73,9 @@ the `CODECOV_TOKEN` secret.
     `data/schemas` and committed (CI fails if it isn't). A schema change raises the version and adds a
     migration; `MigrationTest` opens every exported version as the current database.
   - `SettingsRepository` — `PlayerSettings` in DataStore, as a `Flow`.
+  - `PackRepository` — the state packs, each its `.fbpack` file in `files/packs`: install from bytes
+    (checked with `StatePackCodec.decode` first), list, delete, `chartFor(countyCode)` and
+    `countyAt(longitude, latitude)`. The files are parsed once and kept in memory.
   - `data/di/DataModule` — Hilt: provides the database, its DAOs, the DataStore and the repositories.
   - Tests run on the JVM under Robolectric; Gradle resolves its Android jar (root `build.gradle.kts`).
 - `:app` — Compose UI, theme, navigation (Navigation 3, `@Serializable` `NavKey` routes in

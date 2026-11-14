@@ -15,6 +15,7 @@ class ApiPathsTest {
         ApiPaths.AUTO_JOIN_LEAGUE,
         ApiPaths.SIGHTINGS,
         ApiPaths.PACKS,
+        ApiPaths.pack("US-ZZ"),
         ApiPaths.league("league-1"),
         ApiPaths.membership("league-1"),
         ApiPaths.bracket("league-1"),
@@ -37,5 +38,6 @@ class ApiPathsTest {
     fun `the server's route and the app's call are one definition`() {
         assertEquals("/v1/leagues/{leagueId}/rounds/{round}/results", ApiPaths.roundResults("{leagueId}", "{round}"))
         assertEquals("/v1/leagues/league-1/rounds/ROUND_OF_16/results", ApiPaths.roundResults("league-1", Round.ROUND_OF_16))
+        assertEquals("/v1/packs/{state}", ApiPaths.pack("{state}"))
     }
 }

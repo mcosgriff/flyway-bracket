@@ -61,8 +61,27 @@ No trackers, analytics, crash reporting or ads. Every build's release APK is sca
 [Exodus Privacy](https://exodus-privacy.eu.org); a tracker fails the build, and so does a permission that
 is not listed in [`.github/privacy/permissions.txt`](.github/privacy/permissions.txt).
 
-Today the app asks for no permissions and makes no network calls. Logging an outing will need location,
-and leagues will need a server; each will be explained here and in the app when it is built.
+Today the app asks for no permissions and makes no network calls. Logging an outing will need location;
+that will be explained here and in the app when it is built.
+
+### Planned: the league server
+
+None of this is built yet. It is the plan, written down in
+[`docs/adr/0001-server-and-network.md`](docs/adr/0001-server-and-network.md).
+
+- The app will talk to one server, the project's own, over HTTPS, and to nothing else.
+- Nothing will be sent before you say yes. Outings will work with no account. The first time you open
+  League or Bracket, a page will say what will be sent and ask.
+- An account will be anonymous: no email, no password, no phone number. The server gives the app an id and
+  a secret, and the secret is kept encrypted on the phone.
+- The server will store your display name, your home county, your leagues, your bracket picks, and each
+  sighting as a bird name, a county and a date. It will never get coordinates, the time of day or the
+  place name you typed.
+- Other players in your league will see your display name, your picks once they lock, your points, and how
+  many birds you logged in a round. They will not see your county or your individual sightings.
+- You will be able to delete your account from Settings. The server then deletes your name, picks and
+  sightings.
+- In the beta, losing the phone loses the account. Moving an account to a new phone comes later.
 
 ## Build
 

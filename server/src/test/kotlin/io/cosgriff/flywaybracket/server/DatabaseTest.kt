@@ -233,7 +233,7 @@ class DatabaseTest {
         fun startPostgres() {
             postgres.start()
             database = Database.connect(postgres.jdbcUrl, postgres.username, postgres.password)
-            assertEquals(4, database.migrate())
+            assertEquals(5, database.migrate())
         }
 
         @AfterClass

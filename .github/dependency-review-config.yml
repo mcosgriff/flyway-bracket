@@ -22,3 +22,6 @@ allow-licenses:
 #   flyway-database-postgresql: Apache-2.0, declared in its parent POM (org.flywaydb:flyway-parent).
 allow-dependencies-licenses:
   - pkg:maven/org.flywaydb/flyway-database-postgresql
+  # bcprov-jdk18on: the "Bouncy Castle Licence", whose text is the MIT licence with the Legion of the
+  # Bouncy Castle as copyright holder (https://www.bouncycastle.org/licence.html).
+  - pkg:maven/org.bouncycastle/bcprov-jdk18on

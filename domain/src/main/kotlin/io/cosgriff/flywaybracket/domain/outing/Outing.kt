@@ -55,4 +55,7 @@ data class Sighting(
 data class OutingLog(val outing: Outing, val sightings: List<Sighting>) {
     /** The species seen on the outing, by common name. */
     val species: Set<String> get() = sightings.mapTo(mutableSetOf()) { it.birdName }
+
+    /** How many birds were counted, every sighting's count added up. */
+    val birds: Int get() = sightings.sumOf { it.count }
 }

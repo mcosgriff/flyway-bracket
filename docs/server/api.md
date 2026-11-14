@@ -4,8 +4,8 @@ What the app and the server say to each other. The types are in the `:api` modul
 (`api/src/main/kotlin/io/cosgriff/flywaybracket/api/`), which both sides compile against; this page lists
 the endpoints that carry them. Change the two together.
 
-Nothing here is built yet: no server exists and the app makes no network call. The endpoints are built in
-the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
+The server (`:server`, [running.md](running.md)) answers the health check and nothing else yet, and the
+app makes no network call. The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
 new field sent to the server needs a change to that record first.
 
 ## Rules for every call
@@ -19,7 +19,7 @@ new field sent to the server needs a change to that record first.
   (`US-CO-059`), a state its region code (`US-CO`).
 - Enums travel as their Kotlin names: `Round`, `Season` and `Decision.Reason` from `:domain`,
   `LeagueState` from `:api`.
-- **Who is asking.** Every call except `POST /v1/accounts` carries the account id and secret as HTTP Basic
+- **Who is asking.** Every call except `POST /v1/accounts` and `GET /v1/health` carries the account id and secret as HTTP Basic
   credentials (`Authorization: Basic`, the id as the user and the secret as the password). They are never
   in a path, a query or a body.
 - **A call with nothing to return** answers `204 No Content`.
@@ -51,9 +51,23 @@ null) and must treat it as a general failure.
 | `RATE_LIMITED` | 429 | Too many requests |
 | `SERVER_ERROR` | 500 | The server failed; nothing the app sent was wrong |
 
-Every endpoint can return `RATE_LIMITED` and `SERVER_ERROR`. Every endpoint except `POST /v1/accounts` can
+A path the server does not have answers 404, a method it does not have on that path 405, and a body that
+is not JSON 415. All three carry `INVALID_REQUEST`: the status tells them apart. `detail` is empty for
+these and for bad JSON, so that an error never repeats what was sent.
+
+Every endpoint can return `RATE_LIMITED` and `SERVER_ERROR`. Every endpoint except `POST /v1/accounts` and `GET /v1/health` can
 return `UNAUTHORIZED`. Every endpoint with a request body can return `INVALID_REQUEST`. The tables below
 list only the codes an endpoint adds to these.
+
+## Health
+
+| Endpoint | Request | Response | Errors it adds |
+| --- | --- | --- | --- |
+| `GET /v1/health` | none | `HealthResponse` | none |
+
+- Needs no account and says nothing about any player: the server's version, and whether its database
+  answered just now.
+- It answers 200 even when the database does not answer; `database` is then `false`.
 
 ## Account
 

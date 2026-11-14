@@ -72,7 +72,10 @@ What exists:
   started (too few players, or too few migrating birds where its players live). From either, Join a
   league opens the three ways in again. Leave league, in the menu, asks first and says what is lost. The
   league is kept on the phone, so the tab opens at once and works offline with the last known data,
-  marked with when it was read; Home's league row and bracket hero come from it too.
+  marked with when it was read; Home's league row and bracket hero come from it too. Home's hero follows
+  the league: while it forms, players joined of the 8 needed, your picks made of 63 and when picks lock;
+  in season, your points and the round; once finished, your final rank; closed, why it never started;
+  with no league, Find a league. None of it asks the server for more than the League tab does.
 - The Bracket tab, once the phone has an account: your league's bracket, read from the server and kept on
   the phone. Three views: a list by round (tabs with the neutral round names, and a quarter at a time up to
   the quarterfinals), a tree of one quarter, and the whole field of 64, which scrolls both ways. Before

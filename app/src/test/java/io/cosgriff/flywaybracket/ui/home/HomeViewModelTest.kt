@@ -44,6 +44,7 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -171,19 +172,55 @@ class HomeViewModelTest {
     @Test
     fun `a running league gives Home its row and its hero`() {
         // Wednesday 10 March in Denver: round 2, with round 1's 32 matchups decided.
-        val (row, hero) = homeLeague(league(LeaguePhase.RUNNING), picksNotYetSeen = 4, now = Instant.parse("2027-03-10T18:00:00Z"))
+        val (row, hero) = homeLeague(league(LeaguePhase.RUNNING), BracketCounts(picksNotYetSeen = 4), Instant.parse("2027-03-10T18:00:00Z"), zone)
 
         assertEquals(LeagueSummary("Test League", players = 4, rank = 3), row)
         assertEquals(TournamentSummary(Season.SPRING, Round.ROUND_OF_32, points = 7, picksRight = 7, picksDecided = 32, picksNotYetSeen = 4), hero)
     }
 
     @Test
-    fun `a forming or finished league gives only the row, and a closed one nothing`() {
+    fun `a forming league gives players joined of 8, picks made of 63, and when picks lock on the phone's clock`() {
         val now = Instant.parse("2027-02-20T18:00:00Z")
-        assertEquals(LeagueSummary("Test League", players = 4, rank = 3) to null, homeLeague(league(LeaguePhase.FORMING), 0, now))
-        assertEquals(LeagueSummary("Test League", players = 4, rank = 3) to null, homeLeague(league(LeaguePhase.FINISHED), 0, now))
-        assertEquals(null to null, homeLeague(league(LeaguePhase.CLOSED, CloseReason.TOO_FEW_PLAYERS), 0, now))
-        assertEquals(null to null, homeLeague(null, 0, now))
+        // The phone is in New York, two hours ahead of the league's Denver: picks lock at 2 AM there.
+        val (row, hero) = homeLeague(league(LeaguePhase.FORMING), BracketCounts(picksMade = 20), now, ZoneId.of("America/New_York"))
+
+        assertEquals(LeagueSummary("Test League", players = 4, rank = null), row)
+        assertEquals(
+            LeagueHero.Forming(Season.SPRING, players = 4, needed = 8, picksMade = 20, matchups = 63, picksLockAt = LocalDateTime.of(2027, 3, 1, 2, 0)),
+            hero,
+        )
+    }
+
+    @Test
+    fun `a forming league fetched without its dates still has its hero, with no lock time`() {
+        val summaryOnly = league(LeaguePhase.FORMING).copy(timeZone = null, calendar = null, members = emptyList())
+        val (row, hero) = homeLeague(summaryOnly, BracketCounts(), Instant.parse("2027-02-20T18:00:00Z"), zone)
+
+        assertEquals(LeagueSummary("Test League", players = 4, rank = null), row)
+        assertEquals(LeagueHero.Forming(season = null, players = 4, needed = 8, picksMade = 0, matchups = 63, picksLockAt = null), hero)
+    }
+
+    @Test
+    fun `a finished league gives the final rank, and a closed one only why`() {
+        val now = Instant.parse("2027-04-20T18:00:00Z")
+        assertEquals(
+            LeagueSummary("Test League", players = 4, rank = 3) to LeagueHero.Finished(Season.SPRING, rank = 3, players = 4),
+            homeLeague(league(LeaguePhase.FINISHED), BracketCounts(), now, zone),
+        )
+        assertEquals(
+            null to LeagueHero.Closed("Test League", CloseReason.TOO_FEW_PLAYERS),
+            homeLeague(league(LeaguePhase.CLOSED, CloseReason.TOO_FEW_PLAYERS), BracketCounts(), now, zone),
+        )
+        assertEquals(null to null, homeLeague(null, BracketCounts(), now, zone))
+    }
+
+    @Test
+    fun `a running league without its table gives the row and no hero`() {
+        val noTable = league(LeaguePhase.RUNNING).copy(members = emptyList())
+        assertEquals(
+            LeagueSummary("Test League", players = 4, rank = null) to null,
+            homeLeague(noTable, BracketCounts(), Instant.parse("2027-03-10T18:00:00Z"), zone),
+        )
     }
 
     @Test

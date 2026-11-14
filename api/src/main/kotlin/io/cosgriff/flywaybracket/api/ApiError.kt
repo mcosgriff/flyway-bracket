@@ -67,6 +67,9 @@ enum class ApiErrorCode {
     /** The round is not decided yet. */
     ROUND_NOT_DECIDED,
 
+    /** The server holds no pack for this state. */
+    PACK_NOT_FOUND,
+
     /** Too many requests; try again later. */
     RATE_LIMITED,
 

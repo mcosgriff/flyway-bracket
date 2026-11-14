@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import java.nio.file.Path
 
 /** All values are made up. */
 class ServerConfigTest {
@@ -12,16 +13,18 @@ class ServerConfigTest {
         "DATABASE_USER" to "flywaybracket",
         "DATABASE_PASSWORD" to "made-up-password",
         "PORT" to "9090",
+        "PACKS_DIR" to "/srv/made-up-packs",
     )
 
     @Test
-    fun `reads the four variables`() {
+    fun `reads the five variables`() {
         val config = ServerConfig.fromEnvironment(environment)
 
         assertEquals("jdbc:postgresql://db.invalid:5432/flywaybracket", config.databaseUrl)
         assertEquals("flywaybracket", config.databaseUser)
         assertEquals("made-up-password", config.databasePassword)
         assertEquals(9090, config.port)
+        assertEquals(Path.of("/srv/made-up-packs"), config.packsDirectory)
     }
 
     @Test
@@ -35,7 +38,7 @@ class ServerConfigTest {
             ServerConfig.fromEnvironment(mapOf("DATABASE_USER" to " ", "PORT" to "9090"))
         }
 
-        assertEquals(listOf("DATABASE_URL", "DATABASE_USER", "DATABASE_PASSWORD"), failure.missing)
+        assertEquals(listOf("DATABASE_URL", "DATABASE_USER", "DATABASE_PASSWORD", "PACKS_DIR"), failure.missing)
         assertEquals(emptyList<String>(), failure.invalid)
     }
 
@@ -49,6 +52,16 @@ class ServerConfigTest {
             assertEquals(emptyList<String>(), failure.missing)
             assertEquals(listOf("PORT"), failure.invalid)
         }
+    }
+
+    @Test
+    fun `a packs directory that is not a path is refused`() {
+        val failure = assertThrows(ConfigException::class.java) {
+            ServerConfig.fromEnvironment(environment + ("PACKS_DIR" to "made-up\u0000packs"))
+        }
+
+        assertEquals(emptyList<String>(), failure.missing)
+        assertEquals(listOf("PACKS_DIR"), failure.invalid)
     }
 
     @Test

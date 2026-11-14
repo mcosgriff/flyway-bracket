@@ -80,6 +80,18 @@ class SeasonCalendarTest {
     }
 
     @Test
+    fun `decided matchups count every round decided so far`() {
+        // Round 1 ends Sunday 7 March; it is decided at noon on Monday 8 March.
+        assertEquals(0, spring.decidedMatchups(LocalDateTime.of(2027, 3, 8, 11, 59)))
+        assertEquals(32, spring.decidedMatchups(LocalDateTime.of(2027, 3, 8, 12, 0)))
+        assertEquals(48, spring.decidedMatchups(LocalDateTime.of(2027, 3, 15, 12, 0)))
+        assertEquals(0, spring.decidedMatchups(LocalDateTime.of(2027, 2, 1, 0, 0)))
+        // The final is decided at noon on Monday 12 April: all 63.
+        assertEquals(62, spring.decidedMatchups(LocalDateTime.of(2027, 4, 12, 11, 59)))
+        assertEquals(63, spring.decidedMatchups(LocalDateTime.of(2027, 4, 12, 12, 0)))
+    }
+
+    @Test
     fun `picks lock on the first Monday`() {
         assertEquals(LocalDate.of(2027, 3, 1), spring.picksLockOn)
         assertEquals(spring.roundDates(Round.ROUND_OF_64).start, spring.picksLockOn)

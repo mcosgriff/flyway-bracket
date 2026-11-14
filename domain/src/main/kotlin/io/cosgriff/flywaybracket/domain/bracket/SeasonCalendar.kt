@@ -65,6 +65,9 @@ class SeasonCalendar private constructor(val startDate: LocalDate) {
     /** Whether [round] is decided at [now]: from [decidedAt] on. */
     fun isDecided(round: Round, now: LocalDateTime): Boolean = now >= decidedAt(round)
 
+    /** How many matchups are decided at [now]: those of every round [isDecided], 0 to 63. */
+    fun decidedMatchups(now: LocalDateTime): Int = Round.entries.filter { isDecided(it, now) }.sumOf { it.teams / 2 }
+
     /** The round played on [date]; null before the season and after the final. */
     fun roundOn(date: LocalDate): Round? = Round.entries.firstOrNull { date in roundDates(it) }
 

@@ -3,6 +3,7 @@
 // runs the Ktor server (server/Dockerfile). The Worker reads nothing in a request and logs nothing of it.
 
 import { Container, getContainer } from "@cloudflare/containers";
+import type { DurableObject } from "cloudflare:workers";
 
 interface Env {
   SERVER: DurableObjectNamespace<FlywayServer>;
@@ -21,6 +22,11 @@ const INSTANCE = "flyway-server";
 // disk is wiped on restart, and packs built from eBird data need the Cornell Lab's permission first.
 const PACKS_DIR = "/packs";
 
+// How long a request waits for a sleeping server to start listening. The library's default is 20 s in all;
+// a cold start here is the JVM starting, Neon's compute waking and the migrations running, and the server
+// opens its port only after all three.
+const START_TIMEOUT_MS = 90_000;
+
 export class FlywayServer extends Container<Env> {
   // The server's PORT default (ServerConfig.DEFAULT_PORT).
   defaultPort = 8080;
@@ -30,7 +36,7 @@ export class FlywayServer extends Container<Env> {
   // explicitly: Cloudflare's docs don't state the default.
   enableInternet = true;
 
-  constructor(ctx: DurableObjectState, env: Env) {
+  constructor(ctx: DurableObject["ctx"], env: Env) {
     super(ctx, env);
     this.envVars = {
       DATABASE_URL: env.DATABASE_URL,
@@ -38,6 +44,22 @@ export class FlywayServer extends Container<Env> {
       DATABASE_PASSWORD: env.DATABASE_PASSWORD,
       PACKS_DIR,
     };
+  }
+
+  // As Container.fetch, which calls containerFetch, but a sleeping container gets START_TIMEOUT_MS to start
+  // instead of the library's default. Once it is healthy, containerFetch forwards without waiting.
+  override async fetch(request: Request): Promise<Response> {
+    const state = await this.getState();
+    if (!this.ctx.container?.running || state.status !== "healthy") {
+      try {
+        await this.startAndWaitForPorts({
+          cancellationOptions: { abort: request.signal, portReadyTimeoutMS: START_TIMEOUT_MS },
+        });
+      } catch {
+        // containerFetch tries once more and answers with the library's own 429, 500 or 503.
+      }
+    }
+    return this.containerFetch(request);
   }
 }
 

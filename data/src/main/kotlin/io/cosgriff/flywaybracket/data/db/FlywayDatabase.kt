@@ -1,6 +1,7 @@
 package io.cosgriff.flywaybracket.data.db
 
 import android.content.Context
+import androidx.room3.AutoMigration
 import androidx.room3.Database
 import androidx.room3.Room
 import androidx.room3.RoomDatabase
@@ -14,12 +15,23 @@ import androidx.sqlite.execSQL
  * converted), which `MigrationTest` runs from every earlier version.
  */
 @Database(
-    entities = [OutingEntity::class, SightingEntity::class],
-    version = 2,
+    entities = [
+        OutingEntity::class,
+        SightingEntity::class,
+        BracketEntity::class,
+        BracketTeamEntity::class,
+        BracketPickEntity::class,
+        MatchupResultEntity::class,
+    ],
+    version = 3,
     exportSchema = true,
+    // 2 to 3: the league's bracket, the player's picks and the results arrive (#41). New tables only.
+    autoMigrations = [AutoMigration(from = 2, to = 3)],
 )
 abstract class FlywayDatabase : RoomDatabase() {
     abstract fun outings(): OutingDao
+
+    abstract fun brackets(): BracketDao
 
     /**
      * Outings get a place name and a start and end time in place of their day, and sightings arrive (#25).

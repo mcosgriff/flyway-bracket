@@ -11,6 +11,7 @@ import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -86,6 +87,19 @@ class MigrationTest {
                 db.outings().addOrBump(next, "Sample Sparrow", at = 2)
                 assertEquals(1, db.outings().discardInProgress())
                 assertEquals(emptyList<SightingEntity>(), db.outings().observeSightings(next).first())
+                // The bracket tables (version 3) are there and empty, and take a bracket.
+                assertNull(db.brackets().get("test-league"))
+                val bracket = BracketEntity(
+                    "test-league",
+                    preview = true,
+                    seasonStart = "2027-03-01",
+                    timeZone = "UTC",
+                    picksLocked = false,
+                    picksUnsent = false,
+                    picksNotice = null,
+                )
+                db.brackets().savePicks(bracket, listOf(BracketPickEntity("test-league", 0, "Test Warbler")))
+                assertEquals(listOf("Test Warbler"), db.brackets().get("test-league")?.picks?.map { it.bird })
             } finally {
                 db.close()
                 context.deleteDatabase(name)

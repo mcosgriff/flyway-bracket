@@ -32,6 +32,13 @@ interface OutingDao {
     @Query("SELECT * FROM sightings WHERE outingId = :outingId ORDER BY seenAt, id")
     fun observeSightings(outingId: Long): Flow<List<SightingEntity>>
 
+    /**
+     * The birds with a sighting first logged from [from] up to, not including, [until], in milliseconds since
+     * the epoch, on any outing: each bird once.
+     */
+    @Query("SELECT DISTINCT birdName FROM sightings WHERE seenAt >= :from AND seenAt < :until")
+    fun observeBirdsSeenBetween(from: Long, until: Long): Flow<List<String>>
+
     @Insert
     suspend fun insert(outing: OutingEntity): Long
 

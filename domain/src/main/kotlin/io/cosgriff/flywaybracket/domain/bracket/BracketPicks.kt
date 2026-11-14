@@ -52,6 +52,17 @@ object BracketPicks {
         return kept
     }
 
+    /**
+     * The picks after the player picks [bird] to win [at], or clears the pick there when [bird] is null (#41).
+     * Every later pick that depended on the bird [at] had before is dropped with it, as [withoutChanged] drops
+     * them; picking the bird already picked changes nothing. The result is not checked: see [check].
+     */
+    fun withPick(picks: Map<DrawPosition, String>, at: DrawPosition, bird: String?): Map<DrawPosition, String> {
+        if (picks[at] == bird) return picks
+        val kept = withoutChanged(picks, listOf(at))
+        return if (bird == null) kept else kept + (at to bird)
+    }
+
     private fun DrawPosition.isInBracket(): Boolean = position in 0 until round.teams / 2
 
     /** How many of the 64 birds, in [Field.drawOrder], can reach a matchup of [round]. */

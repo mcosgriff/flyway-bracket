@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/mcosgriff/flyway-bracket/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/mcosgriff/flyway-bracket/actions/workflows/ci.yml)
 [![Android 10+](https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white)](#build)
+[![Licence: GPL-3.0](https://img.shields.io/github/license/mcosgriff/flyway-bracket)](LICENSE)
 
 A bird-watching bracket game for Android. Each migration season, 64 migrating birds are seeded into a
 bracket. Players in a league pick winners, then go outside and log the birds they see. A matchup is won by
@@ -248,8 +249,9 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the tests and the pull request rule
 
 ## Licence
 
-No licence has been chosen yet, so all rights are reserved for now. Inter, the bundled font, is under the
-SIL Open Font License (`app/src/main/assets/licences/inter-OFL.txt`). The app's own licence line is one
+GPL-3.0 ([`LICENSE`](LICENSE)), for the app and the league server in `server/` alike. GPL-3.0 does not
+oblige someone who runs a changed copy of the server to share the change; only a copy they hand on is
+covered. Inter, the bundled font, is under the SIL Open Font License (`app/src/main/assets/licences/inter-OFL.txt`). The app's own licence line is one
 string, `app_licence` in `app/src/main/res/values/strings.xml`.
 
 The app's Licences screen lists every library in the release APK with its licence. The build writes that

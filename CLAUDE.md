@@ -2,8 +2,8 @@
 
 Android app for a bird-watching bracket game. Each migration season, 64 migrating birds are seeded into a
 bracket; players in a league pick winners and log the birds they see; a matchup goes to the bird that more
-of the league's eligible players found. `README.md` has the rules in short. Public repo, no licence chosen
-yet.
+of the league's eligible players found. `README.md` has the rules in short. Public repo, GPL-3.0
+(`LICENSE`).
 
 Set up from the Android App Playbook (https://claude.ai/artifact/QZmyJUpsjv8rC1z1pzhM7s): toolchain, CI,
 releases and issues follow it. When this repo changes a shared practice, update the playbook's section and

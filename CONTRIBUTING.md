@@ -4,7 +4,8 @@ Flyway Bracket is maintained by one person; issues and pull requests are welcome
 working on the code. The rules a change is held to live in [`CLAUDE.md`](CLAUDE.md) (Decisions,
 Conventions); [`CODING_STANDARDS.md`](CODING_STANDARDS.md) says which apply to a diff.
 
-No licence has been chosen yet. Until one is, ask in an issue before starting a large contribution.
+Flyway Bracket is under the GPL-3.0 ([`LICENSE`](LICENSE)); a contribution is accepted under the same
+licence.
 
 ## Setup
 
@@ -65,7 +66,7 @@ figures (`domain/src/test/.../Charts.kt`). Put local downloads in `packs-local/`
 A library must carry no trackers; CI scans the APK with Exodus Privacy and fails on one, or on a
 permission that isn't in `.github/privacy/permissions.txt`. Check the dependency tree of any Google or
 Firebase library before adding it. A pull request also fails if it adds a dependency with a known
-vulnerability, or with a licence outside the permissive list in `.github/dependency-review-config.yml`.
+vulnerability, or with a licence outside the GPL-compatible list in `.github/dependency-review-config.yml`.
 
 ## Wording and translations
 

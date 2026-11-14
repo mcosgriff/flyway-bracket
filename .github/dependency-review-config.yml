@@ -3,9 +3,10 @@
 # Any known vulnerability, of any severity, in a dependency the PR adds or moves to.
 fail-on-severity: low
 
-# The app has no licence of its own yet, so only permissive licences are allowed in the APK and in
-# the server's image: they fit whatever is chosen. Not listed, so a PR bringing one in stops for a decision: MPL, LGPL, GPL,
-# EPL, CDDL, and anything proprietary or unknown.
+# Licences that can be combined with the app's GPL-3.0 (#15) in the APK and in the server's image.
+# Apache-2.0 is compatible with GPL-3.0 (not with GPL-2.0 only). Not listed, so a PR bringing one in
+# stops for a decision: LGPL-2.1-only and GPL-2.0-only (no "or later", so no way to GPL-3.0), AGPL,
+# EPL (compatible only with its secondary-licence clause), CDDL, and anything proprietary or unknown.
 allow-licenses:
   - Apache-2.0
   - MIT
@@ -16,6 +17,17 @@ allow-licenses:
   - Zlib
   - CC0-1.0
   - Unlicense
+  # Weak copyleft by file: GPL-3.0 is one of its "Secondary Licenses", so MPL-2.0 code can be combined
+  # with it (unless a file is marked "Incompatible With Secondary Licenses").
+  - MPL-2.0
+  # Weak copyleft by library: an LGPL library may be combined with a GPL-3.0 app, which already gives
+  # every user the source; LGPL-2.1's "or later" reaches LGPL-3.0, which GPL-3.0 accepts.
+  - LGPL-2.1-or-later
+  - LGPL-3.0-only
+  - LGPL-3.0-or-later
+  # The app's own licence, and the same licence with the "or later" clause, which includes GPL-3.0.
+  - GPL-3.0-only
+  - GPL-3.0-or-later
 
 # Packages whose licence GitHub cannot read (it reports NOASSERTION), each checked by hand. Recheck on a
 # major version bump.

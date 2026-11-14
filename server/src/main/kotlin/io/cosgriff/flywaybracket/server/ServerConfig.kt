@@ -1,23 +1,30 @@
 package io.cosgriff.flywaybracket.server
 
+import java.nio.file.InvalidPathException
+import java.nio.file.Path
+
 /**
  * Everything the server is told from outside, read from environment variables and nowhere else.
  *
  * Not a data class: a generated `toString` would print the database password into a log.
  *
  * @property databaseUrl a JDBC URL, such as `jdbc:postgresql://localhost:5432/flywaybracket`.
+ * @property packsDirectory the directory the operator copies `.fbpack` files into (#33). Whether it exists
+ *   is checked when the packs are first read, not here.
  */
 class ServerConfig(
     val databaseUrl: String,
     val databaseUser: String,
     val databasePassword: String,
     val port: Int,
+    val packsDirectory: Path,
 ) {
     companion object {
         const val DATABASE_URL = "DATABASE_URL"
         const val DATABASE_USER = "DATABASE_USER"
         const val DATABASE_PASSWORD = "DATABASE_PASSWORD"
         const val PORT = "PORT"
+        const val PACKS_DIR = "PACKS_DIR"
 
         /** The port when `PORT` is not set. */
         const val DEFAULT_PORT = 8080
@@ -34,20 +41,29 @@ class ServerConfig(
             val url = text(DATABASE_URL)
             val user = text(DATABASE_USER)
             val password = text(DATABASE_PASSWORD)
+            val packsText = text(PACKS_DIR)
             val missing = listOfNotNull(
                 DATABASE_URL.takeIf { url == null },
                 DATABASE_USER.takeIf { user == null },
                 DATABASE_PASSWORD.takeIf { password == null },
+                PACKS_DIR.takeIf { packsText == null },
             )
 
             val portText = text(PORT)
             val port = if (portText == null) DEFAULT_PORT else portText.toIntOrNull()?.takeIf { it in PORTS }
-            val invalid = listOfNotNull(PORT.takeIf { port == null })
+            val packs = packsText?.let(::pathOrNull)
+            val invalid = listOfNotNull(PORT.takeIf { port == null }, PACKS_DIR.takeIf { packsText != null && packs == null })
 
-            if (url == null || user == null || password == null || port == null) {
+            if (url == null || user == null || password == null || port == null || packs == null) {
                 throw ConfigException(missing, invalid)
             }
-            return ServerConfig(url, user, password, port)
+            return ServerConfig(url, user, password, port, packs)
+        }
+
+        private fun pathOrNull(text: String): Path? = try {
+            Path.of(text)
+        } catch (_: InvalidPathException) {
+            null
         }
     }
 }

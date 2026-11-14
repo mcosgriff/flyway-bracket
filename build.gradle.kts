@@ -1,8 +1,12 @@
 plugins {
     alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.android.library) apply false
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.hilt) apply false
+    alias(libs.plugins.room) apply false
     alias(libs.plugins.roborazzi) apply false
     alias(libs.plugins.kover)
 }
@@ -14,10 +18,11 @@ subprojects {
     }
 }
 
-// Test coverage (Codecov): `./gradlew koverXmlReportCoverage` runs the unit tests of :domain and :app and
-// merges what they cover into one report.
+// Test coverage (Codecov): `./gradlew koverXmlReportCoverage` runs the unit tests of :domain, :data and
+// :app and merges what they cover into one report.
 dependencies {
     kover(project(":domain"))
+    kover(project(":data"))
     kover(project(":app"))
 }
 
@@ -62,7 +67,7 @@ abstract class RobolectricOffline : CommandLineArgumentProvider {
     )
 }
 
-configure(listOf(project(":app"))) {
+configure(listOf(project(":app"), project(":data"))) {
     // One configuration per jar: in one, Gradle would keep only the highest of the versions of the one module.
     val androidAll = mapOf(
         "Sdk35" to rootProject.libs.robolectric.androidAll.sdk35,

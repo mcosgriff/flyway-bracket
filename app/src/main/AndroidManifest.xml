@@ -6,6 +6,7 @@
         No Android auto-backup: outings and sightings stay on this phone until the app has its own sync.
     -->
     <application
+        android:name=".FlywayApp"
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules"

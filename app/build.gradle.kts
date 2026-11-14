@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
     alias(libs.plugins.roborazzi)
     alias(libs.plugins.kover)
 }
@@ -90,6 +92,10 @@ kotlin {
 
 dependencies {
     implementation(project(":domain"))
+    implementation(project(":data"))
+
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)

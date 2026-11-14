@@ -18,15 +18,16 @@ This file holds the rules and the decisions behind them. How a feature works is 
 
 ## Status
 
-`:domain` has the game rules. `:app` has the theme, the bottom bar and the Home screen; Bracket, League,
-Packs and Outing are placeholders (`NotBuiltYetContent`). No database, no network, no server.
+`:domain` has the game rules. `:data` has the database (one table, `outings`, not used by a screen yet) and
+the player's settings. `:app` has the theme, the bottom bar and the Home screen; Bracket, League, Packs and
+Outing are placeholders (`NotBuiltYetContent`). No screen reads or saves anything yet. No network, no server.
 `./gradlew build` is green (Gradle 9.9.1, AGP 9.5.1, lint included). Keep it green; lint fails the build on
-a warning as on an error (`warningsAsErrors`), and there is no baseline: fix a warning, or suppress that
-one case in `app/lint.xml` with a comment saying why.
+a warning as on an error (`warningsAsErrors`, in `:app` and `:data`), and there is no baseline: fix a
+warning, or suppress that one case in `app/lint.xml` with a comment saying why.
 
 Not set up yet, from the playbook's new-app checklist: dependency verification
 (`gradle/verification-metadata.xml`), the release keystore and its secrets in the `release` environment,
-the `CODECOV_TOKEN` secret, `:data`.
+the `CODECOV_TOKEN` secret.
 
 ## Commands
 
@@ -34,7 +35,9 @@ the `CODECOV_TOKEN` secret, `:data`.
 - `./gradlew build` — everything: unit tests, screenshot and accessibility tests, and lint.
 - `./gradlew :app:recordRoborazziDebug` — re-record the reference screenshots (`app/src/test/screenshots/`)
   after a change meant to alter a screen; look at every image it changes.
-- `./gradlew koverHtmlReportCoverage` — coverage of `:domain` and `:app`; CI sends the XML to Codecov.
+- `./gradlew :data:testDebugUnitTest` — the database, migration and settings tests, on the JVM (Robolectric).
+- `./gradlew koverHtmlReportCoverage` — coverage of `:domain`, `:data` and `:app`; CI sends the XML to
+  Codecov.
 - `./gradlew :app:installDebug` — install on a connected phone (debug app id
   `io.cosgriff.flywaybracket.debug`).
 - Release: merge the PR `release-please` keeps open (version and changelog come from Conventional Commits);
@@ -47,11 +50,18 @@ the `CODECOV_TOKEN` secret, `:data`.
   are typed values, never English text.
   - `domain/pack` — `TimeBin` (48 a year, four per month), `CountyChart`, `BarChartParser`.
   - `domain/bracket` — `Round`, `Team`, `Matchup`, `Seeding`, `MatchupRule`, `PickScore`.
+  - `domain/player` — `PlayerSettings` (display name, home county code).
+- `:data` — what the app saves on the phone, mapped to and from `:domain` types. Depends on `:domain`.
+  - `data/db` — `FlywayDatabase` (Room 3), its entities and DAOs. Each version's schema is exported to
+    `data/schemas` and committed (CI fails if it isn't). A schema change raises the version and adds a
+    migration; `MigrationTest` opens every exported version as the current database.
+  - `SettingsRepository` — `PlayerSettings` in DataStore, as a `Flow`.
+  - `data/di/DataModule` — Hilt: provides the database, its DAOs, the DataStore and the repositories.
+  - Tests run on the JVM under Robolectric; Gradle resolves its Android jar (root `build.gradle.kts`).
 - `:app` — Compose UI, theme, navigation (Navigation 3, `@Serializable` `NavKey` routes in
-  `ui/FlywayNavHost.kt`).
+  `ui/FlywayNavHost.kt`). Hilt: `FlywayApp` is the application, `MainActivity` an entry point.
 
-Add `:data` (Room 3, DataStore, Hilt) when something must be saved, and `:baselineprofile` once the screens
-settle.
+Add `:baselineprofile` once the screens settle.
 
 ## Decisions — don't change without asking
 

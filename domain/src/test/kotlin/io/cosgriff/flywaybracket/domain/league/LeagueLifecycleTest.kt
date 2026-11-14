@@ -15,6 +15,8 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 class LeagueLifecycleTest {
     /** Monday 1 March 2027; the final is 5 to 11 April. */
@@ -26,9 +28,9 @@ class LeagueLifecycleTest {
 
     private fun calendar(start: LocalDate) = (SeasonCalendar.of(start) as SeasonCalendarResult.Valid).calendar
 
-    /** Settles with a full field, so only the players decide. */
-    private fun settle(status: LeagueStatus, players: Int, today: LocalDate) =
-        LeagueLifecycle.settle(status, players, today) { fullField }
+    /** Settles with a full field, so only the players decide, at [time] on [today]. */
+    private fun settle(status: LeagueStatus, players: Int, today: LocalDate, time: LocalTime = LocalTime.NOON) =
+        LeagueLifecycle.settle(status, players, today.atTime(time)) { fullField }
 
     @Test
     fun `a league holds 64 players and its bracket needs 8`() {
@@ -101,7 +103,7 @@ class LeagueLifecycleTest {
     @Test
     fun `with too few birds for a field the league is closed on its start date`() {
         val asked = mutableListOf<LocalDate>()
-        val settled = LeagueLifecycle.settle(forming, players = MIN_PLAYERS, today = start) {
+        val settled = LeagueLifecycle.settle(forming, players = MIN_PLAYERS, now = start.atStartOfDay()) {
             asked += it
             FieldResult.TooFewBirds(candidates = 63)
         }
@@ -115,13 +117,13 @@ class LeagueLifecycleTest {
         val asked = mutableListOf<LocalDate>()
         val field = { start: LocalDate -> fullField.also { asked += start } }
 
-        LeagueLifecycle.settle(forming, players = 20, today = start.minusDays(1), field)
-        LeagueLifecycle.settle(forming, players = MIN_PLAYERS - 1, today = start, field)
+        LeagueLifecycle.settle(forming, players = 20, now = start.minusDays(1).atStartOfDay(), field)
+        LeagueLifecycle.settle(forming, players = MIN_PLAYERS - 1, now = start.atStartOfDay(), field)
         assertEquals(emptyList<LocalDate>(), asked)
 
         // Postponed once, then started: the field asked for is the one of the new start.
         val postponed = LeagueStatus(LeaguePhase.FORMING, LocalDate.of(2027, 3, 8), postponements = 1)
-        LeagueLifecycle.settle(postponed, players = MIN_PLAYERS, today = LocalDate.of(2027, 6, 1), field)
+        LeagueLifecycle.settle(postponed, players = MIN_PLAYERS, now = LocalDate.of(2027, 6, 1).atStartOfDay(), field)
         assertEquals(listOf(LocalDate.of(2027, 3, 8)), asked)
     }
 
@@ -135,12 +137,18 @@ class LeagueLifecycleTest {
     // The season ends
 
     @Test
-    fun `a running league is finished once the final's Sunday has ended`() {
+    fun `a running league is finished once the final is decided, 12 hours after its Sunday ends`() {
         val running = LeagueStatus(LeaguePhase.RUNNING, start)
+        val mondayAfter = LocalDate.of(2027, 4, 12)
 
         assertEquals(LocalDate.of(2027, 4, 11), running.seasonEnd)
-        assertEquals(running, settle(running, players = 8, today = LocalDate.of(2027, 4, 11)))
-        assertEquals(LeagueStatus(LeaguePhase.FINISHED, start), settle(running, players = 8, today = LocalDate.of(2027, 4, 12)))
+        assertEquals(running, settle(running, players = 8, today = LocalDate.of(2027, 4, 11), time = LocalTime.MAX))
+        assertEquals(running, settle(running, players = 8, today = mondayAfter, time = LocalTime.of(11, 59, 59)))
+        assertEquals(LeagueStatus(LeaguePhase.FINISHED, start), settle(running, players = 8, today = mondayAfter, time = LocalTime.NOON))
+        assertEquals(
+            LeagueStatus(LeaguePhase.FINISHED, start),
+            LeagueLifecycle.settle(running, players = 8, LocalDateTime.of(2027, 4, 20, 0, 0)) { fullField },
+        )
     }
 
     @Test

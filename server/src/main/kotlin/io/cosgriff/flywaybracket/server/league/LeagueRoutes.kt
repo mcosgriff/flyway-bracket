@@ -7,6 +7,7 @@ import io.cosgriff.flywaybracket.api.CreateLeagueRequest
 import io.cosgriff.flywaybracket.api.JoinLeagueRequest
 import io.cosgriff.flywaybracket.api.LeagueListResponse
 import io.cosgriff.flywaybracket.api.SubmitPicksRequest
+import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.server.account.SIGNED_IN
 import io.cosgriff.flywaybracket.server.account.player
 import io.cosgriff.flywaybracket.server.refuse
@@ -25,11 +26,13 @@ import kotlinx.coroutines.withContext
 
 private const val LEAGUE_ID = "leagueId"
 private const val MEMBER_KEY = "memberKey"
+private const val ROUND = "round"
 
 /**
  * `POST /v1/leagues`, `GET /v1/leagues`, `POST /v1/leagues/join`, `POST /v1/leagues/auto-join`,
  * `GET /v1/leagues/{leagueId}`, `GET /v1/leagues/{leagueId}/bracket`, `GET` and `PUT
- * /v1/leagues/{leagueId}/picks`, `GET /v1/leagues/{leagueId}/members/{memberKey}/picks` and
+ * /v1/leagues/{leagueId}/picks`, `GET /v1/leagues/{leagueId}/members/{memberKey}/picks`,
+ * `GET /v1/leagues/{leagueId}/standings`, `GET /v1/leagues/{leagueId}/rounds/{round}/results` and
  * `DELETE /v1/leagues/{leagueId}/membership` (docs/server/api.md).
  */
 fun Route.leagueRoutes(leagues: Leagues) {
@@ -82,6 +85,24 @@ fun Route.leagueRoutes(leagues: Leagues) {
             val leagueId = call.parameters[LEAGUE_ID].orEmpty()
             val memberKey = call.parameters[MEMBER_KEY].orEmpty()
             call.respondPicks(withContext(Dispatchers.IO) { leagues.memberPicks(player(), leagueId, memberKey) })
+        }
+
+        get(ApiPaths.standings("{$LEAGUE_ID}")) {
+            val leagueId = call.parameters[LEAGUE_ID].orEmpty()
+            val standings = withContext(Dispatchers.IO) { leagues.standings(player(), leagueId) }
+            if (standings == null) call.respondNotFound() else call.respond(standings)
+        }
+
+        get(ApiPaths.roundResults("{$LEAGUE_ID}", "{$ROUND}")) {
+            val leagueId = call.parameters[LEAGUE_ID].orEmpty()
+            val text = call.parameters[ROUND].orEmpty()
+            val round = Round.entries.firstOrNull { it.name == text }
+                ?: return@get call.refuse(HttpStatusCode.BadRequest, ApiErrorCode.INVALID_REQUEST)
+            when (val outcome = withContext(Dispatchers.IO) { leagues.roundResults(player(), leagueId, round) }) {
+                is ResultsOutcome.Shown -> call.respond(outcome.results)
+                ResultsOutcome.NotFound -> call.respondNotFound()
+                ResultsOutcome.NotDecided -> call.refuse(HttpStatusCode.Conflict, ApiErrorCode.ROUND_NOT_DECIDED)
+            }
         }
 
         delete(ApiPaths.membership("{$LEAGUE_ID}")) {

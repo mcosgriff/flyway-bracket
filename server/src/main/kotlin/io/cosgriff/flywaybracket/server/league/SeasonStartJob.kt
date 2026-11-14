@@ -10,11 +10,12 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Once a minute, settles every league whose field is due to be fixed or whose start has arrived in its own
- * time zone (#34), so that seeding and the start happen on time even when no one reads the league.
+ * time zone (#34), and every league in season (#37), so that seeding, the start, each round's home counties
+ * and each round's decision happen on time even when no one reads the league.
  *
  * It settles through [Leagues.settle], the same step a read takes, under the league's lock: a league
- * settled by a read first, or by this job twice, is seeded once. A league that fails is logged and tried
- * again on the next run; the others go on.
+ * settled by a read first, or by this job twice, is seeded once and has each round decided once. A league
+ * that fails is logged and tried again on the next run; the others go on.
  */
 class SeasonStartJob(
     private val leagues: Leagues,
@@ -35,7 +36,7 @@ class SeasonStartJob(
         val due: List<UUID> = try {
             leagues.dueToSettle()
         } catch (failure: Exception) {
-            log.error("Could not list the leagues due to start", failure)
+            log.error("Could not list the leagues due to settle", failure)
             return
         }
         for (id in due) {

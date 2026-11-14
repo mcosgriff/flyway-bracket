@@ -89,6 +89,35 @@ class DatabaseTest {
         )
     }
 
+    /** Counts only: no column names a player, a county or a sighting. */
+    @Test
+    fun `the sixth migration makes the results table, and the round homes table`() {
+        assertEquals(
+            mapOf(
+                "league_id" to ("uuid" to "NO"),
+                "slot" to ("smallint" to "NO"),
+                "upper_bird" to ("text" to "NO"),
+                "lower_bird" to ("text" to "NO"),
+                "upper_eligible" to ("integer" to "NO"),
+                "upper_logged" to ("integer" to "NO"),
+                "lower_eligible" to ("integer" to "NO"),
+                "lower_logged" to ("integer" to "NO"),
+                "winner" to ("text" to "NO"),
+                "reason" to ("text" to "NO"),
+            ),
+            columns("league_results"),
+        )
+        assertEquals(
+            mapOf(
+                "league_id" to ("uuid" to "NO"),
+                "player_id" to ("uuid" to "NO"),
+                "round" to ("text" to "NO"),
+                "home_county" to ("text" to "YES"),
+            ),
+            columns("league_round_homes"),
+        )
+    }
+
     @Test
     fun `the fourth migration makes the field tables`() {
         assertEquals(
@@ -233,7 +262,7 @@ class DatabaseTest {
         fun startPostgres() {
             postgres.start()
             database = Database.connect(postgres.jdbcUrl, postgres.username, postgres.password)
-            assertEquals(5, database.migrate())
+            assertEquals(6, database.migrate())
         }
 
         @AfterClass

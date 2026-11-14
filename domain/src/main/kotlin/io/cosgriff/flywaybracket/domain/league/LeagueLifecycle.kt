@@ -5,6 +5,7 @@ import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendar
 import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendarResult
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 /** Where a league is in its life (#32). */
 enum class LeaguePhase {
@@ -14,7 +15,7 @@ enum class LeaguePhase {
     /** The season has started with enough players. No one can join. */
     RUNNING,
 
-    /** The final's Sunday has ended. */
+    /** The final is decided: 12 hours after its Sunday ends ([SeasonCalendar.decidedAt]). */
     FINISHED,
 
     /** The season never started ([CloseReason]). */
@@ -89,13 +90,14 @@ object LeagueLifecycle {
     const val MAX_POSTPONEMENTS = 4
 
     /**
-     * The status of a league on [today], from its last settled [status] and the [players] in it.
+     * The status of a league at [now], from its last settled [status] and the [players] in it.
      *
      * When the start date arrives (its Monday has begun) with at least [MIN_PLAYERS] players, the season
      * runs if its [field] has its 64 birds; with too few birds the league is closed
      * ([CloseReason.TOO_FEW_BIRDS]). With fewer players, the start moves back one week, up to
      * [MAX_POSTPONEMENTS] times; after that the league is closed ([CloseReason.TOO_FEW_PLAYERS]). A running
-     * league is finished once the final's Sunday has ended.
+     * league is finished once the final is decided, 12 hours after its Sunday ends
+     * ([SeasonCalendar.decidedAt]).
      *
      * Several of these steps are taken at once when several dates have passed. That is right only when
      * [players] has not changed since those dates: the caller settles a league before any change to its
@@ -103,11 +105,12 @@ object LeagueLifecycle {
      *
      * @param field the league's field for the season that starts on the given Monday. Asked only when a
      *   start arrives with enough players, so at most once.
+     * @param now the date and time in the league's time zone
      */
-    fun settle(status: LeagueStatus, players: Int, today: LocalDate, field: (LocalDate) -> FieldResult): LeagueStatus {
+    fun settle(status: LeagueStatus, players: Int, now: LocalDateTime, field: (LocalDate) -> FieldResult): LeagueStatus {
         var current = status
         while (true) {
-            current = next(current, players, today, field) ?: return current
+            current = next(current, players, now, field) ?: return current
         }
     }
 
@@ -119,10 +122,10 @@ object LeagueLifecycle {
     }
 
     /** The one step [settle] takes next, or null when there is none to take on [today]. */
-    private fun next(status: LeagueStatus, players: Int, today: LocalDate, field: (LocalDate) -> FieldResult): LeagueStatus? =
+    private fun next(status: LeagueStatus, players: Int, now: LocalDateTime, field: (LocalDate) -> FieldResult): LeagueStatus? =
         when (status.phase) {
             LeaguePhase.FORMING -> when {
-                today < status.seasonStart -> null
+                now.toLocalDate() < status.seasonStart -> null
                 players >= MIN_PLAYERS -> when (field(status.seasonStart)) {
                     is FieldResult.Seeded -> status.copy(phase = LeaguePhase.RUNNING)
                     is FieldResult.TooFewBirds -> status.copy(phase = LeaguePhase.CLOSED, closedBecause = CloseReason.TOO_FEW_BIRDS)
@@ -131,7 +134,7 @@ object LeagueLifecycle {
                     status.copy(seasonStart = status.seasonStart.plusWeeks(1), postponements = status.postponements + 1)
                 else -> status.copy(phase = LeaguePhase.CLOSED, closedBecause = CloseReason.TOO_FEW_PLAYERS)
             }
-            LeaguePhase.RUNNING -> if (today > status.seasonEnd) status.copy(phase = LeaguePhase.FINISHED) else null
+            LeaguePhase.RUNNING -> if (status.calendar.isDecided(Round.FINAL, now)) status.copy(phase = LeaguePhase.FINISHED) else null
             LeaguePhase.FINISHED, LeaguePhase.CLOSED -> null
         }
 }

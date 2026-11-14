@@ -3,6 +3,7 @@ package io.cosgriff.flywaybracket.domain.bracket
 import io.cosgriff.flywaybracket.domain.pack.TimeBin
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.Month
 
 /** What a start date gave: a season's calendar, or why the date can't start a season. */
@@ -17,8 +18,9 @@ sealed interface SeasonCalendarResult {
 
 /**
  * When a league's season runs (#20). The six rounds are six consecutive weeks, Monday through
- * Sunday, from [startDate]; a round is decided after its Sunday ends. Every date is in the league's
- * one time zone: the caller turns "now" into the league's date.
+ * Sunday, from [startDate]; a round is decided [DECISION_DELAY_HOURS] hours after its Sunday ends
+ * ([decidedAt]). Every date is in the league's one time zone: the caller turns "now" into the league's
+ * date and time.
  *
  * Made with [of], which takes only a Monday.
  */
@@ -49,6 +51,17 @@ class SeasonCalendar private constructor(val startDate: LocalDate) {
         return monday..monday.plusDays(DAYS_PER_ROUND - 1L)
     }
 
+    /**
+     * When [round] is decided (#37): [DECISION_DELAY_HOURS] hours after its Sunday ends, at noon on the
+     * Monday after, so that sightings from a phone that was offline over the weekend can still arrive. What
+     * arrives later does not change the round.
+     */
+    fun decidedAt(round: Round): LocalDateTime =
+        roundDates(round).endInclusive.plusDays(1).atStartOfDay().plusHours(DECISION_DELAY_HOURS)
+
+    /** Whether [round] is decided at [now]: from [decidedAt] on. */
+    fun isDecided(round: Round, now: LocalDateTime): Boolean = now >= decidedAt(round)
+
     /** The round played on [date]; null before the season and after the final. */
     fun roundOn(date: LocalDate): Round? = Round.entries.firstOrNull { date in roundDates(it) }
 
@@ -72,6 +85,9 @@ class SeasonCalendar private constructor(val startDate: LocalDate) {
 
     companion object {
         const val DAYS_PER_ROUND = 7
+
+        /** A round is decided this many hours after its Sunday ends ([decidedAt]). */
+        const val DECISION_DELAY_HOURS = 12L
 
         /** The field is fixed this many days, 48 hours, before the season starts. */
         const val FIELD_FIXED_DAYS_AHEAD = 2L

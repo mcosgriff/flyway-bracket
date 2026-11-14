@@ -3,6 +3,8 @@ package io.cosgriff.flywaybracket.server.league
 import io.cosgriff.flywaybracket.server.Database
 import io.cosgriff.flywaybracket.server.account.PlayerStore
 import io.cosgriff.flywaybracket.server.account.PostgresPlayerStore
+import io.cosgriff.flywaybracket.server.sighting.PostgresSightingStore
+import io.cosgriff.flywaybracket.server.sighting.SightingStore
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import org.testcontainers.postgresql.PostgreSQLContainer
@@ -15,12 +17,14 @@ class PostgresLeagueEndpointsTest : LeagueEndpointsTest() {
     override fun players(): PlayerStore {
         // Each test starts with no players and no leagues: auto-join would find another test's.
         database.dataSource.connection.use { connection ->
-            connection.createStatement().use { it.executeUpdate("TRUNCATE league_picks, league_field_teams, league_fields, sightings, league_members, leagues, players") }
+            connection.createStatement().use { it.executeUpdate("TRUNCATE league_round_homes, league_results, league_picks, league_field_teams, league_fields, sightings, league_members, leagues, players") }
         }
         return PostgresPlayerStore(database.dataSource)
     }
 
-    override fun leagueStore(players: PlayerStore): LeagueStore = PostgresLeagueStore(database.dataSource)
+    override fun leagueStore(players: PlayerStore, sightings: SightingStore): LeagueStore = PostgresLeagueStore(database.dataSource)
+
+    override fun sightingStore(players: PlayerStore): SightingStore = PostgresSightingStore(database.dataSource)
 
     companion object {
         // The Postgres the server is run against (docs/server/running.md), as in DatabaseTest.

@@ -90,10 +90,11 @@ of the server.
 - **Calendar.** A league's season starts on a Monday and runs six rounds, one a week, Monday through
   Sunday. A season that starts in January through June is spring; otherwise it is fall. Picks for the
   whole bracket, all 63 matchups, lock when the first round starts: midnight on the first Monday, in the
-  league's time zone, which is chosen when the league is created. A round is decided after its Sunday
-  ends. A round covers every time bin (four per month) that one of its seven days falls in: a bird is
-  expected for the round when it is expected in any of them, and seeding looks at the bins of all six
-  rounds.
+  league's time zone, which is chosen when the league is created. A round is decided 12 hours after its
+  Sunday ends, at noon on Monday, so a phone that was offline over the weekend can still send its
+  sightings; one sent later does not change the round. A round covers every time bin (four per month)
+  that one of its seven days falls in: a bird is expected for the round when it is expected in any of
+  them, and seeding looks at the bins of all six rounds.
 - **Seeding.** A league's field is drawn from the birds that migrate through its members' home counties and
   are expected there during the season; residents, there all year, are left out. The four quarters are
   Songbirds, Waterbirds, Fliers (hummingbirds, swifts, swallows, nighthawks and raptors) and Waterfowl,
@@ -109,9 +110,14 @@ of the server.
   nothing. A bird picked to win a later matchup must be picked to win every earlier one on its way there.
   Other players' picks are hidden until they lock.
 - **Matchups.** Friends in one league can live far apart, so a bird is judged only among *eligible*
-  players: those for whom the bird is expected that week, in their home county or a county where they
-  logged an outing. The bird with the higher share of eligible players who logged it wins. A tie goes to
-  the better seed.
+  players: those for whom the bird is expected that week in their home county, as it was when the week
+  began, or in a county where they logged an outing that week. A sighting by a player who was not
+  eligible for the bird does not count. The bird with the higher share of eligible players who
+  logged it wins; a bird with fewer than 3 eligible players has no share. A tie goes to the better seed.
+- **Standings.** A league's table ranks its players by points, then by right picks; players level on both
+  share a rank, the earlier joiner listed first. Others in the league see each player's name and points,
+  never their county or their sightings: a matchup's result shows only how many were eligible and how
+  many logged each bird. The season ends when the final is decided.
 - **Packs.** Bird data is downloaded by state and judged by county. A bird is expected in a county in a
   given week when it is on at least 3% of checklists there.
 

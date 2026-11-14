@@ -5,6 +5,8 @@ import io.cosgriff.flywaybracket.api.CreateLeagueRequest
 import io.cosgriff.flywaybracket.api.LeagueState
 import io.cosgriff.flywaybracket.api.LeagueSummary
 import io.cosgriff.flywaybracket.api.MatchupSlot
+import io.cosgriff.flywaybracket.api.PicksResponse
+import io.cosgriff.flywaybracket.api.SubmitPicksRequest
 import io.cosgriff.flywaybracket.domain.bracket.BirdGroup
 import io.cosgriff.flywaybracket.domain.bracket.Field
 import io.cosgriff.flywaybracket.domain.bracket.FieldResult
@@ -569,7 +571,7 @@ abstract class LeaguesTest {
 
     // Seeding (#34), with the made-up pack of Fieldland
 
-    private fun bracketOf(player: SignedInPlayer, league: LeagueSummary): BracketResponse {
+    protected fun bracketOf(player: SignedInPlayer, league: LeagueSummary): BracketResponse {
         val outcome = leagues.bracket(player, league.id)
         assertTrue(outcome.toString(), outcome is BracketOutcome.Ready)
         return (outcome as BracketOutcome.Ready).bracket
@@ -757,6 +759,209 @@ abstract class LeaguesTest {
         val sparseOwner = newPlayer(homeCounty = SPARSE)
         val sparse = create(sparseOwner)
         assertEquals(BracketOutcome.NotReady, leagues.bracket(sparseOwner, sparse.id))
+    }
+
+    // Picks (#35)
+
+    /** A whole bracket of [bracket]'s field in which the bird drawn above wins every matchup. */
+    protected fun upperWinsEverywhere(bracket: BracketResponse): Map<MatchupSlot, String> {
+        val picks = sortedMapOf<MatchupSlot, String>()
+        MatchupSlot.all.forEach { slot ->
+            picks[slot] = if (slot.round == Round.ROUND_OF_64) {
+                checkNotNull(bracket.matchups[slot.index].upper)
+            } else {
+                picks.getValue(MatchupSlot.of(Round.entries[slot.round.ordinal - 1], 2 * slot.position))
+            }
+        }
+        return picks
+    }
+
+    private fun submit(player: SignedInPlayer, league: LeagueSummary, picks: Map<MatchupSlot, String>): PicksOutcome =
+        leagues.submitPicks(player, league.id, SubmitPicksRequest(picks))
+
+    private fun shown(outcome: PicksOutcome): PicksResponse {
+        assertTrue(outcome.toString(), outcome is PicksOutcome.Shown)
+        return (outcome as PicksOutcome.Shown).picks
+    }
+
+    private fun memberKey(asking: SignedInPlayer, league: LeagueSummary, displayName: String): String =
+        checkNotNull(leagues.detail(asking, league.id)).members.single { it.displayName == displayName }.memberKey
+
+    @Test
+    fun `a whole bracket is stored and read back`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        val picks = upperWinsEverywhere(bracketOf(owner, league))
+
+        assertEquals(PicksResponse(picks, locked = false), shown(submit(owner, league, picks)))
+
+        assertEquals(PicksResponse(picks, locked = false), shown(leagues.picks(owner, league.id)))
+    }
+
+    @Test
+    fun `a part of a bracket is stored, in place of every pick before it`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        assertEquals(PicksResponse(emptyMap(), locked = false), shown(leagues.picks(owner, league.id)))
+        val whole = upperWinsEverywhere(bracketOf(owner, league))
+        shown(submit(owner, league, whole))
+
+        val firstRound = whole.filterKeys { it.round == Round.ROUND_OF_64 }
+        shown(submit(owner, league, firstRound))
+
+        assertEquals(firstRound, shown(leagues.picks(owner, league.id)).picks)
+        shown(submit(owner, league, emptyMap()))
+        assertEquals(emptyMap<MatchupSlot, String>(), shown(leagues.picks(owner, league.id)).picks)
+    }
+
+    @Test
+    fun `an inconsistent bracket is refused at its first bad slot, and nothing is stored`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        val bracket = bracketOf(owner, league)
+        val whole = upperWinsEverywhere(bracket)
+        shown(submit(owner, league, whole))
+
+        // The first matchup's lower bird is picked to win the next one, having lost the first.
+        val loserGoesOn = whole + (MatchupSlot(32) to checkNotNull(bracket.matchups[0].lower))
+        assertEquals(
+            PicksOutcome.Refused(PicksRefusal.NOT_PICKED_TO_REACH, MatchupSlot(32)),
+            submit(owner, league, loserGoesOn),
+        )
+        // The final with nothing before it.
+        assertEquals(
+            PicksOutcome.Refused(PicksRefusal.NOT_PICKED_TO_REACH, MatchupSlot(62)),
+            submit(owner, league, mapOf(MatchupSlot(62) to whole.getValue(MatchupSlot(62)))),
+        )
+        // A bird drawn in another matchup, and one in no matchup at all.
+        assertEquals(
+            PicksOutcome.Refused(PicksRefusal.NOT_IN_MATCHUP, MatchupSlot(5)),
+            submit(owner, league, mapOf(MatchupSlot(5) to checkNotNull(bracket.matchups[6].upper))),
+        )
+        assertEquals(
+            PicksOutcome.Refused(PicksRefusal.NOT_IN_MATCHUP, MatchupSlot(0)),
+            submit(owner, league, mapOf(MatchupSlot(0) to "Test Unknown Bird")),
+        )
+
+        assertEquals(whole, shown(leagues.picks(owner, league.id)).picks)
+    }
+
+    @Test
+    fun `picks lock at midnight on the first Monday in the league's time zone`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        fill(league, 7)
+        val picks = upperWinsEverywhere(bracketOf(owner, league))
+        val lock = at(START, LocalTime.MIDNIGHT)
+
+        clock.now = lock.minusSeconds(1)
+        shown(submit(owner, league, picks.filterKeys { it.round == Round.ROUND_OF_64 }))
+
+        clock.now = lock.plusSeconds(1)
+        assertEquals(PicksOutcome.Locked, submit(owner, league, picks))
+        assertEquals(
+            PicksResponse(picks.filterKeys { it.round == Round.ROUND_OF_64 }, locked = true),
+            shown(leagues.picks(owner, league.id)),
+        )
+    }
+
+    @Test
+    fun `a postponed league's picks stay open until its new start`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        fill(league, 6)
+        val picks = upperWinsEverywhere(bracketOf(owner, league))
+
+        // 7 players on 1 March: the start moves to 8 March.
+        clock.now = at(START, LocalTime.of(0, 1))
+
+        assertEquals(PicksResponse(picks, locked = false), shown(submit(owner, league, picks)))
+    }
+
+    @Test
+    fun `another member's picks are hidden until they lock`() {
+        val owner = newPlayer(displayName = "Kestrel")
+        val league = create(owner)
+        val other = fill(league, 7).first()
+        val picks = upperWinsEverywhere(bracketOf(other, league))
+        shown(submit(other, league, picks))
+        val otherKey = memberKey(owner, league, "Player 1")
+
+        assertEquals(PicksOutcome.Hidden, leagues.memberPicks(owner, league.id, otherKey))
+        // A player's own, by their own key, at any time.
+        assertEquals(PicksResponse(picks, locked = false), shown(leagues.memberPicks(other, league.id, otherKey)))
+
+        clock.now = at(START, LocalTime.of(0, 1))
+
+        assertEquals(PicksResponse(picks, locked = true), shown(leagues.memberPicks(owner, league.id, otherKey)))
+        assertEquals(PicksResponse(emptyMap(), locked = true), shown(leagues.memberPicks(other, league.id, memberKey(other, league, "Kestrel"))))
+    }
+
+    @Test
+    fun `picks only of a member, by a key that is not their account id`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        val other = fill(league, 1).single()
+        val otherKey = memberKey(owner, league, "Player 2")
+        val stranger = newPlayer()
+
+        assertNotEquals(other.id.toString(), otherKey)
+        assertEquals(PicksOutcome.NoSuchMember, leagues.memberPicks(owner, league.id, other.id.toString()))
+        assertEquals(PicksOutcome.NoSuchMember, leagues.memberPicks(owner, league.id, UUID.randomUUID().toString()))
+        assertEquals(PicksOutcome.NoSuchMember, leagues.memberPicks(owner, league.id, "member-1"))
+        assertEquals(PicksOutcome.NotFound, leagues.memberPicks(stranger, league.id, otherKey))
+        assertEquals(PicksOutcome.NotFound, leagues.picks(stranger, league.id))
+        assertEquals(PicksOutcome.NotFound, submit(stranger, league, emptyMap()))
+        assertEquals(PicksOutcome.NotFound, leagues.picks(owner, "league-1"))
+
+        // A member who left is no longer found by their key.
+        assertTrue(leagues.leave(other, league.id))
+        assertEquals(PicksOutcome.NoSuchMember, leagues.memberPicks(owner, league.id, otherKey))
+    }
+
+    @Test
+    fun `with no field there is nothing to pick`() {
+        val sparseOwner = newPlayer(homeCounty = SPARSE)
+        val sparse = create(sparseOwner)
+
+        assertEquals(PicksOutcome.NotReady, submit(sparseOwner, sparse, emptyMap()))
+    }
+
+    @Test
+    fun `leaving before the start takes the player's picks with them`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        val leaver = fill(league, 1).single()
+        shown(submit(leaver, league, upperWinsEverywhere(bracketOf(leaver, league))))
+
+        assertTrue(leagues.leave(leaver, league.id))
+        inLeague(leagues.join(leaver, checkNotNull(league.inviteCode)))
+
+        assertEquals(emptyMap<MatchupSlot, String>(), shown(leagues.picks(leaver, league.id)).picks)
+    }
+
+    @Test
+    fun `a new preview drops the picks for the matchups whose birds changed, and those that depended on them`() {
+        val owner = newPlayer(homeCounty = PLENTY)
+        val league = create(owner)
+        val whole = upperWinsEverywhere(bracketOf(owner, league))
+        shown(submit(owner, league, whole))
+
+        // A player from Few Ducks joins: the waterfowl quarter changes, and every matchup it feeds.
+        fill(league, 1, homeCounty = FEW_DUCKS)
+        val left = shown(leagues.picks(owner, league.id)).picks
+
+        val changed = previewChanges.single().second
+        assertTrue(changed.toString(), MatchupSlot(31) in changed && MatchupSlot(62) in changed)
+        assertEquals(whole - changed.toSet(), left)
+        // The songbird and waterbird quarters, and the semifinal between them, are untouched.
+        assertTrue(left.toString(), (0..23).all { MatchupSlot(it) in left })
+        assertEquals(whole.getValue(MatchupSlot(60)), left[MatchupSlot(60)])
+        assertNull(left[MatchupSlot(62)])
+        // What is left is still a sound part of the bracket the player now sees.
+        val now = bracketOf(owner, league)
+        assertEquals(PicksResponse(left, locked = false), shown(submit(owner, league, left)))
+        assertEquals(upperWinsEverywhere(now).filterKeys { it in left }, left)
     }
 
     /** Runs both at the same moment, each on its own thread. */

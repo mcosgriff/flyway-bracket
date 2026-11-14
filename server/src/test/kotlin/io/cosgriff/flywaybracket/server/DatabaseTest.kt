@@ -69,8 +69,23 @@ class DatabaseTest {
                 "player_id" to ("uuid" to "NO"),
                 "joined_at" to ("timestamp with time zone" to "NO"),
                 "left_at" to ("timestamp with time zone" to "YES"),
+                // Added by the fifth migration.
+                "member_key" to ("uuid" to "NO"),
             ),
             columns("league_members"),
+        )
+    }
+
+    @Test
+    fun `the fifth migration makes the picks table`() {
+        assertEquals(
+            mapOf(
+                "league_id" to ("uuid" to "NO"),
+                "player_id" to ("uuid" to "NO"),
+                "slot" to ("smallint" to "NO"),
+                "common_name" to ("text" to "NO"),
+            ),
+            columns("league_picks"),
         )
     }
 
@@ -218,7 +233,7 @@ class DatabaseTest {
         fun startPostgres() {
             postgres.start()
             database = Database.connect(postgres.jdbcUrl, postgres.username, postgres.password)
-            assertEquals(4, database.migrate())
+            assertEquals(5, database.migrate())
         }
 
         @AfterClass

@@ -1,10 +1,12 @@
 package io.cosgriff.flywaybracket.server.league
 
+import io.cosgriff.flywaybracket.api.ApiError
 import io.cosgriff.flywaybracket.api.ApiErrorCode
 import io.cosgriff.flywaybracket.api.ApiPaths
 import io.cosgriff.flywaybracket.api.CreateLeagueRequest
 import io.cosgriff.flywaybracket.api.JoinLeagueRequest
 import io.cosgriff.flywaybracket.api.LeagueListResponse
+import io.cosgriff.flywaybracket.api.SubmitPicksRequest
 import io.cosgriff.flywaybracket.server.account.SIGNED_IN
 import io.cosgriff.flywaybracket.server.account.player
 import io.cosgriff.flywaybracket.server.refuse
@@ -17,14 +19,17 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val LEAGUE_ID = "leagueId"
+private const val MEMBER_KEY = "memberKey"
 
 /**
  * `POST /v1/leagues`, `GET /v1/leagues`, `POST /v1/leagues/join`, `POST /v1/leagues/auto-join`,
- * `GET /v1/leagues/{leagueId}`, `GET /v1/leagues/{leagueId}/bracket` and
+ * `GET /v1/leagues/{leagueId}`, `GET /v1/leagues/{leagueId}/bracket`, `GET` and `PUT
+ * /v1/leagues/{leagueId}/picks`, `GET /v1/leagues/{leagueId}/members/{memberKey}/picks` and
  * `DELETE /v1/leagues/{leagueId}/membership` (docs/server/api.md).
  */
 fun Route.leagueRoutes(leagues: Leagues) {
@@ -62,6 +67,23 @@ fun Route.leagueRoutes(leagues: Leagues) {
             }
         }
 
+        get(ApiPaths.picks("{$LEAGUE_ID}")) {
+            val leagueId = call.parameters[LEAGUE_ID].orEmpty()
+            call.respondPicks(withContext(Dispatchers.IO) { leagues.picks(player(), leagueId) })
+        }
+
+        put(ApiPaths.picks("{$LEAGUE_ID}")) {
+            val leagueId = call.parameters[LEAGUE_ID].orEmpty()
+            val request = call.receive<SubmitPicksRequest>()
+            call.respondPicks(withContext(Dispatchers.IO) { leagues.submitPicks(player(), leagueId, request) })
+        }
+
+        get(ApiPaths.memberPicks("{$LEAGUE_ID}", "{$MEMBER_KEY}")) {
+            val leagueId = call.parameters[LEAGUE_ID].orEmpty()
+            val memberKey = call.parameters[MEMBER_KEY].orEmpty()
+            call.respondPicks(withContext(Dispatchers.IO) { leagues.memberPicks(player(), leagueId, memberKey) })
+        }
+
         delete(ApiPaths.membership("{$LEAGUE_ID}")) {
             val leagueId = call.parameters[LEAGUE_ID].orEmpty()
             val left = withContext(Dispatchers.IO) { leagues.leave(player(), leagueId) }
@@ -92,6 +114,24 @@ private fun refusal(reason: LeagueRefusal): Pair<HttpStatusCode, ApiErrorCode> =
     LeagueRefusal.JOINING_CLOSED -> HttpStatusCode.Conflict to ApiErrorCode.JOINING_CLOSED
     LeagueRefusal.FULL -> HttpStatusCode.Conflict to ApiErrorCode.LEAGUE_FULL
     LeagueRefusal.NO_SUCH_PLAYER -> HttpStatusCode.Unauthorized to ApiErrorCode.UNAUTHORIZED
+}
+
+private suspend fun ApplicationCall.respondPicks(outcome: PicksOutcome) {
+    when (outcome) {
+        is PicksOutcome.Shown -> respond(outcome.picks)
+        PicksOutcome.NotFound -> respondNotFound()
+        PicksOutcome.NoSuchMember -> refuse(HttpStatusCode.NotFound, ApiErrorCode.MEMBER_NOT_FOUND)
+        PicksOutcome.Hidden -> refuse(HttpStatusCode.Conflict, ApiErrorCode.PICKS_HIDDEN)
+        PicksOutcome.NotReady -> refuse(HttpStatusCode.Conflict, ApiErrorCode.BRACKET_NOT_READY)
+        PicksOutcome.Locked -> refuse(HttpStatusCode.Conflict, ApiErrorCode.PICKS_LOCKED)
+        is PicksOutcome.Refused -> {
+            val code = when (outcome.reason) {
+                PicksRefusal.NOT_IN_MATCHUP -> ApiErrorCode.BIRD_UNKNOWN
+                PicksRefusal.NOT_PICKED_TO_REACH -> ApiErrorCode.PICKS_INCOMPLETE
+            }
+            refuse(HttpStatusCode.UnprocessableEntity, ApiError(code, slot = outcome.slot))
+        }
+    }
 }
 
 private suspend fun ApplicationCall.respondNotFound() {

@@ -8,10 +8,15 @@ import io.cosgriff.flywaybracket.api.LeagueDetail
 import io.cosgriff.flywaybracket.api.LeagueState
 import io.cosgriff.flywaybracket.api.LeagueSummary
 import io.cosgriff.flywaybracket.api.MatchupSlot
+import io.cosgriff.flywaybracket.api.PicksResponse
 import io.cosgriff.flywaybracket.api.Standing
+import io.cosgriff.flywaybracket.api.SubmitPicksRequest
 import io.cosgriff.flywaybracket.domain.bracket.BirdGroup
+import io.cosgriff.flywaybracket.domain.bracket.BracketPicks
+import io.cosgriff.flywaybracket.domain.bracket.DrawPosition
 import io.cosgriff.flywaybracket.domain.bracket.Field
 import io.cosgriff.flywaybracket.domain.bracket.FieldResult
+import io.cosgriff.flywaybracket.domain.bracket.PicksCheck
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendar
 import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendarResult
@@ -75,6 +80,38 @@ sealed interface BracketOutcome {
     data object NotReady : BracketOutcome
 }
 
+/** What a member asking for picks, or sending their own, gets (#35). */
+sealed interface PicksOutcome {
+    data class Shown(val picks: PicksResponse) : PicksOutcome
+
+    /** No such league, or the player is not in it. */
+    data object NotFound : PicksOutcome
+
+    /** The league has no member with that key, or the member has left. */
+    data object NoSuchMember : PicksOutcome
+
+    /** Another member's picks, asked for before picks lock. */
+    data object Hidden : PicksOutcome
+
+    /** The league has no field to pick against: too few birds for a preview, or it closed. */
+    data object NotReady : PicksOutcome
+
+    /** The season has started: picks can no longer change. */
+    data object Locked : PicksOutcome
+
+    /** The picks are not all or part of a bracket of the field; [slot] is the first pick that cannot stand. */
+    data class Refused(val reason: PicksRefusal, val slot: MatchupSlot) : PicksOutcome
+}
+
+/** Why a set of picks was refused: [PicksCheck] in `:domain`. */
+enum class PicksRefusal {
+    /** The bird cannot play in that matchup: not in the field, or drawn elsewhere. */
+    NOT_IN_MATCHUP,
+
+    /** The bird is not picked to win the matchup before it on its path. */
+    NOT_PICKED_TO_REACH,
+}
+
 /**
  * Leagues (#32): creating, joining, auto-joining, leaving, and what a member sees. The rules are
  * `domain/league`'s; this class applies them to what is stored, under the locks that keep two requests at
@@ -94,11 +131,16 @@ sealed interface BracketOutcome {
  * when its start arrives. Seeding is part of the settle, in its transaction under the league's lock, so it
  * happens once whoever settles first.
  *
+ * **Picks** (#35, `BracketPicks` in `:domain`). A member's picks are all or part of a bracket of the field
+ * they see, checked when sent and stored per membership. A new field drops the picks it undoes, in the
+ * transaction that stores it. Picks lock when the season starts; only then can members see each other's.
+ *
  * @param charts the county charts of the packs the server holds. A member whose home county no pack holds
  *   is left out of seeding.
  * @param clock today, in each league's own time zone
  * @param previewChanged told, inside the transaction that stores a new field, of the matchups whose
- *   birds changed since the field stored before it; see [dropPicksForChangedMatchups]
+ *   birds changed since the field stored before it, once the picks for them are dropped; see
+ *   [dropPicksForChangedMatchups]
  */
 class Leagues(
     private val store: LeagueStore,
@@ -180,7 +222,9 @@ class Leagues(
             val points = members.map { 0 }
             val ranks = Standings.ranks(points)
             val standings = members.indices
-                .map { i -> Standing(members[i].displayName, points[i], ranks[i], you = members[i].playerId == player.id) }
+                .map { i ->
+                    Standing(members[i].displayName, points[i], ranks[i], members[i].key.toString(), you = members[i].playerId == player.id)
+                }
                 .sortedWith(compareBy<Standing> { it.rank }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.displayName }.thenBy { it.displayName })
             LeagueDetail(
                 league = summary(league),
@@ -215,22 +259,56 @@ class Leagues(
      * they are now (stored, and the picks for any matchup whose birds changed dropped, when it differs from
      * the last); then the fixed field; once the season runs, the bracket and its results so far.
      */
-    fun bracket(player: SignedInPlayer, leagueId: String): BracketOutcome {
-        val id = parseId(leagueId) ?: return BracketOutcome.NotFound
-        return store.transaction {
-            if (!isMember(id, player.id)) return@transaction BracketOutcome.NotFound
-            // Locked, so that a preview or the fixed field is stored once, and the season starts once.
-            val league = league(id, lock = true)?.let { settleAndSave(it) } ?: return@transaction BracketOutcome.NotFound
-            val status = league.status
-            val (shown, preview) = when (status.phase) {
-                LeaguePhase.FORMING ->
-                    if (status.calendar.isFieldFixed(today(league.timeZone))) field(id) to false else refreshPreview(league) to true
-                LeaguePhase.RUNNING, LeaguePhase.FINISHED -> field(id) to false
-                LeaguePhase.CLOSED -> null to false
-            }
-            val seeded = shown?.result as? FieldResult.Seeded ?: return@transaction BracketOutcome.NotReady
-            BracketOutcome.Ready(bracketOf(seeded.teams, preview))
+    fun bracket(player: SignedInPlayer, leagueId: String): BracketOutcome = store.transaction {
+        val league = memberLeague(player, leagueId) ?: return@transaction BracketOutcome.NotFound
+        val (shown, preview) = shownField(league)
+        val seeded = shown?.result as? FieldResult.Seeded ?: return@transaction BracketOutcome.NotReady
+        BracketOutcome.Ready(bracketOf(seeded.teams, preview))
+    }
+
+    /**
+     * The player's own picks in the league, at any time. Before the field is fixed the preview is brought up
+     * to date first, as [bracket] does, so the picks shown are sound for the bracket the player sees.
+     */
+    fun picks(player: SignedInPlayer, leagueId: String): PicksOutcome = store.transaction {
+        val league = memberLeague(player, leagueId) ?: return@transaction PicksOutcome.NotFound
+        shownField(league)
+        PicksOutcome.Shown(PicksResponse(picks(league.id, player.id), picksLocked(league)))
+    }
+
+    /**
+     * A member's picks, named by their [StoredMember.key]: the player's own at any time, another member's only
+     * once picks have locked, so that no player can copy another's (ADR 0001).
+     */
+    fun memberPicks(player: SignedInPlayer, leagueId: String, memberKey: String): PicksOutcome = store.transaction {
+        val league = memberLeague(player, leagueId) ?: return@transaction PicksOutcome.NotFound
+        val member = parseId(memberKey)?.let { memberByKey(league.id, it) } ?: return@transaction PicksOutcome.NoSuchMember
+        if (member.playerId == player.id) {
+            shownField(league)
+        } else if (!picksLocked(league)) {
+            return@transaction PicksOutcome.Hidden
         }
+        PicksOutcome.Shown(PicksResponse(picks(league.id, member.playerId), picksLocked(league)))
+    }
+
+    /**
+     * Replaces the player's picks with [request]'s, until picks lock when the season starts
+     * ([SeasonCalendar.picksLockOn], in the league's time zone). Some picks are as good as all of them: a
+     * matchup with no pick scores nothing. The picks are checked against the bracket [bracket] shows now
+     * ([BracketPicks.check]); none is stored unless all can stand.
+     */
+    fun submitPicks(player: SignedInPlayer, leagueId: String, request: SubmitPicksRequest): PicksOutcome = store.transaction {
+        val league = memberLeague(player, leagueId) ?: return@transaction PicksOutcome.NotFound
+        if (league.status.phase == LeaguePhase.CLOSED) return@transaction PicksOutcome.NotReady
+        if (picksLocked(league)) return@transaction PicksOutcome.Locked
+        val seeded = shownField(league).first?.result as? FieldResult.Seeded ?: return@transaction PicksOutcome.NotReady
+        when (val check = BracketPicks.check(seeded.teams, request.picks.mapKeys { (slot, _) -> slot.drawPosition })) {
+            PicksCheck.Consistent -> Unit
+            is PicksCheck.NotInMatchup -> return@transaction PicksOutcome.Refused(PicksRefusal.NOT_IN_MATCHUP, check.at.slot)
+            is PicksCheck.NotPickedToReach -> return@transaction PicksOutcome.Refused(PicksRefusal.NOT_PICKED_TO_REACH, check.at.slot)
+        }
+        savePicks(league.id, player.id, request.picks)
+        PicksOutcome.Shown(PicksResponse(picks(league.id, player.id), locked = false))
     }
 
     /**
@@ -268,6 +346,40 @@ class Leagues(
             }
         }
     }
+
+    /**
+     * The league, locked, settled and saved, when the player is in it; null when there is no such league or
+     * the player is not in it. Locked, so that a preview or the fixed field is stored once, and the season
+     * starts once.
+     */
+    private fun LeagueTransaction.memberLeague(player: SignedInPlayer, leagueId: String): StoredLeague? {
+        val id = parseId(leagueId) ?: return null
+        if (!isMember(id, player.id)) return null
+        val locked = league(id, lock = true) ?: return null
+        // Asked again under the lock: a leave that locked the league first may have taken the player out.
+        if (!isMember(id, player.id)) return null
+        return settleAndSave(locked)
+    }
+
+    /**
+     * The field a member sees, and whether it is a preview: before the field is fixed, the preview of the
+     * members as they are now (stored, dropping the picks it undoes, when it differs from the last); then the
+     * fixed field; none for a closed league. Only for a locked, settled league.
+     */
+    private fun LeagueTransaction.shownField(league: StoredLeague): Pair<StoredField?, Boolean> = when (league.status.phase) {
+        LeaguePhase.FORMING ->
+            if (league.status.calendar.isFieldFixed(today(league.timeZone))) field(league.id) to false else refreshPreview(league) to true
+        LeaguePhase.RUNNING, LeaguePhase.FINISHED -> field(league.id) to false
+        LeaguePhase.CLOSED -> null to false
+    }
+
+    /**
+     * Whether the league's picks have locked: from midnight at the start of its first Monday
+     * ([SeasonCalendar.picksLockOn]) in its time zone, and in a league that never started. Only for a settled
+     * league, whose start has moved back when it was postponed.
+     */
+    private fun picksLocked(league: StoredLeague): Boolean =
+        league.status.phase != LeaguePhase.FORMING || today(league.timeZone) >= league.status.calendar.picksLockOn
 
     /** Why the player cannot enter a league now, or null when they can. */
     private fun LeagueTransaction.refusalToEnter(playerId: UUID, player: LockedPlayer): LeagueRefusal? = when {
@@ -346,13 +458,16 @@ class Leagues(
     }
 
     /**
-     * Drops the picks made against an earlier preview for the matchups whose birds changed: each named a
-     * bird that may no longer play there.
-     *
-     * #35: the server holds no picks yet, so there is nothing to drop. When it does, delete here, in this
-     * transaction, every pick of this league's players for a slot in [changed].
+     * Drops, in this transaction, the picks made against an earlier field for the matchups whose birds
+     * changed, each of which named a bird that may no longer play there, and every later pick that depended
+     * on one of them ([BracketPicks.withoutChanged]). Every player's in the league.
      */
-    private fun dropPicksForChangedMatchups(leagueId: UUID, changed: List<MatchupSlot>) {
+    private fun LeagueTransaction.dropPicksForChangedMatchups(leagueId: UUID, changed: List<MatchupSlot>) {
+        val changedAt = changed.map { it.drawPosition }
+        leaguePicks(leagueId).forEach { (playerId, picks) ->
+            val kept = BracketPicks.withoutChanged(picks.mapKeys { (slot, _) -> slot.drawPosition }, changedAt)
+            if (kept.size != picks.size) savePicks(leagueId, playerId, kept.mapKeys { (at, _) -> at.slot })
+        }
         previewChanged(leagueId, changed)
     }
 
@@ -421,8 +536,12 @@ class Leagues(
         private fun changedSlots(before: FieldResult?, after: FieldResult): List<MatchupSlot> {
             val was = (before as? FieldResult.Seeded)?.teams ?: return emptyList()
             val now = (after as? FieldResult.Seeded)?.teams ?: return MatchupSlot.all
-            return Field.changedMatchups(was, now).map { MatchupSlot.of(it.round, it.position) }
+            return Field.changedMatchups(was, now).map { it.slot }
         }
+
+        private val MatchupSlot.drawPosition: DrawPosition get() = DrawPosition(round, position)
+
+        private val DrawPosition.slot: MatchupSlot get() = MatchupSlot.of(round, position)
 
         /** The bracket of a field. No round is decided yet (#37), so only the first round has its birds. */
         private fun bracketOf(teams: List<Team>, preview: Boolean): BracketResponse {

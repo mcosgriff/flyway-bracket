@@ -70,10 +70,12 @@ data class JoinLeagueRequest(val inviteCode: String)
  * sightings, and no account id.
  *
  * @property rank 1 is first. Players level on points share a rank.
+ * @property memberKey names this member in the league's paths, such as [ApiPaths.memberPicks]: made by the
+ *   server when the player joins, one per league, and never the account id.
  * @property you whether this is the player who asked.
  */
 @Serializable
-data class Standing(val displayName: String, val points: Int, val rank: Int, val you: Boolean = false)
+data class Standing(val displayName: String, val points: Int, val rank: Int, val memberKey: String, val you: Boolean = false)
 
 /**
  * A league, its members and its season.

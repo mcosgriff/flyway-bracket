@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 // CI passes -PversionName=1.2.0 -PversionCode=<run number>. Local builds use version.txt, which the
@@ -87,6 +88,10 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

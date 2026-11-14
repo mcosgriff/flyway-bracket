@@ -57,6 +57,7 @@ The website for players is built from `site/` and published to GitHub Pages by
 
 Never commit eBird data, or files built from it: eBird's terms of use don't allow it. Tests use made-up
 figures (`domain/src/test/.../Charts.kt`). Put local downloads in `packs-local/`, which git ignores.
+`docs/packs.md` says how to build a state pack from them with `./gradlew :tools:packbuilder:run`.
 
 ## Changing a dependency
 

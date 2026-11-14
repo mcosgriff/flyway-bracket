@@ -19,7 +19,9 @@ What exists:
 - The game rules in `:domain`, unit-tested: time bins, county bar charts, which birds are expected and
   which are migrants, seeding, matchup decisions and pick scoring.
 - The state pack file format (`<state code>.fbpack`, gzipped JSON): a state's counties, each with its bar
-  chart and its outline, and finding the county a place is in. Nothing builds or downloads a pack yet.
+  chart and its outline, and finding the county a place is in. A developer's command-line tool builds a
+  pack from files downloaded by hand ([`docs/packs.md`](docs/packs.md)). The app does not download or
+  read a pack yet.
 - Outings and sightings saved on the phone, and Home's figures for the calendar year counted from them:
   species, new lifers, outings and the five most recent outings. No screen logs an outing yet, so Home
   still shows its empty state.
@@ -61,7 +63,8 @@ the server that leagues need.
 
 The expected-bird tables are built from [eBird](https://ebird.org) bar chart data. eBird data is not in
 this repository and must not be committed: tests use made-up figures, and local downloads go in
-`packs-local/`, which git ignores. Use of eBird data in a released app needs permission from the Cornell
+`packs-local/`, which git ignores. [`docs/packs.md`](docs/packs.md) says how to build a state pack there.
+Use of eBird data in a released app needs permission from the Cornell
 Lab of Ornithology; that has not been obtained yet.
 
 ## Privacy

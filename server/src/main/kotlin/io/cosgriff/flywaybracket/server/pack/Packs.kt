@@ -32,6 +32,14 @@ class HeldPack(val pack: StatePack, val bytes: ByteArray, val version: String) {
         )
 }
 
+/**
+ * What the packs held at one moment name.
+ *
+ * @property counties the code of every county of every pack, such as `US-CO-059`
+ * @property birds the common name of every bird in any county's chart
+ */
+class PackCatalog(val counties: Set<String>, val birds: Set<String>)
+
 /** A `.fbpack` file in the directory that the server does not hold, and why. */
 data class SkippedPack(val fileName: String, val reason: SkipReason)
 
@@ -90,6 +98,9 @@ class Packs(private val directory: Path, private val log: Logger = LoggerFactory
 
     /** The bar chart of the county with this code (`US-CO-059`), or null when no pack holds it. */
     fun chartFor(countyCode: String): CountyChart? = shelf().charts[countyCode]
+
+    /** The counties and birds of every pack held now, looked at once for a whole batch of sightings. */
+    fun catalog(): PackCatalog = shelf().catalog
 
     /** The `.fbpack` files the last look at the directory did not take, in order of name. */
     fun skipped(): List<SkippedPack> = synchronized(lock) {
@@ -185,6 +196,11 @@ class Packs(private val directory: Path, private val log: Logger = LoggerFactory
         val charts: Map<String, CountyChart> = packs.flatMap { held -> held.pack.counties.map { it.code to it.chart } }
             .distinctBy { it.first }
             .toMap()
+
+        val catalog = PackCatalog(
+            counties = charts.keys,
+            birds = charts.values.flatMapTo(HashSet()) { chart -> chart.species.map { it.commonName } },
+        )
     }
 
     companion object {

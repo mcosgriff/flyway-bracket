@@ -38,6 +38,8 @@ val ServerProblem.message: Int
             ApiErrorCode.PICKS_INCOMPLETE,
             ApiErrorCode.BRACKET_NOT_READY,
             ApiErrorCode.ROUND_NOT_DECIDED,
+            ApiErrorCode.SIGHTING_DATE_IN_FUTURE,
+            ApiErrorCode.SIGHTING_NOT_FOUND,
             null,
             -> R.string.server_problem_general
         }

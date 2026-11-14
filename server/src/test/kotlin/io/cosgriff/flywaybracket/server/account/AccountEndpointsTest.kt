@@ -10,6 +10,8 @@ import io.cosgriff.flywaybracket.server.league.LeagueStore
 import io.cosgriff.flywaybracket.server.league.Leagues
 import io.cosgriff.flywaybracket.server.module
 import io.cosgriff.flywaybracket.server.pack.noPacks
+import io.cosgriff.flywaybracket.server.sighting.InMemorySightingStore
+import io.cosgriff.flywaybracket.server.sighting.Sightings
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.basicAuth
 import io.ktor.client.request.delete
@@ -46,7 +48,17 @@ abstract class AccountEndpointsTest {
         val players = store()
         val leagues = Leagues(leagueStore(players))
         val accounts = Accounts(players, leagues, creationLimit = FixedWindowRateLimiter(creationsPerAddress, Accounts.CREATION_WINDOW))
-        application { module(database = { true }, accounts = accounts, leagues = leagues, packs = noPacks(), version = "1.2.3") }
+        val packs = noPacks()
+        application {
+            module(
+                database = { true },
+                accounts = accounts,
+                leagues = leagues,
+                packs = packs,
+                sightings = Sightings(InMemorySightingStore(players), packs),
+                version = "1.2.3",
+            )
+        }
         test()
     }
 

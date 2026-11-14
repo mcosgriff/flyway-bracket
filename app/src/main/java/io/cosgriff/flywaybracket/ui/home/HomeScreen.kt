@@ -22,6 +22,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -75,7 +76,12 @@ import java.time.format.FormatStyle
  *   county, if it fell back there
  */
 @Composable
-fun HomeScreen(onNavigate: (TopLevel) -> Unit, onOpenOuting: (CountyFallback?) -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(
+    onNavigate: (TopLevel) -> Unit,
+    onOpenOuting: (CountyFallback?) -> Unit,
+    onOpenSettings: () -> Unit,
+    viewModel: HomeViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val open by rememberUpdatedState(onOpenOuting)
     LaunchedEffect(viewModel) { viewModel.openOuting.collect { open(it.fallback) } }
@@ -99,6 +105,7 @@ fun HomeScreen(onNavigate: (TopLevel) -> Unit, onOpenOuting: (CountyFallback?) -
         onDownloadPack = viewModel::onDownloadPack,
         onConfirmMetered = viewModel::onMeteredConfirmed,
         onDismissMetered = viewModel::onMeteredDismissed,
+        onOpenSettings = onOpenSettings,
     )
 }
 
@@ -108,6 +115,7 @@ fun HomeScreen(onNavigate: (TopLevel) -> Unit, onOpenOuting: (CountyFallback?) -
  * @param onDownloadPack downloads the offered pack of the home county's state
  * @param onConfirmMetered the player said yes to a large download on a metered connection
  * @param onDismissMetered the player said not now to it
+ * @param onOpenSettings the gear in the header (#44)
  */
 @Composable
 fun HomeContent(
@@ -120,6 +128,7 @@ fun HomeContent(
     onDownloadPack: () -> Unit = {},
     onConfirmMetered: () -> Unit = {},
     onDismissMetered: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -133,7 +142,7 @@ fun HomeContent(
                 .padding(horizontal = FlywayDimens.space5, vertical = FlywayDimens.space4),
             verticalArrangement = Arrangement.spacedBy(FlywayDimens.space4),
         ) {
-            Header(region = state.region, onRegion = { onNavigate(TopLevel.Packs) })
+            Header(region = state.region, onRegion = { onNavigate(TopLevel.Packs) }, onSettings = onOpenSettings)
             state.packOffer?.let { PackOfferCard(it, onDownloadPack) }
             if (state.tournament != null) {
                 TournamentHero(state.tournament, onViewBracket = { onNavigate(TopLevel.Bracket) })
@@ -229,7 +238,7 @@ private fun PackMissingDialog(region: HomeRegion?, onGoToPacks: () -> Unit, onDi
 }
 
 @Composable
-private fun Header(region: HomeRegion?, onRegion: () -> Unit) {
+private fun Header(region: HomeRegion?, onRegion: () -> Unit, onSettings: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FlywayDimens.space2)) {
         Text(
             text = stringResource(R.string.app_name).toUpperCase(Locale.current),
@@ -254,6 +263,9 @@ private fun Header(region: HomeRegion?, onRegion: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+        IconButton(onClick = onSettings) {
+            Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.home_settings))
         }
     }
 }

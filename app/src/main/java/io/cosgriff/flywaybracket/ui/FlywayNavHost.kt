@@ -18,6 +18,8 @@ import io.cosgriff.flywaybracket.ui.outing.CountyFallback
 import io.cosgriff.flywaybracket.ui.outing.OutingScreen
 import io.cosgriff.flywaybracket.ui.outing.SummaryScreen
 import io.cosgriff.flywaybracket.ui.packs.PacksScreen
+import io.cosgriff.flywaybracket.ui.settings.LicencesScreen
+import io.cosgriff.flywaybracket.ui.settings.SettingsScreen
 import kotlinx.serialization.Serializable
 
 /** The first run: asks for a display name and a home county (#23). */
@@ -43,6 +45,12 @@ import kotlinx.serialization.Serializable
 
 /** A finished outing, by its id (#26). */
 @Serializable data class SummaryRoute(val outingId: Long) : NavKey
+
+/** Settings, from the gear on Home (#44). */
+@Serializable data object SettingsRoute : NavKey
+
+/** The app's, the font's and the libraries' licences, from Settings (#44). */
+@Serializable data object LicencesRoute : NavKey
 
 /**
  * The app's screens. Each entry gets its own ViewModels, cleared when it leaves the back stack. The
@@ -83,7 +91,11 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
                 OnboardingScreen()
             }
             entry<HomeRoute> {
-                HomeScreen(onNavigate = navigate, onOpenOuting = { fallback -> if (backStack.lastOrNull() !is OutingRoute) backStack.add(OutingRoute(fallback)) })
+                HomeScreen(
+                    onNavigate = navigate,
+                    onOpenOuting = { fallback -> if (backStack.lastOrNull() !is OutingRoute) backStack.add(OutingRoute(fallback)) },
+                    onOpenSettings = { if (backStack.lastOrNull() != SettingsRoute) backStack.add(SettingsRoute) },
+                )
             }
             // Both need the server: the consent page comes first until the phone has an account (#38).
             entry<BracketRoute> {
@@ -119,6 +131,12 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
             }
             entry<SummaryRoute> { route ->
                 SummaryScreen(outingId = route.outingId, onDone = back)
+            }
+            entry<SettingsRoute> {
+                SettingsScreen(onBack = back, onOpenLicences = { if (backStack.lastOrNull() != LicencesRoute) backStack.add(LicencesRoute) })
+            }
+            entry<LicencesRoute> {
+                LicencesScreen(onBack = back)
             }
         },
     )

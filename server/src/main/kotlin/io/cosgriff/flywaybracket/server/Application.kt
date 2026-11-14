@@ -12,6 +12,8 @@ import io.cosgriff.flywaybracket.server.league.Leagues
 import io.cosgriff.flywaybracket.server.league.leagueRoutes
 import io.cosgriff.flywaybracket.server.pack.Packs
 import io.cosgriff.flywaybracket.server.pack.packRoutes
+import io.cosgriff.flywaybracket.server.sighting.Sightings
+import io.cosgriff.flywaybracket.server.sighting.sightingRoutes
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -40,9 +42,17 @@ import kotlinx.coroutines.withContext
  * @param accounts the players, for creating accounts and for checking who signed a request
  * @param leagues creating, joining and leaving leagues
  * @param packs the state packs, for listing and downloading
+ * @param sightings taking and deleting the sightings players upload
  * @param version what the health check reports
  */
-fun Application.module(database: DatabaseCheck, accounts: Accounts, leagues: Leagues, packs: Packs, version: String) {
+fun Application.module(
+    database: DatabaseCheck,
+    accounts: Accounts,
+    leagues: Leagues,
+    packs: Packs,
+    sightings: Sightings,
+    version: String,
+) {
     install(ContentNegotiation) { json(ApiJson) }
     install(CallLogging) {
         // The line has no colors to show, and with colors on the plugin swaps out System.err for its own
@@ -82,6 +92,7 @@ fun Application.module(database: DatabaseCheck, accounts: Accounts, leagues: Lea
         accountRoutes(accounts)
         leagueRoutes(leagues)
         packRoutes(packs)
+        sightingRoutes(sightings)
     }
 }
 

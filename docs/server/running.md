@@ -90,6 +90,9 @@ mv /srv/flywaybracket/packs/US-CO.fbpack.part /srv/flywaybracket/packs/US-CO.fbp
   The other packs are still served, and the server still starts.
 - A pack's version, in the list and as the download's `ETag`, is the SHA-256 of its file. Replacing a file
   with a rebuilt one changes it, and the app downloads the pack again.
+- Uploaded sightings are checked against the packs held: a sighting's county must be a county of one, and
+  its bird named in a chart of one ([api.md](api.md#sightings)). A server holding no packs refuses every
+  sighting.
 - For a server on your own machine, `server/.env.example` points `PACKS_DIR` at `packs-local/out`, where
   the pack builder writes, which git ignores.
 

@@ -269,7 +269,7 @@
     <string name="summary_empty">No birds were logged on this outing.</string>
     <string name="summary_done">Done</string>
 
-    <!-- Consent: League and Bracket show it first, until the player has an account. The words say what
+    <!-- Consent: League, Bracket and a first pack download show it first, until the player has an account. The words say what
          docs/adr/0001-server-and-network.md says; change the two together. -->
     <string name="consent_title">Play in a league</string>
     <string name="consent_intro">Leagues, brackets and bird pack downloads need the Flyway Bracket server, the project\'s own. The app talks to it over a secure connection and to no other server. Nothing has been sent yet. If you continue, this is what will be.</string>
@@ -315,4 +315,61 @@
     <string name="download_metered_body">The %1$s pack is %2$s, and this connection may charge for data. On Wi-Fi it costs nothing.</string>
     <string name="download_metered_confirm">Download</string>
     <string name="download_metered_cancel">Not now</string>
+
+    <!-- Settings (#44), opened from the gear on Home -->
+    <!-- The app's own licence, on Settings and on Licences. #15 changes it here, and nowhere else. -->
+    <string name="app_licence">No licence has been chosen for Flyway Bracket yet, so all rights are reserved for now.</string>
+    <string name="home_settings">Settings</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_profile_title">Profile</string>
+    <string name="settings_profile_save">Save</string>
+    <string name="settings_profile_sent">A change is sent to the league server. Your league sees your display name, not your county.</string>
+    <string name="settings_profile_kept">Kept on this phone. Nothing is sent while the phone has no account.</string>
+    <string name="settings_account_title">Account</string>
+    <string name="settings_account_has">This phone has an anonymous account on the league server.</string>
+    <string name="settings_account_none">This phone has no account on the league server, and nothing is sent. League, Bracket and bird pack downloads ask before making one.</string>
+    <string name="settings_account_deleted">Your account is deleted. Your outings stay on this phone.</string>
+    <string name="settings_account_delete">Delete my account</string>
+    <string name="settings_account_deleting">Deleting your account…</string>
+    <!-- What DELETE /v1/account removes: docs/server/api.md. Change the two together. -->
+    <string name="settings_delete_title">Delete your account?</string>
+    <string name="settings_delete_server">The league server deletes your account: its id and secret, your display name, your home county, and your place in any league, which you leave. Picks and sightings the server holds are deleted too. A finished season\'s results stay, under no name, as “a former player”.</string>
+    <string name="settings_delete_phone">Your outings and sightings stay on this phone, and you can go on logging them without an account.</string>
+    <string name="settings_delete_continue">Continue</string>
+    <string name="settings_delete_cancel">Cancel</string>
+    <string name="settings_delete_again_title">Delete it for good?</string>
+    <string name="settings_delete_again_body">This cannot be undone. The account cannot be brought back; a new one would start with no league and no points.</string>
+    <string name="settings_delete_confirm">Delete account</string>
+    <string name="settings_delete_keep">Keep account</string>
+    <string name="settings_privacy_title">Privacy</string>
+    <string name="settings_privacy_page">Your privacy, in the user guide</string>
+    <string name="settings_about_title">About</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_user_guide">User guide</string>
+    <string name="settings_report">Report a problem</string>
+    <!-- Under a link that leaves the app. -->
+    <string name="settings_opens_browser">Opens in your browser</string>
+    <string name="settings_report_caption">On GitHub. Opens in your browser.</string>
+    <string name="settings_bird_data">Bird data</string>
+    <string name="settings_bird_data_none">No packs on this phone yet.</string>
+    <string name="settings_licences_title">Licences</string>
+    <string name="settings_licences_open">Open-source licences</string>
+    <string name="settings_licences_caption">The Inter font and the libraries in the app</string>
+
+    <!-- Licences (#44) -->
+    <string name="licences_title">Licences</string>
+    <string name="licences_app_title">Flyway Bracket</string>
+    <string name="licences_font_title">Font</string>
+    <string name="licences_inter">Inter</string>
+    <string name="licences_inter_licence">SIL Open Font License 1.1</string>
+    <string name="licences_show_text">Show the licence</string>
+    <string name="licences_hide_text">Hide the licence</string>
+    <string name="licences_libraries_title">Libraries</string>
+    <plurals name="licences_libraries_caption">
+        <item quantity="one">%d open-source library is in the app. The list is read from its published details when the app is built.</item>
+        <item quantity="other">%d open-source libraries are in the app. The list is read from their published details when the app is built.</item>
+    </plurals>
+    <!-- A library's Maven coordinates and version: "androidx.core:core · 1.19.1". -->
+    <string name="licences_library_version">%1$s · %2$s</string>
+    <string name="licences_not_read">The list of libraries could not be read.</string>
 </resources>

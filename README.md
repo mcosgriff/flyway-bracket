@@ -58,6 +58,14 @@ What exists:
   or Bracket. The page says what is sent, what other players see and how deleting works; Continue creates
   the account, Not now sends nothing and goes back Home. Without a network, or when the server does not
   answer, the page says which and offers Try again. League and Bracket themselves are not built yet.
+- Settings, from the gear on Home. Profile: the display name and home county, changed with the first
+  run's rules, and sent to the server when there is an account. Account: whether the phone has one, and
+  "Delete my account", which says what the server deletes and that outings stay on the phone, asks twice,
+  then deletes the account on the server and the phone. Privacy: the consent page's list, and a link to
+  the user guide's privacy page. About: the version, links to the user guide and to report a problem
+  (both open in the browser), and where the installed packs' bird data came from. Licences: the app's
+  licence line, Inter's licence, and the open-source libraries in the app, listed at build time from
+  their Maven POMs.
 - The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen, which shows the home
   county, and the Packs screen. Bracket and League are placeholders. Every screen is screenshot-tested in light and dark and
   checked for accessibility (touch targets, contrast, labels) on each build.
@@ -66,8 +74,9 @@ What exists:
   served by GitHub Pages. Its pages about things the app cannot do yet are marked "Coming in the beta".
 
 - The league server (`server/`, [`docs/server/api.md`](docs/server/api.md)): anonymous accounts,
-  creating, joining, auto-joining and leaving leagues, and listing and downloading the state packs it is
-  given (to signed-in players only). The app uses its account and pack endpoints so far.
+  creating, joining, auto-joining and leaving leagues, listing and downloading the state packs it is
+  given (to signed-in players only), and taking and deleting a player's sightings, each kept as a bird
+  name, a county and a date only. The app uses its account and pack endpoints so far.
 
 What does not exist yet: the bracket screens, the League screen, and the app's side
 of the server.
@@ -150,7 +159,7 @@ downloading bird packs. Leagues, picks and sightings are not sent yet; the lines
   place name you typed.
 - Other players in your league will see your display name, your picks once they lock, your points, and how
   many birds you logged in a round. They will not see your county or your individual sightings.
-- You will be able to delete your account from Settings (not built yet). The server then deletes your name, picks and
+- You can delete your account from Settings. The server then deletes your name, picks and
   sightings.
 - In the beta, losing the phone loses the account. Moving an account to a new phone comes later.
 
@@ -167,6 +176,11 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the tests and the pull request rule
 ## Licence
 
 No licence has been chosen yet, so all rights are reserved for now. Inter, the bundled font, is under the
-SIL Open Font License (`app/src/main/assets/licences/inter-OFL.txt`).
+SIL Open Font License (`app/src/main/assets/licences/inter-OFL.txt`). The app's own licence line is one
+string, `app_licence` in `app/src/main/res/values/strings.xml`.
+
+The app's Licences screen lists every library in the release APK with its licence. The build writes that
+list (`libraryLicences` in `app/build.gradle.kts`) from the libraries' Maven POMs; no plugin or library
+does it, and the app makes no call to show it. A library whose POM names no licence fails the build.
 
 Flyway Bracket is not affiliated with eBird or the Cornell Lab of Ornithology.

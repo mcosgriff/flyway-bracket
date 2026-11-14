@@ -39,7 +39,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -206,18 +205,52 @@ class PackDownloadsTest {
     @Test
     fun `a download cut off on the way leaves the old pack in place`() = runBlocking {
         packs.install(testlandBytes)
+        // Half the file, then the connection fails. The channel is filled and closed before the client reads
+        // it, so no writer races the reader: when one did, Ktor sometimes handed the failure on as a clean
+        // end of the body (CI, run 43572404733). The whole file's Content-Length goes with it, as the server
+        // sends one (respondBytes), so the client tells a cut-off body from a damaged one either way.
         answer = {
-            val body = ByteChannel(autoFlush = true)
-            scope.launch {
-                body.writeFully(newerBytes, 0, newerBytes.size / 2)
-                body.close(IOException("connection lost"))
-            }
-            respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ETag, "\"${packVersion(newerBytes)}\""))
+            val body = ByteChannel()
+            body.writeFully(newerBytes, 0, newerBytes.size / 2)
+            body.close(IOException("connection lost"))
+            respond(
+                body,
+                HttpStatusCode.OK,
+                headersOf(
+                    HttpHeaders.ETag to listOf("\"${packVersion(newerBytes)}\""),
+                    HttpHeaders.ContentLength to listOf(newerBytes.size.toString()),
+                ),
+            )
         }
 
         val result = downloads.download("XX-TS", packVersion(newerBytes), newerBytes.size.toLong())
 
         assertEquals(PackDownload.Failed(ServerProblem.NoAnswer), result)
+        assertOldPackInPlace()
+    }
+
+    @Test
+    fun `a file shorter than the size the server gave is a cut-off download, not a damaged one`() = runBlocking {
+        packs.install(testlandBytes)
+        // Half the file, ended cleanly, under the whole file's Content-Length.
+        answer = {
+            respond(
+                newerBytes.copyOf(newerBytes.size / 2),
+                HttpStatusCode.OK,
+                headersOf(
+                    HttpHeaders.ETag to listOf("\"${packVersion(newerBytes)}\""),
+                    HttpHeaders.ContentLength to listOf(newerBytes.size.toString()),
+                ),
+            )
+        }
+
+        val result = downloads.download("XX-TS", packVersion(newerBytes), newerBytes.size.toLong())
+
+        assertEquals(PackDownload.Failed(ServerProblem.NoAnswer), result)
+        assertOldPackInPlace()
+    }
+
+    private suspend fun assertOldPackInPlace() {
         assertEquals(packVersion(testlandBytes), installedVersion())
         assertEquals(packVersion(testlandBytes), packVersion(File(context.filesDir, "downloads_test/XX-TS.fbpack").readBytes()))
     }

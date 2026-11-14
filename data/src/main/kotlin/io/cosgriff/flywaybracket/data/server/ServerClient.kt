@@ -182,13 +182,18 @@ class ServerClient(
         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
         onProgress(0, total)
         while (true) {
-            // -1 once the file has all come; a connection lost on the way throws instead.
+            // -1 at the end of the body. A connection lost on the way usually throws here, but Ktor's
+            // readAvailable can also answer -1 for a channel closed with an error, so the end is checked below.
             val count = channel.readAvailable(buffer)
             if (count < 0) break
             bytes.write(buffer, 0, count)
             if (bytes.size() > MAX_PACK_BYTES) return PackFetch.TooLarge
             onProgress(bytes.size().toLong(), total)
         }
+        // A body that ended in an error, or short of the size the server gave, was cut off: a lost connection
+        // (caught by downloadPack), never a damaged file.
+        channel.closedCause?.let { throw it as? IOException ?: IOException("The download failed", it) }
+        if (total != null && bytes.size().toLong() != total) throw IOException("${bytes.size()} of $total bytes came")
         val version = response.headers[HttpHeaders.ETag]?.removePrefix(WEAK_TAG)?.removeSurrounding("\"")
         return PackFetch.Received(bytes.toByteArray(), version)
     }

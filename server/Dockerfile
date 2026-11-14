@@ -2,7 +2,7 @@
 # run `./gradlew :server:installDist` first, then `docker build -t flyway-bracket-server server`
 # (docs/server/running.md). No state pack is ever in the image: the packs come in as a volume, at the path
 # PACKS_DIR names.
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 # The server needs no rights on the machine, so it does not run as root.
 RUN addgroup -S -g 10001 server && adduser -S -u 10001 -G server -H -s /sbin/nologin server

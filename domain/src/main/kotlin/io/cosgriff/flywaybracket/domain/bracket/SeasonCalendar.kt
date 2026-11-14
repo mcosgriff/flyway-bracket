@@ -29,6 +29,17 @@ class SeasonCalendar private constructor(val startDate: LocalDate) {
      */
     val picksLockOn: LocalDate get() = startDate
 
+    /**
+     * The day the league's field is fixed, at its start: the Saturday before the season, 48 hours before
+     * picks lock (#34). Until then the field is a preview, seeded again whenever the members or their home
+     * counties change; from then on a late joiner's county no longer changes it. Joining still closes only
+     * when the season starts.
+     */
+    val fieldFixedOn: LocalDate get() = startDate.minusDays(FIELD_FIXED_DAYS_AHEAD)
+
+    /** Whether the field is fixed on [today]: from [fieldFixedOn] on. */
+    fun isFieldFixed(today: LocalDate): Boolean = today >= fieldFixedOn
+
     /** Spring when the season starts in January through June, else fall. */
     val season: Season get() = if (startDate.month <= Month.JUNE) Season.SPRING else Season.FALL
 
@@ -61,6 +72,9 @@ class SeasonCalendar private constructor(val startDate: LocalDate) {
 
     companion object {
         const val DAYS_PER_ROUND = 7
+
+        /** The field is fixed this many days, 48 hours, before the season starts. */
+        const val FIELD_FIXED_DAYS_AHEAD = 2L
 
         /** The calendar of the season starting on [startDate], or [SeasonCalendarResult.NotAMonday]. */
         fun of(startDate: LocalDate): SeasonCalendarResult =

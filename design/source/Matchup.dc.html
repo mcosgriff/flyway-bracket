@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Matchup</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: {{c.bg}}; color: {{c.ink}}; font-family: Inter, system-ui, sans-serif">
+<header style="padding: 12px 12px 4px; display: flex; align-items: center; gap: 4px">
+<a href="Bracket.dc.html" aria-label="Back to bracket" style="display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; color: {{c.ink}}">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></a>
+<div style="display: flex; flex-direction: column">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {{c.mut}}">Round of 32 · Songbirds</span>
+<span style="font-size: 13px; font-weight: 600; color: {{c.hot}}">Closes Sun 6 pm · 2 days left</span>
+</div>
+</header>
+<main style="flex-grow: 1; padding: 8px 20px 16px; display: flex; flex-direction: column; gap: 14px">
+<section style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="background: {{c.pri}}; color: {{c.onp}}; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; font-weight: 600; color: {{c.onpm}}">12 seed · your pick</span>
+<span style="font-weight: 600; font-size: 16px; line-height: 1.25">Western Warbling Vireo</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 60px; line-height: 1">67%</span>
+<span style="font-size: 12px; color: {{c.onpm}}">6 of 9 eligible players</span>
+</div>
+<div style="background: {{c.sf}}; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; font-weight: 600; color: {{c.mut}}">4 seed</span>
+<span style="font-weight: 600; font-size: 16px; line-height: 1.25">Common<br>Grackle</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 60px; line-height: 1; color: {{c.mut}}">50%</span>
+<span style="font-size: 12px; color: {{c.mut}}">6 of 12 eligible players</span>
+</div>
+</section>
+<section style="background: {{c.sf}}; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {{c.mut}}">New players per day</h2>
+<div style="display: flex; align-items: center; gap: 10px; font-size: 12px; color: {{c.mut}}">
+<span style="display: flex; align-items: center; gap: 4px"><span style="width: 10px; height: 10px; border-radius: 2px; background: {{c.pick}}"></span>Warbling Vireo</span>
+<span style="display: flex; align-items: center; gap: 4px"><span style="width: 10px; height: 10px; border-radius: 2px; background: {{c.bar2}}"></span>Grackle</span>
+</div>
+</div>
+<div role="img" aria-label="Western Warbling Vireo gained more new players each day, Monday to Friday. Common Grackle gained fewer each day." style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: end; height: 120px">
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px; height: 100%"><div style="width: 18px; height: 21%; background: {{c.pick}}; border-radius: 4px 4px 0 0"></div><div style="width: 18px; height: 86%; background: {{c.bar2}}; border-radius: 4px 4px 0 0"></div></div>
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px; height: 100%"><div style="width: 18px; height: 36%; background: {{c.pick}}; border-radius: 4px 4px 0 0"></div><div style="width: 18px; height: 64%; background: {{c.bar2}}; border-radius: 4px 4px 0 0"></div></div>
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px; height: 100%"><div style="width: 18px; height: 57%; background: {{c.pick}}; border-radius: 4px 4px 0 0"></div><div style="width: 18px; height: 57%; background: {{c.bar2}}; border-radius: 4px 4px 0 0"></div></div>
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px; height: 100%"><div style="width: 18px; height: 79%; background: {{c.pick}}; border-radius: 4px 4px 0 0"></div><div style="width: 18px; height: 36%; background: {{c.bar2}}; border-radius: 4px 4px 0 0"></div></div>
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px; height: 100%"><div style="width: 18px; height: 100%; background: {{c.pick}}; border-radius: 4px 4px 0 0"></div><div style="width: 18px; height: 29%; background: {{c.bar2}}; border-radius: 4px 4px 0 0"></div></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; text-align: center; font-size: 12px; color: {{c.mut}}">
+<span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
+</div>
+<p style="margin: 0; font-size: 13px; line-height: 1.5; color: {{c.ink}}">Warbling Vireos are arriving. Most players logged their Grackle early.</p>
+</section>
+<section style="background: {{c.sf}}; border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {{c.mut}}">Your part</h2>
+<div style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: {{c.ink}}">
+<svg role="img" aria-label="Counted" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.500" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>
+You logged Western Warbling Vireo today. Counted once.
+</div>
+<div style="font-size: 14px; color: {{c.mut}}">Eligible for both: each is expected in Jefferson Co. this week.</div>
+<div style="font-size: 14px; color: {{c.mut}}">If it wins: 2 points + 8 upset bonus.</div>
+</section>
+</main>
+<footer style="padding: 12px 20px 20px">
+<a href="Outing.dc.html" style="display: flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 28px; background: {{c.act}}; color: {{c.onact}}; font-weight: 600; font-size: 17px; text-decoration: none">Start outing</a>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false,"tsType":"boolean"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+theme(d) {
+return d
+? {bg:"#0B1612",sf:"#14231C",sc:"#223329",ink:"#E8F0EB",mut:"#A3B3AA",line:"#2F4238",sline:"#647A6E",div:"#24352C",pri:"#0F6B56",onp:"#FFFFFF",onpm:"#D3EDE3",act:"#FF8A4C",onact:"#2B1000",pick:"#7FD8BC",tint:"#173A30",wbg:"#3A2A05",wln:"#D9A036",wtx:"#FFD58A",hot:"#FFA273",bar2:"#55685E",inv:"#E8F0EB",oninv:"#0B1612"}
+: {bg:"#F4F6F1",sf:"#FFFFFF",sc:"#DDE3D8",ink:"#14231C",mut:"#4A5A51",line:"#C9D1C6",sline:"#8A968D",div:"#E3E8DF",pri:"#0B5D4B",onp:"#FFFFFF",onpm:"#E6F3EE",act:"#C2410C",onact:"#FFFFFF",pick:"#0B5D4B",tint:"#E6F3EE",wbg:"#FFF1D6",wln:"#B77400",wtx:"#6B4100",hot:"#9A330A",bar2:"#A9B3AB",inv:"#14231C",oninv:"#FFFFFF"};
+}
+renderVals() {
+return { c: this.theme(this.props.dark ?? false) };
+}
+}
+</script>
+</body>
+</html>

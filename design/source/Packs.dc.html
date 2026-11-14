@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bird packs</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: {{c.bg}}; color: {{c.ink}}; font-family: Inter, system-ui, sans-serif">
+<header style="padding: 20px 20px 12px">
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 30px; letter-spacing: 0.5px; text-transform: uppercase">Bird packs</h1>
+<p style="margin: 4px 0 0; font-size: 14px; color: {{c.mut}}">A pack is one state: every county's birds, week by week, saved for offline use.</p>
+</header>
+<main style="flex-grow: 1; padding: 4px 20px 16px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="region" style="font-size: 13px; font-weight: 600; color: {{c.mut}}">Add a state</label>
+<input id="region" type="search" placeholder="State or province" style="height: 52px; box-sizing: border-box; padding: 0 16px; border: 1px solid {{c.sline}}; border-radius: 14px; background: {{c.sf}}; font: inherit; font-size: 15px; color: {{c.ink}}">
+</div>
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {{c.mut}}">Home state</h2>
+<div style="background: {{c.pri}}; color: {{c.onp}}; border-radius: 18px; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600; font-size: 17px">Colorado</span>
+<span style="font-size: 13px; color: {{c.onpm}}">Updated 2 Apr · installed</span>
+</div>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 26px">64 counties</span>
+</div>
+<div style="background: {{c.tint}}; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {{c.pick}}">You are in</span>
+<span style="font-weight: 600; font-size: 15px; color: {{c.ink}}">Jefferson County</span>
+<span style="font-size: 13px; color: {{c.mut}}">Found by GPS · 141 birds expected this week</span>
+</div>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 22px; color: {{c.pick}}">428 species</span>
+</div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {{c.mut}}">Extra packs</h2>
+<div style="background: {{c.sf}}; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600; font-size: 15px">Wyoming</span>
+<span style="font-size: 13px; color: {{c.mut}}">23 counties · installed</span>
+</div>
+<button type="button" style="min-height: 44px; padding: 0 14px; border: 1px solid {{c.sline}}; border-radius: 22px; background: {{c.sf}}; font: inherit; font-size: 13px; font-weight: 600; color: {{c.ink}}">Remove</button>
+</div>
+<div style="background: {{c.sf}}; border-radius: 16px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600; font-size: 15px">New Mexico</span>
+<span style="font-size: 13px; color: {{c.mut}}">33 counties · not downloaded</span>
+</div>
+<button type="button" style="min-height: 44px; padding: 0 14px; border: 0; border-radius: 22px; background: {{c.pri}}; font: inherit; font-size: 13px; font-weight: 600; color: {{c.onp}}">Download</button>
+</div>
+</section>
+<p style="margin: 0; font-size: 13px; line-height: 1.5; color: {{c.mut}}">During an outing GPS picks the county. The dropdown shows birds expected in that county this week. Anything else you type is saved and marked unexpected.</p>
+</main>
+<nav aria-label="Main" style="height: 72px; display: flex; background: {{c.sf}}; border-top: 1px solid {{c.line}}">
+<a href="Main.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: {{c.mut}}; text-decoration: none">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</a>
+<a href="Bracket.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: {{c.mut}}; text-decoration: none">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h5v7h5M4 19h5v-7M14 12h6"/></svg>Bracket</a>
+<a href="League.dc.html" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: {{c.mut}}; text-decoration: none">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.600 2.900-6 6.500-6s6.500 2.400 6.500 6M16 4.800a3.500 3.500 0 0 1 0 6.400M18 14.500c2.200.8 3.500 2.800 3.500 5.500"/></svg>League</a>
+<a href="Packs.dc.html" aria-current="page" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 600; color: {{c.pick}}; text-decoration: none">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/></svg>Packs</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false,"tsType":"boolean"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+theme(d) {
+return d
+? {bg:"#0B1612",sf:"#14231C",sc:"#223329",ink:"#E8F0EB",mut:"#A3B3AA",line:"#2F4238",sline:"#647A6E",div:"#24352C",pri:"#0F6B56",onp:"#FFFFFF",onpm:"#D3EDE3",act:"#FF8A4C",onact:"#2B1000",pick:"#7FD8BC",tint:"#173A30",wbg:"#3A2A05",wln:"#D9A036",wtx:"#FFD58A",hot:"#FFA273",bar2:"#55685E",inv:"#E8F0EB",oninv:"#0B1612"}
+: {bg:"#F4F6F1",sf:"#FFFFFF",sc:"#DDE3D8",ink:"#14231C",mut:"#4A5A51",line:"#C9D1C6",sline:"#8A968D",div:"#E3E8DF",pri:"#0B5D4B",onp:"#FFFFFF",onpm:"#E6F3EE",act:"#C2410C",onact:"#FFFFFF",pick:"#0B5D4B",tint:"#E6F3EE",wbg:"#FFF1D6",wln:"#B77400",wtx:"#6B4100",hot:"#9A330A",bar2:"#A9B3AB",inv:"#14231C",oninv:"#FFFFFF"};
+}
+renderVals() {
+return { c: this.theme(this.props.dark ?? false) };
+}
+}
+</script>
+</body>
+</html>

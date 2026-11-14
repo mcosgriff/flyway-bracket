@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add sighting</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: {{c.bg}}; color: {{c.ink}}; font-family: Inter, system-ui, sans-serif">
+<header style="padding: 12px 12px 8px; display: flex; align-items: center; gap: 4px">
+<a href="Outing.dc.html" aria-label="Back to outing" style="display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; color: {{c.ink}}">
+<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></a>
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 28px; letter-spacing: 0.5px; text-transform: uppercase">Add sighting</h1>
+</header>
+<main style="flex-grow: 1; padding: 4px 20px 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: {{c.mut}}">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+Stamped by phone: 7:52 am · 39.8385, -105.0986
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="bird" style="font-size: 13px; font-weight: 600; color: {{c.mut}}">Bird</label>
+<input id="bird" type="search" value="warb" style="height: 56px; box-sizing: border-box; padding: 0 16px; border: 2px solid {{c.pick}}; border-radius: 14px; background: {{c.sf}}; font: inherit; font-size: 17px; color: {{c.ink}}">
+</div>
+<section style="display: flex; flex-direction: column; gap: 6px">
+<h2 style="margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {{c.mut}}">Expected in Jefferson Co. this week</h2>
+<div style="background: {{c.sf}}; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column">
+<button type="button" style="display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 0 16px; border: 0; border-bottom: 1px solid {{c.div}}; background: {{c.tint}}; font: inherit; text-align: left; color: {{c.ink}}">
+<span style="font-weight: 600; font-size: 15px">Western Warbling Vireo</span><span style="font-size: 12px; font-weight: 600; color: {{c.pick}}">In your bracket</span></button>
+<button type="button" style="display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 0 16px; border: 0; border-bottom: 1px solid {{c.div}}; background: {{c.sf}}; font: inherit; text-align: left; color: {{c.ink}}">
+<span style="font-weight: 600; font-size: 15px">Yellow-rumped Warbler</span><span style="font-size: 12px; color: {{c.mut}}">Logged × 6</span></button>
+<button type="button" style="display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 0 16px; border: 0; border-bottom: 1px solid {{c.div}}; background: {{c.sf}}; font: inherit; text-align: left; color: {{c.ink}}">
+<span style="font-weight: 600; font-size: 15px">Wilson's Warbler</span></button>
+<button type="button" style="display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 0 16px; border: 0; background: {{c.sf}}; font: inherit; text-align: left; color: {{c.ink}}">
+<span style="font-weight: 600; font-size: 15px">Orange-crowned Warbler</span></button>
+</div>
+</section>
+<button type="button" style="display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 60px; padding: 8px 16px; border: 1px solid {{c.wln}}; border-radius: 16px; background: {{c.wbg}}; font: inherit; text-align: left; color: {{c.ink}}">
+<span style="font-weight: 600; font-size: 15px">Use “warb” as typed</span>
+<span style="font-size: 12px; font-weight: 600; color: {{c.wtx}}">Saved as unexpected in this region · tie-break only</span>
+</button>
+<div style="display: flex; align-items: center; justify-content: space-between">
+<span style="font-size: 15px; font-weight: 600">How many?</span>
+<div style="display: flex; align-items: center; gap: 14px">
+<button type="button" aria-label="One fewer" style="width: 48px; height: 48px; border: 1px solid {{c.sline}}; border-radius: 24px; background: {{c.sf}}; font: inherit; font-size: 22px; color: {{c.ink}}">−</button>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 32px; min-width: 24px; text-align: center">1</span>
+<button type="button" aria-label="One more" style="width: 48px; height: 48px; border: 1px solid {{c.sline}}; border-radius: 24px; background: {{c.sf}}; font: inherit; font-size: 22px; color: {{c.ink}}">+</button>
+</div>
+</div>
+</main>
+<footer style="padding: 12px 20px 20px">
+<a href="Outing.dc.html" style="display: flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 28px; background: {{c.act}}; color: {{c.onact}}; font-weight: 600; font-size: 17px; text-decoration: none">Save sighting</a>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false,"tsType":"boolean"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+theme(d) {
+return d
+? {bg:"#0B1612",sf:"#14231C",sc:"#223329",ink:"#E8F0EB",mut:"#A3B3AA",line:"#2F4238",sline:"#647A6E",div:"#24352C",pri:"#0F6B56",onp:"#FFFFFF",onpm:"#D3EDE3",act:"#FF8A4C",onact:"#2B1000",pick:"#7FD8BC",tint:"#173A30",wbg:"#3A2A05",wln:"#D9A036",wtx:"#FFD58A",hot:"#FFA273",bar2:"#55685E",inv:"#E8F0EB",oninv:"#0B1612"}
+: {bg:"#F4F6F1",sf:"#FFFFFF",sc:"#DDE3D8",ink:"#14231C",mut:"#4A5A51",line:"#C9D1C6",sline:"#8A968D",div:"#E3E8DF",pri:"#0B5D4B",onp:"#FFFFFF",onpm:"#E6F3EE",act:"#C2410C",onact:"#FFFFFF",pick:"#0B5D4B",tint:"#E6F3EE",wbg:"#FFF1D6",wln:"#B77400",wtx:"#6B4100",hot:"#9A330A",bar2:"#A9B3AB",inv:"#14231C",oninv:"#FFFFFF"};
+}
+renderVals() {
+return { c: this.theme(this.props.dark ?? false) };
+}
+}
+</script>
+</body>
+</html>

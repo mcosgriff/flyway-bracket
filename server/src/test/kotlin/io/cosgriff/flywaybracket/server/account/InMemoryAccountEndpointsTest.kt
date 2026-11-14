@@ -1,6 +1,8 @@
 package io.cosgriff.flywaybracket.server.account
 
 import io.cosgriff.flywaybracket.api.ApiPaths
+import io.cosgriff.flywaybracket.server.league.InMemoryLeagueStore
+import io.cosgriff.flywaybracket.server.league.LeagueStore
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -15,6 +17,8 @@ import java.util.Base64
 /** The account endpoints over a store in memory: these run without Docker. */
 class InMemoryAccountEndpointsTest : AccountEndpointsTest() {
     override fun store(): PlayerStore = InMemoryPlayerStore()
+
+    override fun leagueStore(players: PlayerStore): LeagueStore = InMemoryLeagueStore(players)
 
     @Test
     fun `no log line has a secret or an Authorization header`() {

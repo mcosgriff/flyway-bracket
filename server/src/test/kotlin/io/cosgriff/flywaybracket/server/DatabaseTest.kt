@@ -5,6 +5,8 @@ import io.cosgriff.flywaybracket.api.ApiPaths
 import io.cosgriff.flywaybracket.api.HealthResponse
 import io.cosgriff.flywaybracket.server.account.Accounts
 import io.cosgriff.flywaybracket.server.account.PostgresPlayerStore
+import io.cosgriff.flywaybracket.server.league.Leagues
+import io.cosgriff.flywaybracket.server.league.PostgresLeagueStore
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.server.testing.testApplication
@@ -24,21 +26,52 @@ import java.util.UUID
  * fail; they are not skipped. All names and values are made up.
  */
 class DatabaseTest {
-    @Test
-    fun `the first migration makes the players table`() {
-        val columns = buildMap {
-            database.dataSource.connection.use { connection ->
-                connection.createStatement().use { statement ->
-                    val rows = statement.executeQuery(
-                        """
-                        SELECT column_name, data_type, is_nullable FROM information_schema.columns
-                        WHERE table_name = 'players' ORDER BY ordinal_position
-                        """.trimIndent(),
-                    )
-                    while (rows.next()) put(rows.getString(1), rows.getString(2) to rows.getString(3))
-                }
+    /** Each column of [table]: its type and whether it may be null. */
+    private fun columns(table: String): Map<String, Pair<String, String>> = buildMap {
+        database.dataSource.connection.use { connection ->
+            connection.prepareStatement(
+                """
+                SELECT column_name, data_type, is_nullable FROM information_schema.columns
+                WHERE table_name = ? ORDER BY ordinal_position
+                """.trimIndent(),
+            ).use { select ->
+                select.setString(1, table)
+                val rows = select.executeQuery()
+                while (rows.next()) put(rows.getString(1), rows.getString(2) to rows.getString(3))
             }
         }
+    }
+
+    @Test
+    fun `the second migration makes the league tables`() {
+        assertEquals(
+            mapOf(
+                "id" to ("uuid" to "NO"),
+                "name" to ("text" to "NO"),
+                "open" to ("boolean" to "NO"),
+                "time_zone" to ("text" to "NO"),
+                "invite_code" to ("text" to "NO"),
+                "phase" to ("text" to "NO"),
+                "season_start" to ("date" to "NO"),
+                "postponements" to ("integer" to "NO"),
+                "created_at" to ("timestamp with time zone" to "NO"),
+            ),
+            columns("leagues"),
+        )
+        assertEquals(
+            mapOf(
+                "league_id" to ("uuid" to "NO"),
+                "player_id" to ("uuid" to "NO"),
+                "joined_at" to ("timestamp with time zone" to "NO"),
+                "left_at" to ("timestamp with time zone" to "YES"),
+            ),
+            columns("league_members"),
+        )
+    }
+
+    @Test
+    fun `the first migration makes the players table`() {
+        val columns = columns("players")
 
         assertEquals(
             mapOf(
@@ -79,7 +112,8 @@ class DatabaseTest {
 
     @Test
     fun `health says the database answers`() = testApplication {
-        application { module(database, Accounts(PostgresPlayerStore(database.dataSource)), version = "1.2.3") }
+        val leagues = Leagues(PostgresLeagueStore(database.dataSource))
+        application { module(database, Accounts(PostgresPlayerStore(database.dataSource), leagues), leagues, version = "1.2.3") }
 
         val health = ApiJson.decodeFromString<HealthResponse>(client.get(ApiPaths.HEALTH).bodyAsText())
 
@@ -106,7 +140,7 @@ class DatabaseTest {
         fun startPostgres() {
             postgres.start()
             database = Database.connect(postgres.jdbcUrl, postgres.username, postgres.password)
-            assertEquals(1, database.migrate())
+            assertEquals(2, database.migrate())
         }
 
         @AfterClass

@@ -101,6 +101,7 @@ class RoundTripTest {
         roundTrip(summary)
         roundTrip(summary.copy(inviteCode = null))
         roundTrip(LeagueListResponse(listOf(summary, summary.copy(id = "league-2", state = LeagueState.FINISHED))))
+        roundTrip(summary.copy(state = LeagueState.CLOSED))
         roundTrip(LeagueListResponse(emptyList()))
     }
 

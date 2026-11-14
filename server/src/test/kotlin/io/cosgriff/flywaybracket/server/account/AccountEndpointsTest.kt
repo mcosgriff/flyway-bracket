@@ -6,6 +6,8 @@ import io.cosgriff.flywaybracket.api.ApiJson
 import io.cosgriff.flywaybracket.api.ApiPaths
 import io.cosgriff.flywaybracket.api.CreateAccountResponse
 import io.cosgriff.flywaybracket.api.ProfileResponse
+import io.cosgriff.flywaybracket.server.league.LeagueStore
+import io.cosgriff.flywaybracket.server.league.Leagues
 import io.cosgriff.flywaybracket.server.module
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.basicAuth
@@ -36,9 +38,14 @@ abstract class AccountEndpointsTest {
     /** A store holding no player the test has made. */
     protected abstract fun store(): PlayerStore
 
+    /** The leagues of [players]' players. */
+    protected abstract fun leagueStore(players: PlayerStore): LeagueStore
+
     protected fun server(creationsPerAddress: Int = 100, test: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
-        val accounts = Accounts(store(), creationLimit = FixedWindowRateLimiter(creationsPerAddress, Accounts.CREATION_WINDOW))
-        application { module(database = { true }, accounts = accounts, version = "1.2.3") }
+        val players = store()
+        val leagues = Leagues(leagueStore(players))
+        val accounts = Accounts(players, leagues, creationLimit = FixedWindowRateLimiter(creationsPerAddress, Accounts.CREATION_WINDOW))
+        application { module(database = { true }, accounts = accounts, leagues = leagues, version = "1.2.3") }
         test()
     }
 

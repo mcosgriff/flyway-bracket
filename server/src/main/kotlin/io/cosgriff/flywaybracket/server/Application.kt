@@ -8,6 +8,8 @@ import io.cosgriff.flywaybracket.api.HealthResponse
 import io.cosgriff.flywaybracket.server.account.Accounts
 import io.cosgriff.flywaybracket.server.account.accountRoutes
 import io.cosgriff.flywaybracket.server.account.installSignIn
+import io.cosgriff.flywaybracket.server.league.Leagues
+import io.cosgriff.flywaybracket.server.league.leagueRoutes
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -24,6 +26,7 @@ import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import io.ktor.util.AttributeKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -33,9 +36,10 @@ import kotlinx.coroutines.withContext
  *
  * @param database asked by the health check
  * @param accounts the players, for creating accounts and for checking who signed a request
+ * @param leagues creating, joining and leaving leagues
  * @param version what the health check reports
  */
-fun Application.module(database: DatabaseCheck, accounts: Accounts, version: String) {
+fun Application.module(database: DatabaseCheck, accounts: Accounts, leagues: Leagues, version: String) {
     install(ContentNegotiation) { json(ApiJson) }
     install(CallLogging) {
         // The line has no colors to show, and with colors on the plugin swaps out System.err for its own
@@ -59,9 +63,10 @@ fun Application.module(database: DatabaseCheck, accounts: Accounts, version: Str
             call.respondError(HttpStatusCode.InternalServerError, ApiErrorCode.SERVER_ERROR)
         }
         // A path or a method the server does not have. The status says which; the code is the nearest of
-        // the fixed list.
+        // the fixed list. A route's own refusal with one of these statuses, such as a 404 for a league the
+        // player is not in, keeps its code.
         status(HttpStatusCode.NotFound, HttpStatusCode.MethodNotAllowed, HttpStatusCode.UnsupportedMediaType) { call, status ->
-            call.respondError(status, ApiErrorCode.INVALID_REQUEST)
+            call.respond(status, call.attributes.getOrNull(RefusedWith) ?: ApiError(ApiErrorCode.INVALID_REQUEST))
         }
     }
 
@@ -72,6 +77,7 @@ fun Application.module(database: DatabaseCheck, accounts: Accounts, version: Str
             call.respond(HealthResponse(version = version, database = answers))
         }
         accountRoutes(accounts)
+        leagueRoutes(leagues)
     }
 }
 
@@ -86,4 +92,14 @@ internal fun requestLogLine(call: ApplicationCall): String {
 
 private suspend fun ApplicationCall.respondError(status: HttpStatusCode, code: ApiErrorCode) {
     respond(status, ApiError(code))
+}
+
+/** The [ApiError] a route refused the call with, kept for the status pages. */
+private val RefusedWith = AttributeKey<ApiError>("RefusedWith")
+
+/** Refuses the call with [code]. Routes refuse with this, so a 404 of theirs keeps its code. */
+internal suspend fun ApplicationCall.refuse(status: HttpStatusCode, code: ApiErrorCode) {
+    val error = ApiError(code)
+    attributes.put(RefusedWith, error)
+    respond(status, error)
 }

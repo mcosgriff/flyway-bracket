@@ -69,6 +69,8 @@ android {
 
     buildFeatures {
         compose = true
+        // BuildConfig.DEBUG keeps the Packs screen's file picker to debug builds (#39).
+        buildConfig = true
     }
 
     // The screenshot tests draw screens under Robolectric, which needs the app's resources and fonts.
@@ -119,6 +121,8 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // The league server in the ViewModel tests of pack downloads (#39): Ktor's mock engine.
+    testImplementation(libs.ktor.client.mock)
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
     testImplementation(libs.roborazzi)

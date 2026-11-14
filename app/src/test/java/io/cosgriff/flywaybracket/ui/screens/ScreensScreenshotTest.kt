@@ -11,6 +11,7 @@ import io.cosgriff.flywaybracket.ui.consent.previewNoNetwork
 import io.cosgriff.flywaybracket.ui.home.HomeContent
 import io.cosgriff.flywaybracket.ui.home.HomeState
 import io.cosgriff.flywaybracket.ui.home.LocationExplainContent
+import io.cosgriff.flywaybracket.ui.home.previewPackOffer
 import io.cosgriff.flywaybracket.ui.home.previewState
 import io.cosgriff.flywaybracket.ui.home.previewToday
 import io.cosgriff.flywaybracket.ui.onboarding.OnboardingContent
@@ -35,10 +36,14 @@ import io.cosgriff.flywaybracket.ui.outing.previewOutingFallback
 import io.cosgriff.flywaybracket.ui.outing.previewSummary
 import io.cosgriff.flywaybracket.ui.packs.PacksContent
 import io.cosgriff.flywaybracket.ui.packs.PacksState
+import io.cosgriff.flywaybracket.ui.packs.previewAskMetered
+import io.cosgriff.flywaybracket.ui.packs.previewDownloading
 import io.cosgriff.flywaybracket.ui.packs.previewHomePack
 import io.cosgriff.flywaybracket.ui.packs.previewNoPacks
 import io.cosgriff.flywaybracket.ui.packs.previewRejected
+import io.cosgriff.flywaybracket.ui.packs.previewServerList
 import io.cosgriff.flywaybracket.ui.packs.previewTwoPacks
+import io.cosgriff.flywaybracket.ui.packs.previewUpdateAvailable
 import java.time.Duration
 import org.junit.Rule
 import org.junit.Test
@@ -75,6 +80,11 @@ class ScreensScreenshotTest(private val shade: Shade) {
     }
 
     @Test
+    fun homePackOffer() = compose.shoot("home_pack_offer", shade) {
+        HomeContent(previewPackOffer, previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
     fun homePackMissing() = compose.shootScreen("home_pack_missing", shade) {
         HomeContent(HomeState(region = previewState.region, packMissing = true), previewToday, onNavigate = {}, onStartOuting = {})
     }
@@ -101,11 +111,26 @@ class ScreensScreenshotTest(private val shade: Shade) {
     @Test
     fun packsTwoPacks() = packs("packs_two_packs", previewTwoPacks)
 
+    // The file picker is in debug builds only, which is where a file is turned away.
     @Test
-    fun packsRejected() = packs("packs_rejected", previewRejected)
+    fun packsRejected() = packs("packs_rejected", previewRejected, debug = true)
 
-    private fun packs(name: String, state: PacksState) = compose.shoot(name, shade) {
-        PacksContent(state, onNavigate = {}, onAddPack = {}, onRemove = {})
+    @Test
+    fun packsServerList() = packs("packs_server_list", previewServerList)
+
+    @Test
+    fun packsDownloading() = packs("packs_downloading", previewDownloading)
+
+    @Test
+    fun packsUpdateAvailable() = packs("packs_update_available", previewUpdateAvailable)
+
+    @Test
+    fun packsAskMetered() = compose.shootScreen("packs_ask_metered", shade) {
+        PacksContent(previewAskMetered, onNavigate = {}, onRemove = {})
+    }
+
+    private fun packs(name: String, state: PacksState, debug: Boolean = false) = compose.shoot(name, shade) {
+        PacksContent(state, onNavigate = {}, onRemove = {}, onAddFile = if (debug) ({}) else null)
     }
 
     @Test

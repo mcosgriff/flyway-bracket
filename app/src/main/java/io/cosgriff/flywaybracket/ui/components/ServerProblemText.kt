@@ -21,6 +21,7 @@ val ServerProblem.message: Int
             ApiErrorCode.UNAUTHORIZED -> R.string.server_problem_unauthorized
             ApiErrorCode.DISPLAY_NAME_INVALID -> R.string.server_problem_display_name_invalid
             ApiErrorCode.COUNTY_UNKNOWN -> R.string.server_problem_county_unknown
+            ApiErrorCode.PACK_NOT_FOUND -> R.string.server_problem_pack_not_found
             ApiErrorCode.INVALID_REQUEST,
             ApiErrorCode.LEAGUE_NOT_FOUND,
             ApiErrorCode.INVITE_CODE_UNKNOWN,
@@ -37,7 +38,6 @@ val ServerProblem.message: Int
             ApiErrorCode.PICKS_INCOMPLETE,
             ApiErrorCode.BRACKET_NOT_READY,
             ApiErrorCode.ROUND_NOT_DECIDED,
-            ApiErrorCode.PACK_NOT_FOUND,
             null,
             -> R.string.server_problem_general
         }

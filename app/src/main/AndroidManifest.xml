@@ -16,6 +16,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--
+        Whether the connection is metered (mobile data, a hotspot), so that a pack download over 5 MB asks
+        first there (#39). Granted at install, never asked for. Android has no way to tell without it. The
+        app reads only that yes or no: not the network's name, not the phone's address.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
         No Android auto-backup: outings and sightings stay on this phone until the app has its own sync.
     -->
     <application

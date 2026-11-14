@@ -31,6 +31,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable data object PacksRoute : NavKey
 
+/** The consent page, before the first pack download (#39). Once there is an account it goes back to Packs. */
+@Serializable data object PacksConsentRoute : NavKey
+
 /**
  * The outing in progress, with the Add sighting sheet (#26).
  *
@@ -94,7 +97,13 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
                 }
             }
             entry<PacksRoute> {
-                PacksScreen(onNavigate = navigate)
+                PacksScreen(onNavigate = navigate, onGetAccount = { if (backStack.lastOrNull() != PacksConsentRoute) backStack.add(PacksConsentRoute) })
+            }
+            // Not now, or the account made: back to Packs, which then lists the server's packs.
+            entry<PacksConsentRoute> {
+                ConsentScreen(place = TopLevel.Packs, onNavigate = navigate, onNotNow = back) {
+                    LaunchedEffect(Unit) { back() }
+                }
             }
             entry<OutingRoute> { route ->
                 OutingScreen(

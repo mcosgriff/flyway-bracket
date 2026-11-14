@@ -60,6 +60,8 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)
+    // The made-up state pack (testStatePack()).
+    testImplementation(testFixtures(project(":domain")))
     testImplementation(libs.room.testing)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)

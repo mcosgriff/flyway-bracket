@@ -6,11 +6,14 @@ import androidx.room3.Room
 import androidx.test.core.app.ApplicationProvider
 import io.cosgriff.flywaybracket.data.BundledCounties
 import io.cosgriff.flywaybracket.data.OutingRepository
+import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
 import io.cosgriff.flywaybracket.data.db.FlywayDatabase
 import io.cosgriff.flywaybracket.domain.outing.Outing
 import io.cosgriff.flywaybracket.domain.outing.OutingLog
 import io.cosgriff.flywaybracket.domain.outing.Sighting
+import io.cosgriff.flywaybracket.domain.pack.StatePackCodec
+import io.cosgriff.flywaybracket.domain.pack.testStatePack
 import io.cosgriff.flywaybracket.domain.place.CountyTableParser
 import java.io.File
 import java.time.Clock
@@ -23,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -31,7 +35,9 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -147,16 +153,77 @@ class HomeViewModelTest {
             outings.addOrBump(inProgress.id, "Made-up Heron")
 
             val state = withTimeout(10_000) {
-                HomeViewModel(outings, settings, counties, clock).state.first { it.recentOutings.isNotEmpty() }
+                HomeViewModel(outings, settings, counties, PackRepository(File(context.filesDir, "home_test_packs")), clock)
+                    .state.first { it.recentOutings.isNotEmpty() }
             }
 
             assertEquals(HomeRegion(county = home.name, stateAbbreviation = firstState.abbreviation), state.region)
 
             assertEquals(SeasonStats(species = 2, lifers = 2, outings = 1), state.season)
             assertEquals(listOf(OutingRow(finished.id, "Test Pond", today, Duration.ZERO, species = 2)), state.recentOutings)
+            assertTrue(state.outingInProgress)
         } finally {
             scope.cancel()
             db.close()
         }
     }
+
+    /** A database, settings and packs for one test of Start outing, closed after [block]. */
+    private fun starting(homeCountyCode: String?, installTestland: Boolean, block: suspend (HomeViewModel, OutingRepository) -> Unit) =
+        runBlocking {
+            val context: Context = ApplicationProvider.getApplicationContext()
+            val db = Room.inMemoryDatabaseBuilder<FlywayDatabase>(context).build()
+            val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            try {
+                val file = File(context.filesDir, "home_start_test.preferences_pb").apply { delete() }
+                val settings = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+                settings.setHomeCountyCode(homeCountyCode)
+                val packs = PackRepository(File(context.filesDir, "home_start_test_packs").apply { deleteRecursively() })
+                if (installTestland) packs.install(StatePackCodec.encode(testStatePack()))
+                val clock = Clock.fixed(Instant.parse("2027-04-18T18:00:00Z"), zone)
+                val outings = OutingRepository(db.outings(), clock)
+                withTimeout(10_000) { block(HomeViewModel(outings, settings, BundledCounties(context), packs, clock), outings) }
+            } finally {
+                scope.cancel()
+                db.close()
+            }
+        }
+
+    @Test
+    fun `Start outing starts one in the home county when its pack is installed, and opens it`() =
+        starting(homeCountyCode = "XX-TS-002", installTestland = true) { home, outings ->
+            home.onStartOuting()
+            home.openOuting.first()
+            val started = outings.inProgress().filterNotNull().first()
+            assertEquals("XX-TS-002", started.countyCode)
+            assertEquals("", started.placeName)
+            assertTrue(home.state.first { it.outingInProgress }.outingInProgress)
+        }
+
+    @Test
+    fun `Start outing with an outing in progress opens that one and starts none`() =
+        starting(homeCountyCode = "XX-TS-002", installTestland = false) { home, outings ->
+            val running = outings.start("Test Pond", "XX-TS-001")
+            home.onStartOuting()
+            home.openOuting.first()
+            assertEquals(running, outings.inProgress().first())
+        }
+
+    @Test
+    fun `Start outing without the home county's pack starts nothing and says so until dismissed`() =
+        starting(homeCountyCode = "XX-TS-002", installTestland = false) { home, outings ->
+            home.onStartOuting()
+            assertTrue(home.state.first { it.packMissing }.packMissing)
+            assertNull(outings.inProgress().first())
+            home.onPackMissingDismissed()
+            assertFalse(home.state.first { !it.packMissing }.packMissing)
+        }
+
+    @Test
+    fun `Start outing with no home county starts nothing`() =
+        starting(homeCountyCode = null, installTestland = true) { home, outings ->
+            home.onStartOuting()
+            assertTrue(home.state.first { it.packMissing }.packMissing)
+            assertNull(outings.inProgress().first())
+        }
 }

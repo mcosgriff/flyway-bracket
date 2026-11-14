@@ -15,6 +15,10 @@ data class HomeState(
     val league: LeagueSummary? = null,
     val season: SeasonStats = SeasonStats(),
     val recentOutings: List<OutingRow> = emptyList(),
+    /** Whether an outing is in progress, which the start button then continues. */
+    val outingInProgress: Boolean = false,
+    /** The player tried to start an outing and the home county's pack is not on the phone (#26). */
+    val packMissing: Boolean = false,
 )
 
 /** A county by its name without "County" and its state's postal abbreviation: `Jefferson`, `CO`. */

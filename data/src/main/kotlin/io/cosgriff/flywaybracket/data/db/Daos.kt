@@ -23,6 +23,11 @@ interface OutingDao {
     @Query("SELECT * FROM outings WHERE endedAt IS NOT NULL ORDER BY startedAt DESC, id DESC")
     fun observeFinishedWithSightings(): Flow<List<OutingWithSightings>>
 
+    /** One outing with its sightings, or null when there is no outing with this id. */
+    @Transaction
+    @Query("SELECT * FROM outings WHERE id = :id")
+    fun observeWithSightings(id: Long): Flow<OutingWithSightings?>
+
     /** In the order they were first logged. */
     @Query("SELECT * FROM sightings WHERE outingId = :outingId ORDER BY seenAt, id")
     fun observeSightings(outingId: Long): Flow<List<SightingEntity>>
@@ -35,6 +40,10 @@ interface OutingDao {
     suspend fun start(placeName: String, countyCode: String, at: Long): OutingEntity =
         inProgress() ?: OutingEntity(placeName = placeName, countyCode = countyCode, startedAt = at, endedAt = null)
             .let { it.copy(id = insert(it)) }
+
+    /** Renames the outing in progress, if there is one. Returns the number of outings renamed. */
+    @Query("UPDATE outings SET placeName = :placeName WHERE endedAt IS NULL")
+    suspend fun renameInProgress(placeName: String): Int
 
     /** Ends the outing in progress, if there is one. Returns the number of outings ended. */
     @Query("UPDATE outings SET endedAt = :at WHERE endedAt IS NULL")

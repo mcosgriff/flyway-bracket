@@ -27,6 +27,11 @@ class OutingRepository(private val dao: OutingDao, private val clock: Clock) {
         logs.map { log -> OutingLog(log.outing.toDomain(), log.sightings.sortedWith(FIRST_LOGGED).map { it.toDomain() }) }
     }
 
+    /** One outing with its sightings in the order the birds were first logged, or `null` when it is gone. */
+    fun log(outingId: Long): Flow<OutingLog?> = dao.observeWithSightings(outingId).map { log ->
+        log?.let { OutingLog(it.outing.toDomain(), it.sightings.sortedWith(FIRST_LOGGED).map { sighting -> sighting.toDomain() }) }
+    }
+
     /** The sightings of one outing, in the order the birds were first logged. */
     fun sightings(outingId: Long): Flow<List<Sighting>> =
         dao.observeSightings(outingId).map { sightings -> sightings.map { it.toDomain() } }
@@ -60,6 +65,11 @@ class OutingRepository(private val dao: OutingDao, private val clock: Clock) {
 
     suspend fun remove(sightingId: Long) {
         dao.removeSighting(sightingId)
+    }
+
+    /** Gives the outing in progress a new place name, stored trimmed; may be empty. Nothing happens when none is. */
+    suspend fun rename(placeName: String) {
+        dao.renameInProgress(placeName.trim())
     }
 
     /** Ends the outing in progress now. Nothing happens when none is. */

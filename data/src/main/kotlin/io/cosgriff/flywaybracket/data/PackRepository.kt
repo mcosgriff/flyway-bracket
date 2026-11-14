@@ -9,6 +9,7 @@ import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -20,8 +21,20 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-/** A state pack on the phone. [sizeBytes] is the size of its file. */
-data class InstalledPack(val pack: StatePack, val sizeBytes: Long)
+/**
+ * A state pack on the phone. [sizeBytes] is the size of its file and [version] the file's [packVersion],
+ * which the server's list gives for its own copy (#39): the two differ when the server has another.
+ */
+data class InstalledPack(val pack: StatePack, val sizeBytes: Long, val version: String)
+
+/** A pack file's version as the server names it: the SHA-256 of the file, in lowercase hex (#33). */
+fun packVersion(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).toHexString()
+
+/**
+ * The most a pack file is read before it is turned away, whether chosen on the phone or downloaded: a
+ * wrong file, a film say, must not be read whole into memory. A state's pack is a few megabytes.
+ */
+const val MAX_PACK_BYTES = 32 * 1024 * 1024
 
 /** What installing a pack file gave. */
 sealed interface PackInstall {
@@ -56,7 +69,8 @@ class PackRepository(private val directory: File, private val io: CoroutineDispa
 
     /**
      * Saves a pack file's [bytes]. They are checked with [StatePackCodec.decode] first, and a file that
-     * fails is not saved. A pack for a state that is already installed takes the older one's place.
+     * fails is not saved. A pack for a state that is already installed takes the older one's place, but
+     * only once the new one has been checked and written in full: until then the older one stays (#39).
      */
     suspend fun install(bytes: ByteArray): PackInstall = withContext(io) {
         val pack = when (val result = StatePackCodec.decode(bytes)) {
@@ -74,7 +88,7 @@ class PackRepository(private val directory: File, private val io: CoroutineDispa
             } catch (_: IOException) {
                 return@withContext PackInstall.NotSaved
             }
-            val installed = InstalledPack(pack, bytes.size.toLong())
+            val installed = InstalledPack(pack, bytes.size.toLong(), packVersion(bytes))
             packs.value = (current.filterNot { it.pack.state.code == pack.state.code } + installed).sortedBy { it.pack.state.name }
             PackInstall.Installed(installed)
         }
@@ -111,7 +125,7 @@ class PackRepository(private val directory: File, private val io: CoroutineDispa
                 } catch (_: IOException) {
                     return@mapNotNull null
                 }
-                (StatePackCodec.decode(bytes) as? StatePackResult.Read)?.let { InstalledPack(it.pack, bytes.size.toLong()) }
+                (StatePackCodec.decode(bytes) as? StatePackResult.Read)?.let { InstalledPack(it.pack, bytes.size.toLong(), packVersion(bytes)) }
             }
             .sortedBy { it.pack.state.name }
 

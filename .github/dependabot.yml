@@ -51,6 +51,19 @@ updates:
         patterns:
           - "*"
 
+  # The Worker in front of the hosted server (worker/package.json): wrangler, the containers library and
+  # the TypeScript types and compiler. One group, so they move together.
+  - package-ecosystem: npm
+    directory: "/worker"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 5
+    groups:
+      worker:
+        patterns:
+          - "*"
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

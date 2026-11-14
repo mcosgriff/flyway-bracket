@@ -90,6 +90,22 @@ jobs:
             ''|root|0|0:*|root:*) echo "::error::The server image runs as root (USER is '$user')."; exit 1 ;;
           esac
 
+      # The Worker in front of the hosted server (worker/, docs/server/hosting.md): its TypeScript must
+      # type-check. deploy-server.yml deploys it; nothing here does.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.changes.outputs.code == 'true'
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+
+      - name: Worker type check
+        if: steps.changes.outputs.code == 'true'
+        working-directory: worker
+        run: |
+          npm ci
+          npm run check
+
       - name: Android lint
         if: steps.changes.outputs.code == 'true'
         run: ./gradlew lintDebug

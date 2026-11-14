@@ -13,10 +13,11 @@ or project ID.
 | The Worker (`worker/src/index.ts`) | Cloudflare Workers | Hands every request, unchanged, to the container; wakes it every hour |
 | The Ktor server (`server/Dockerfile`) | Cloudflare Containers, one instance, type `basic` (1 GiB, 1/4 vCPU) | Started by a Durable Object (`FlywayServer`); sleeps after 10 minutes with no request |
 | Postgres 18 | Neon, free plan, region AWS `us-west-2`, branch `production` | Reached over the internet with the direct (not `-pooler`) JDBC URL and `sslmode=require` |
+| Nightly database dumps | Cloudflare R2, encrypted with age, kept 35 days | Made by `backup-database.yml` ([backups.md](backups.md)) |
 
 Cloudflare ends the HTTPS connection, so it handles everything the app sends; Neon stores everything the
-server keeps. Both are named in the README's Privacy section, the user guide's privacy page and the app's
-consent page.
+server keeps, and Cloudflare's R2 keeps encrypted nightly copies of it ([backups.md](backups.md)). Both are
+named in the README's Privacy section, the user guide's privacy page and the app's consent page.
 
 The server reads its configuration from environment variables ([running.md](running.md#configuration)).
 On Cloudflare the Worker passes them to the container:
@@ -110,8 +111,9 @@ JVM to start and for Neon's compute to wake: several seconds.
    runner's Docker, pushes it to Cloudflare's registry, and deploys the Worker and the container together.
    The running container is replaced; the server applies any new database migration when it starts.
 
-The workflow sees only the API token and the account ID; the database credentials never pass through
-GitHub.
+The workflow sees only the API token and the account ID; the server's database credentials never pass
+through GitHub. The nightly backup uses a read-only role of its own, kept in another environment
+([backups.md](backups.md#4-a-read-only-database-role)).
 
 ## Why one instance
 
@@ -165,7 +167,5 @@ Packs will be served once that permission is given and the server can read them 
 
 ## Not done yet
 
-- **Backups.** Neon's free plan keeps only a short restore window. The plan is a scheduled GitHub Actions
-  job that runs `pg_dump` against the direct URL and keeps a few weeks of dumps in Cloudflare R2.
 - **Waiting for CI.** The deploy does not wait for `ci.yml` on the same commit, as `release.yml` does; the
   approval is the check.

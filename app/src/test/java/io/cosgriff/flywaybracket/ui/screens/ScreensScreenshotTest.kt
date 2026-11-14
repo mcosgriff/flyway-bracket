@@ -1,5 +1,6 @@
 package io.cosgriff.flywaybracket.ui.screens
 
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import io.cosgriff.flywaybracket.R
 import io.cosgriff.flywaybracket.ui.components.NotBuiltYetContent
@@ -39,6 +40,14 @@ import io.cosgriff.flywaybracket.ui.packs.previewHomePack
 import io.cosgriff.flywaybracket.ui.packs.previewNoPacks
 import io.cosgriff.flywaybracket.ui.packs.previewRejected
 import io.cosgriff.flywaybracket.ui.packs.previewTwoPacks
+import io.cosgriff.flywaybracket.ui.settings.LicencesContent
+import io.cosgriff.flywaybracket.ui.settings.SettingsActions
+import io.cosgriff.flywaybracket.ui.settings.SettingsContent
+import io.cosgriff.flywaybracket.ui.settings.previewLicences
+import io.cosgriff.flywaybracket.ui.settings.previewSettingsAccount
+import io.cosgriff.flywaybracket.ui.settings.previewSettingsDeleteAsked
+import io.cosgriff.flywaybracket.ui.settings.previewSettingsDeleteAskedAgain
+import io.cosgriff.flywaybracket.ui.settings.previewSettingsNoAccount
 import java.time.Duration
 import org.junit.Rule
 import org.junit.Test
@@ -161,6 +170,37 @@ class ScreensScreenshotTest(private val shade: Shade) {
 
     private fun consent(name: String, state: ConsentState, place: TopLevel) = compose.shoot(name, shade) {
         ConsentContent(state, place, onNavigate = {}, onContinue = {}, onNotNow = {})
+    }
+
+    @Test
+    fun settingsNoAccount() = compose.shoot("settings_no_account", shade) {
+        SettingsContent(previewSettingsNoAccount, SettingsActions())
+    }
+
+    @Test
+    fun settingsAccount() = compose.shoot("settings_account", shade) {
+        SettingsContent(previewSettingsAccount, SettingsActions())
+    }
+
+    /** The end of the page: privacy, about and licences. */
+    @Test
+    fun settingsAbout() = compose.shoot("settings_about", shade) {
+        SettingsContent(previewSettingsAccount, SettingsActions(), scroll = rememberScrollState(Int.MAX_VALUE))
+    }
+
+    @Test
+    fun settingsDelete() =compose.shootScreen("settings_delete", shade) {
+        SettingsContent(previewSettingsDeleteAsked, SettingsActions())
+    }
+
+    @Test
+    fun settingsDeleteAgain() = compose.shootScreen("settings_delete_again", shade) {
+        SettingsContent(previewSettingsDeleteAskedAgain, SettingsActions())
+    }
+
+    @Test
+    fun licences() = compose.shoot("licences", shade) {
+        LicencesContent(previewLicences, onBack = {}, onOpenLink = {})
     }
 
     @Test

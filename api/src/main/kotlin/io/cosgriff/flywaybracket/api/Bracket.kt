@@ -1,12 +1,18 @@
 package io.cosgriff.flywaybracket.api
 
+import io.cosgriff.flywaybracket.domain.bracket.BirdGroup
 import io.cosgriff.flywaybracket.domain.bracket.Decision
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import kotlinx.serialization.Serializable
 
-/** A bird in the bracket: `Team` in `:domain`, as it travels. */
+/**
+ * A bird in the bracket: `Team` in `:domain`, as it travels.
+ *
+ * @property quarter the quarter the bird plays in. Usually its own group; a bird can play in another
+ *   group's quarter when that group had too few birds to fill it.
+ */
 @Serializable
-data class BracketTeam(val commonName: String, val quarter: String, val seed: Int)
+data class BracketTeam(val commonName: String, val quarter: BirdGroup, val seed: Int)
 
 /**
  * One matchup of the bracket. Its round is [slot]'s round.
@@ -27,11 +33,18 @@ data class BracketMatchup(
 /**
  * A league's bracket and its results so far.
  *
- * @property teams the 64 birds.
+ * @property teams the 64 birds, by quarter from the top of the bracket, then by seed.
  * @property matchups all 63, in slot order.
+ * @property preview true while the field can still change: before it is fixed, 48 hours before the
+ *   season starts. A preview is seeded from the league's members as they are now, and seeded again when
+ *   they or their home counties change, so that players can fill in picks early.
  */
 @Serializable
-data class BracketResponse(val teams: List<BracketTeam>, val matchups: List<BracketMatchup>)
+data class BracketResponse(
+    val teams: List<BracketTeam>,
+    val matchups: List<BracketMatchup>,
+    val preview: Boolean = false,
+)
 
 /**
  * The player's whole bracket: for each of the 63 slots, the common name of the bird picked to win it.

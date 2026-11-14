@@ -15,6 +15,29 @@ android {
         minSdk = 29
     }
 
+    // The league server's address (#38), with no slash at the end. -PflywayServerUrl=… sets a release
+    // build's, -PflywayDebugServerUrl=… a debug build's. A release build talks only HTTPS: the CIO engine
+    // opens its own sockets, so Android's cleartext setting would not stop a plain-HTTP address.
+    buildFeatures {
+        buildConfig = true
+    }
+    buildTypes {
+        debug {
+            // The emulator's name for the developer's own machine, where `./gradlew :server:run` listens.
+            val url = findProperty("flywayDebugServerUrl") as String? ?: "http://10.0.2.2:8080"
+            buildConfigField("String", "SERVER_URL", "\"${url.trimEnd('/')}\"")
+            buildConfigField("boolean", "CLEARTEXT_ALLOWED", "true")
+        }
+        release {
+            // Where the server is hosted is not decided yet (#16). Until it is, the default is a name that
+            // never resolves (`.invalid` is reserved), so a release build reaches nothing.
+            val url = findProperty("flywayServerUrl") as String? ?: "https://server.flywaybracket.invalid"
+            require(url.startsWith("https://")) { "flywayServerUrl must be an https:// address: $url" }
+            buildConfigField("String", "SERVER_URL", "\"${url.trimEnd('/')}\"")
+            buildConfigField("boolean", "CLEARTEXT_ALLOWED", "false")
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

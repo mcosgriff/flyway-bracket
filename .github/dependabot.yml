@@ -1,0 +1,29 @@
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    cooldown:
+      # Wait until a version has been out for 5 days; a bad release is usually caught and pulled by then.
+      # Security updates ignore this.
+      default-days: 5
+    groups:
+      # Kotlin and its compiler plugins must move together.
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+      androidx:
+        patterns:
+          - "androidx.*"
+      everything-else:
+        patterns:
+          - "*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 5

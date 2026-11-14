@@ -86,6 +86,15 @@ class SeasonCalendarTest {
     }
 
     @Test
+    fun `picks are locked from midnight at the start of the first Monday`() {
+        val midnight = LocalDateTime.of(2027, 3, 1, 0, 0)
+
+        assertFalse(spring.arePicksLocked(midnight.minusNanos(1)))
+        assertTrue(spring.arePicksLocked(midnight))
+        assertTrue(spring.arePicksLocked(LocalDateTime.of(2027, 5, 1, 12, 0)))
+    }
+
+    @Test
     fun `the field is fixed 48 hours before picks lock, on the Saturday`() {
         assertEquals(LocalDate.of(2027, 2, 27), spring.fieldFixedOn)
         assertEquals(java.time.DayOfWeek.SATURDAY, spring.fieldFixedOn.dayOfWeek)

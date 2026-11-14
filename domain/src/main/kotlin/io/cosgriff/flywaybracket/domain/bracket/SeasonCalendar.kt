@@ -31,6 +31,9 @@ class SeasonCalendar private constructor(val startDate: LocalDate) {
      */
     val picksLockOn: LocalDate get() = startDate
 
+    /** Whether picks are locked at [now], the date and time in the league's zone: from midnight at the start of [picksLockOn]. */
+    fun arePicksLocked(now: LocalDateTime): Boolean = now >= picksLockOn.atStartOfDay()
+
     /**
      * The day the league's field is fixed, at its start: the Saturday before the season, 48 hours before
      * picks lock (#34). Until then the field is a preview, seeded again whenever the members or their home

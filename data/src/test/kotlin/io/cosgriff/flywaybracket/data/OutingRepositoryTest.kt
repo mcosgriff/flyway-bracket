@@ -202,4 +202,24 @@ class OutingRepositoryTest {
         assertEquals(listOf(marsh, pond), logs.map { it.outing.id })
         assertEquals(listOf(listOf("Made-up Heron"), listOf("Test Warbler", "Sample Sparrow")), logs.map { log -> log.sightings.map { it.birdName } })
     }
+
+    @Test
+    fun `the outing in progress can be renamed, trimmed, and a finished one cannot`() = runBlocking {
+        finishedOuting("Test Pond")
+        outings.start("Sample Marsh", "US-ZZ-001")
+        outings.rename("  Made-up Ridge ")
+        assertEquals("Made-up Ridge", outings.inProgress().first()?.placeName)
+        outings.rename("")
+        assertEquals("", outings.inProgress().first()?.placeName)
+        assertEquals(listOf("Test Pond"), outings.finished().first().map { it.placeName })
+    }
+
+    @Test
+    fun `one outing's log has its sightings in the order first logged, and a missing outing is null`() = runBlocking {
+        val pond = finishedOuting("Test Pond", "Test Warbler", "Sample Sparrow")
+        val log = outings.log(pond).first()
+        assertEquals(pond, log?.outing?.id)
+        assertEquals(listOf("Test Warbler", "Sample Sparrow"), log?.sightings?.map { it.birdName })
+        assertNull(outings.log(pond + 1).first())
+    }
 }

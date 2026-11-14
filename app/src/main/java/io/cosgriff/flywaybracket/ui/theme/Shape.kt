@@ -27,4 +27,10 @@ object FlywayDimens {
     val fieldHeight = 52.dp
     val buttonHeight = 56.dp
     val rowHeight = 64.dp
+
+    /** A card's or a row's outline, as the canvas's 1px borders. */
+    val border = 1.dp
+
+    /** The least width of a row's leading time ("10:48 AM"), so the names beside it line up. */
+    val timeColumn = 64.dp
 }

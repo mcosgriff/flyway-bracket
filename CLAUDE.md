@@ -22,9 +22,10 @@ This file holds the rules and the decisions behind them. How a feature works is 
 the player's settings, the bundled table of states and counties (`assets/places/counties.tsv`,
 Colorado only) and the state packs on the phone (`PackRepository`). `:app` has the theme, the bottom bar,
 the first-run screen (display name and home county, saved in the settings), the Home screen and the Packs
-screen, which adds a pack from a `.fbpack` file the player chooses (downloading is #39); Bracket, League
-and Outing are placeholders (`NotBuiltYetContent`). Home reads its region from the settings and its season
-figures and recent outings from the database; no screen saves an outing yet. The app makes no network call.
+screen, which adds a pack from a `.fbpack` file the player chooses (downloading is #39), and the outing
+flow: Outing, the Add sighting sheet and Summary, in the home county (GPS is #27). Bracket and League are
+placeholders (`NotBuiltYetContent`). Home reads its region from the settings and its season figures and
+recent outings from the database, and starts or continues an outing. The app makes no network call.
 `:server` starts, migrates its Postgres, answers a health check and has anonymous device accounts (create,
 read, change and delete the profile); it has no league, pick or sighting endpoint yet and is hosted nowhere.
 `./gradlew build` is green (Gradle 9.9.1, AGP 9.5.1, lint included; it needs Docker for `:server:test`).

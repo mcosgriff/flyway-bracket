@@ -36,6 +36,11 @@ class CountyChartTest {
     }
 
     @Test
+    fun `a bird expected in any one bin is expected at some time of year, and a rarity never is`() {
+        assertEquals(listOf("Test Warbler", "Test Chickadee"), county.expectedAnyTime().map { it.commonName })
+    }
+
+    @Test
     fun `expected birds come most reported first`() {
         assertEquals(listOf("Test Chickadee", "Test Warbler"), county.expected(may).map { it.commonName })
         assertEquals(listOf("Test Chickadee"), county.expected(january).map { it.commonName })

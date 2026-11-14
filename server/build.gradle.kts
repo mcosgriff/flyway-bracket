@@ -37,6 +37,10 @@ dependencies {
     implementation(libs.ktor.server.status.pages)
     // One line per request: status, method and path.
     implementation(libs.ktor.server.call.logging)
+    // Marks the routes that need an account and hands them the signed-in player.
+    implementation(libs.ktor.server.auth)
+    // Argon2id, the hash of each player's secret.
+    implementation(libs.bouncycastle.bcprov)
 
     implementation(libs.hikari)
     implementation(libs.flyway.core)

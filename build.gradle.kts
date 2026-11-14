@@ -41,6 +41,8 @@ project(":domain") {
     apply(plugin = "org.jetbrains.kotlinx.kover")
     extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
         currentProject {
+            // Test helpers shared with other modules are not code to cover.
+            sources { excludedSourceSets.add("testFixtures") }
             createVariant("coverage") { add("jvm") }
         }
     }

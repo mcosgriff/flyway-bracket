@@ -49,7 +49,10 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
-/** Home, with the season figures and recent outings saved on the phone. No league or tournament exists yet. */
+/**
+ * Home, with the home county from the settings and the season figures and recent outings saved on the
+ * phone. No league or tournament exists yet.
+ */
 @Composable
 fun HomeScreen(onNavigate: (TopLevel) -> Unit, onStartOuting: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -76,7 +79,7 @@ fun HomeContent(
                 .padding(horizontal = FlywayDimens.space5, vertical = FlywayDimens.space4),
             verticalArrangement = Arrangement.spacedBy(FlywayDimens.space4),
         ) {
-            Header(regionName = state.regionName, onRegion = { onNavigate(TopLevel.Packs) })
+            Header(region = state.region, onRegion = { onNavigate(TopLevel.Packs) })
             if (state.tournament != null) {
                 TournamentHero(state.tournament, onViewBracket = { onNavigate(TopLevel.Bracket) })
             } else {
@@ -91,7 +94,7 @@ fun HomeContent(
 }
 
 @Composable
-private fun Header(regionName: String?, onRegion: () -> Unit) {
+private fun Header(region: HomeRegion?, onRegion: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FlywayDimens.space2)) {
         Text(
             text = stringResource(R.string.app_name).toUpperCase(Locale.current),
@@ -100,7 +103,7 @@ private fun Header(regionName: String?, onRegion: () -> Unit) {
                 .weight(1f)
                 .semantics { heading() },
         )
-        if (regionName != null) {
+        if (region != null) {
             OutlinedButton(
                 onClick = onRegion,
                 modifier = Modifier.heightIn(min = FlywayDimens.tapMin),
@@ -109,7 +112,12 @@ private fun Header(regionName: String?, onRegion: () -> Unit) {
                     contentColor = MaterialTheme.colorScheme.onSurface,
                 ),
             ) {
-                Text(regionName, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = stringResource(R.string.home_region_county, region.county, region.stateAbbreviation),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -332,7 +340,7 @@ private val Season.label: Int
 // Made-up figures for previews: no real person, place data or sighting.
 internal val previewToday: LocalDate = LocalDate.of(2027, 4, 18)
 internal val previewState = HomeState(
-    regionName = "Jefferson Co., CO",
+    region = HomeRegion(county = "Jefferson", stateAbbreviation = "CO"),
     tournament = TournamentSummary(Season.SPRING, Round.ROUND_OF_32, points = 27, picksRight = 21, picksDecided = 32, picksNotYetSeen = 4),
     league = LeagueSummary("Flyway Friends", players = 12, rank = 3),
     season = SeasonStats(species = 47, lifers = 3, outings = 12),

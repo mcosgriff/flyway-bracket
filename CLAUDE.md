@@ -18,9 +18,12 @@ This file holds the rules and the decisions behind them. How a feature works is 
 
 ## Status
 
-`:domain` has the game rules. `:data` has the database (`outings` and `sightings`, behind `OutingRepository`) and
-the player's settings. `:app` has the theme, the bottom bar and the Home screen; Bracket, League, Packs and
-Outing are placeholders (`NotBuiltYetContent`). Home reads its season figures and recent outings from the database; no screen saves anything yet. No network, no server.
+`:domain` has the game rules. `:data` has the database (`outings` and `sightings`, behind `OutingRepository`),
+the player's settings, and the bundled table of states and counties (`assets/places/counties.tsv`,
+Colorado only). `:app` has the theme, the bottom bar, the first-run screen (display name and home county,
+saved in the settings) and the Home screen; Bracket, League, Packs and Outing are placeholders
+(`NotBuiltYetContent`). Home reads its region from the settings and its season figures and recent outings
+from the database; no screen saves an outing yet. No network, no server.
 `./gradlew build` is green (Gradle 9.9.1, AGP 9.5.1, lint included). Keep it green; lint fails the build on
 a warning as on an error (`warningsAsErrors`, in `:app` and `:data`), and there is no baseline: fix a
 warning, or suppress that one case in `app/lint.xml` with a comment saying why.
@@ -55,7 +58,8 @@ the `CODECOV_TOKEN` secret.
   - `src/testFixtures` — made-up charts and a made-up pack (`testStatePack()`) for any module's tests:
     `testImplementation(testFixtures(project(":domain")))`.
   - `domain/bracket` — `Round`, `Team`, `Matchup`, `Seeding`, `MatchupRule`, `PickScore`.
-  - `domain/player` — `PlayerSettings` (display name, home county code).
+  - `domain/player` — `PlayerSettings` (display name, home county code), `DisplayName` (the name's rule).
+  - `domain/place` — `CountyTable` (states and counties to choose a home county from), `CountyTableParser`.
   - `domain/outing` — `Outing`, `Sighting`, `OutingLog`, and Home's season figures (`speciesSince`,
     `outingsSince`, `newLifersSince`).
 - `:api` — pure Kotlin, no Android: the messages the app and the server exchange (`kotlinx.serialization`

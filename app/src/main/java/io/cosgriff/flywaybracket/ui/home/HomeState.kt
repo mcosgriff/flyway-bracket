@@ -9,13 +9,17 @@ import java.time.LocalDate
 /** What Home shows. A part that is `null` or empty has nothing yet, and Home says so. */
 @Immutable
 data class HomeState(
-    /** The county the phone is in, as the pack names it. */
-    val regionName: String? = null,
+    /** The player's home county. */
+    val region: HomeRegion? = null,
     val tournament: TournamentSummary? = null,
     val league: LeagueSummary? = null,
     val season: SeasonStats = SeasonStats(),
     val recentOutings: List<OutingRow> = emptyList(),
 )
+
+/** A county by its name without "County" and its state's postal abbreviation: `Jefferson`, `CO`. */
+@Immutable
+data class HomeRegion(val county: String, val stateAbbreviation: String)
 
 /** Where the player's bracket stands in the tournament being played. */
 @Immutable

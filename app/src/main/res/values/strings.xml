@@ -10,6 +10,13 @@
     <string name="duration_minutes">%1$d min</string>
     <string name="season_spring">Spring</string>
     <string name="season_fall">Fall</string>
+    <!-- Round names stay neutral: the basketball tournament's own names are trademarks (#19). -->
+    <string name="round_of_64">Round of 64</string>
+    <string name="round_of_32">Round of 32</string>
+    <string name="round_of_16">Round of 16</string>
+    <string name="round_quarterfinals">Quarterfinals</string>
+    <string name="round_semifinals">Semifinals</string>
+    <string name="round_final">Final</string>
     <string name="not_built_body">This screen is not built yet.</string>
 
     <!-- Bottom bar -->

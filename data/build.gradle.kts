@@ -28,9 +28,8 @@ android {
             buildConfigField("String", "SERVER_URL", "\"${url.trimEnd('/')}\"")
         }
         release {
-            // Where the server is hosted is not decided yet (#16). Until it is, the default is a name that
-            // never resolves (`.invalid` is reserved), so a release build reaches nothing.
-            val url = findProperty("flywayServerUrl") as String? ?: "https://server.flywaybracket.invalid"
+            // The hosted server, on Cloudflare (#16, docs/server/hosting.md).
+            val url = findProperty("flywayServerUrl") as String? ?: "https://api.flywaybracket.cosgriff.io"
             require(url.startsWith("https://")) { "flywayServerUrl must be an https:// address: $url" }
             buildConfigField("String", "SERVER_URL", "\"${url.trimEnd('/')}\"")
         }

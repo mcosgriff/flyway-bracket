@@ -33,13 +33,22 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FlywayServer"] }],
 
-  // The Worker's own log lines, in the dashboard. No invocation logs: they record details of each request,
-  // its full URL among them, and the server's own log keeps no more than a request's status, method and
-  // path (docs/server/running.md, Logs). No request body is ever logged.
+  // What Cloudflare keeps about requests (docs/server/hosting.md, Watching the server; ADR 0001).
+  // The Worker's own log lines go to the dashboard. Invocation logs stay off: Cloudflare's docs do not say
+  // which request headers they keep, or whether they hide `Authorization`, which carries the player's
+  // secret. Traces are on, for every request (sampling 1), and kept 7 days. Per Cloudflare's spans and
+  // attributes page (https://developers.cloudflare.com/workers/observability/traces/spans-and-attributes/),
+  // a trace of an inbound request records its method, URL and path, status, timing, user agent, ASN,
+  // colo, and the country, region and city found from the IP address. Of the headers it keeps only
+  // accept, accept-encoding and accept-language. It keeps no `Authorization`, no body and no IP address.
   "observability": {
     "logs": {
       "enabled": true,
       "invocation_logs": false
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 1
     }
   }
 }

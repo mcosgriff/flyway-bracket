@@ -217,6 +217,9 @@ download bird packs. Sightings are sent in the background.
 - The server runs on Cloudflare, which also handles the secure connection, so everything the app sends
   passes through Cloudflare. The server's database is stored by Neon, on Amazon Web Services in Oregon,
   USA (region us-west-2). How it is hosted: [`docs/server/hosting.md`](docs/server/hosting.md).
+- For 7 days, Cloudflare also keeps a record of each request, so the project can see how the server is
+  doing: what was asked for, whether it worked, how long it took, and the country, region and city your
+  internet address is in. It never holds your secret, what you sent, or the address itself.
 - Nothing is sent before you say yes. Outings work with no account. When you open League or Bracket, or
   ask for bird packs, without an account, a page says what will be sent and asks. "Not now" sends nothing.
 - Downloading a bird pack asks the server for its list of packs and for the pack of one state. To update a

@@ -151,6 +151,39 @@ number of hours from UTC, a league's date is settled as soon as the server has s
 or quarter hour, 30 or 45 minutes late. A read of the league settles it sooner. Each wake keeps the
 container up for 10 minutes, about four hours a day in all when no one is using the app.
 
+## Watching the server
+
+In the Cloudflare dashboard, open Workers & Pages, then `flyway-bracket-server`:
+
+- **Observability**, **Logs**: the Worker's own log lines. Invocation logs are off
+  (`observability.logs.invocation_logs` in `worker/wrangler.jsonc`): Cloudflare's docs do not say which
+  request headers they keep, or whether they hide `Authorization`, which carries the player's secret.
+- **Observability**, **Traces**: one trace for every request (`head_sampling_rate` 1), kept 7 days.
+- **Metrics**: requests, errors and CPU time, with no detail of any one request.
+
+By Cloudflare's
+[spans and attributes](https://developers.cloudflare.com/workers/observability/traces/spans-and-attributes/)
+page, a trace of an inbound request holds:
+
+- its method, URL and path, status and timing;
+- the user agent, the ASN and the Cloudflare data centre (colo);
+- the country, region and city found from the caller's IP address;
+- of the headers, only `accept`, `accept-encoding` and `accept-language`.
+
+It holds no `Authorization` header, no body and no IP address.
+
+From 1 December 2026 Cloudflare bills trace ingestion under its Workers Observability pricing. The beta's
+traffic is far below the amount the Workers Paid plan includes.
+
+ADR 0001 ([0001-server-and-network.md](../adr/0001-server-and-network.md)) states what Cloudflare keeps.
+To make these settings record more (invocation logs on, more headers), change that ADR and the user
+guide's privacy page first.
+
+**After any deploy that changes `observability`:** open one trace of an authenticated request, such as
+`GET /v1/account`, and look through every span in it, the call to the container too (it carries
+`X-Flyway-Client-Ip`). Confirm that no span holds an `Authorization` header or an IP address. If one does,
+set `traces.enabled` to `false` in `worker/wrangler.jsonc` and deploy again.
+
 ## Packs: not served yet
 
 The hosted server starts with an empty packs directory (`/packs`, made in `server/Dockerfile`). A container's

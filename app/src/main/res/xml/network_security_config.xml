@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    HTTPS only, trusting the system's certificate authorities and not ones a user added. A debug build
+    replaces this file (src/debug) to reach a server on the developer's machine. The client in :data also
+    refuses a plain-HTTP address in a release build, since its engine opens its own sockets (#38).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

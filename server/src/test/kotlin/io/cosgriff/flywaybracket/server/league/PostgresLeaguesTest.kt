@@ -20,7 +20,7 @@ import java.util.UUID
 class PostgresLeaguesTest : LeaguesTest() {
     override fun players(): PlayerStore {
         // Each test starts with no players and no leagues: auto-join would find another test's.
-        update("TRUNCATE sightings, league_members, leagues, players")
+        update("TRUNCATE league_field_teams, league_fields, sightings, league_members, leagues, players")
         return PostgresPlayerStore(database.dataSource)
     }
 
@@ -51,7 +51,7 @@ class PostgresLeaguesTest : LeaguesTest() {
         clock.now = at(START.plusDays(1))
         val leagueId = UUID.fromString(league.id)
 
-        Accounts(PostgresPlayerStore(database.dataSource), leagues).delete(deleted)
+        Accounts(PostgresPlayerStore(database.dataSource), leagues, charts).delete(deleted)
 
         assertEquals(0, count("SELECT count(*) FROM league_members WHERE player_id = ?", deleted.id))
         assertEquals(8, count("SELECT count(*) FROM league_members WHERE league_id = ? AND left_at IS NULL", leagueId))

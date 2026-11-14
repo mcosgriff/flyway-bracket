@@ -7,7 +7,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 /**
- * The `leagues` and `league_members` tables in maps, for tests that need no Postgres.
+ * The `leagues`, `league_members` and field tables in maps, for tests that need no Postgres.
  * `PostgresLeagueStore` is the real one. One transaction runs at a time, which stands in for its locks.
  *
  * @param players where a player's display name is read, and whether they exist
@@ -18,6 +18,12 @@ class InMemoryLeagueStore(private val players: PlayerStore) : LeagueStore {
     /** In the order they were made, which breaks ties of start as `created_at` does. */
     private val leagues = LinkedHashMap<UUID, StoredLeague>()
     private val members = HashMap<UUID, LinkedHashMap<UUID, Member>>()
+    private val fields = HashMap<UUID, StoredField>()
+
+    /** How many times a field has been stored, in any league. */
+    @Volatile
+    var fieldSaves = 0
+        private set
 
     @Synchronized
     override fun <T> transaction(block: LeagueTransaction.() -> T): T = Transaction().block()
@@ -40,7 +46,15 @@ class InMemoryLeagueStore(private val players: PlayerStore) : LeagueStore {
         override fun isMember(leagueId: UUID, playerId: UUID): Boolean = members[leagueId]?.get(playerId)?.left == false
 
         override fun members(leagueId: UUID): List<StoredMember> = current(leagueId).mapNotNull { member ->
-            players.profile(member.playerId)?.let { StoredMember(member.playerId, it.displayName.orEmpty()) }
+            players.profile(member.playerId)?.let { StoredMember(member.playerId, it.displayName.orEmpty(), it.homeCounty) }
+        }
+
+        override fun field(leagueId: UUID): StoredField? = fields[leagueId]
+
+        override fun saveField(leagueId: UUID, field: StoredField) {
+            checkNotNull(leagues[leagueId])
+            fields[leagueId] = field
+            fieldSaves++
         }
 
         override fun openFormingLeagues(): List<UUID> = leagues.values

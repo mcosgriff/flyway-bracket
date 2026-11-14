@@ -52,12 +52,12 @@ class PackEndpointsTest {
 
     private fun server(test: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         val players = InMemoryPlayerStore()
-        val leagues = Leagues(InMemoryLeagueStore(players))
         val packs = Packs(directory)
+        val leagues = Leagues(InMemoryLeagueStore(players), packs)
         application {
             module(
                 database = { true },
-                accounts = Accounts(players, leagues),
+                accounts = Accounts(players, leagues, packs),
                 leagues = leagues,
                 packs = packs,
                 sightings = Sightings(InMemorySightingStore(players), packs),

@@ -73,7 +73,7 @@ sealed interface SkipReason {
  *
  * @param directory must be a directory when this is made, or the server does not start
  */
-class Packs(private val directory: Path, private val log: Logger = LoggerFactory.getLogger(Packs::class.java)) {
+class Packs(private val directory: Path, private val log: Logger = LoggerFactory.getLogger(Packs::class.java)) : CountyCharts {
     private val lock = Any()
 
     // Guarded by lock.
@@ -96,8 +96,7 @@ class Packs(private val directory: Path, private val log: Logger = LoggerFactory
         return shelf().byState[stateCode]
     }
 
-    /** The bar chart of the county with this code (`US-CO-059`), or null when no pack holds it. */
-    fun chartFor(countyCode: String): CountyChart? = shelf().charts[countyCode]
+    override fun chartFor(countyCode: String): CountyChart? = shelf().charts[countyCode]
 
     /** The counties and birds of every pack held now, looked at once for a whole batch of sightings. */
     fun catalog(): PackCatalog = shelf().catalog

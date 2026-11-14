@@ -4,6 +4,7 @@ import io.cosgriff.flywaybracket.api.ProfileResponse
 import io.cosgriff.flywaybracket.api.UpdateProfileRequest
 import io.cosgriff.flywaybracket.server.league.InMemoryLeagueStore
 import io.cosgriff.flywaybracket.server.league.Leagues
+import io.cosgriff.flywaybracket.server.pack.testCharts
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -30,8 +31,9 @@ class AccountsTest {
 
     private val store = InMemoryPlayerStore()
     private val hasher = CountingHasher()
-    private val leagues = Leagues(InMemoryLeagueStore(store))
-    private val accounts = Accounts(store, leagues, creationLimit = { true }, hasher = hasher)
+    private val charts = testCharts()
+    private val leagues = Leagues(InMemoryLeagueStore(store), charts)
+    private val accounts = Accounts(store, leagues, charts, creationLimit = { true }, hasher = hasher)
 
     private fun newPlayer(): Pair<String, String> {
         val created = checkNotNull(accounts.create(ADDRESS))
@@ -131,7 +133,7 @@ class AccountsTest {
         val result = accounts.update(player, UpdateProfileRequest(displayName = "  Player One ", homeCounty = "US-ZZ-001"))
 
         assertEquals(ProfileUpdate.Updated, result)
-        assertEquals(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-001"), accounts.profile(player))
+        assertEquals(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-001", homeCountyInPacks = true), accounts.profile(player))
     }
 
     @Test
@@ -143,7 +145,7 @@ class AccountsTest {
         accounts.update(player, UpdateProfileRequest(displayName = "Player Two"))
         accounts.update(player, UpdateProfileRequest())
 
-        assertEquals(ProfileResponse(displayName = "Player Two", homeCounty = "US-ZZ-003"), accounts.profile(player))
+        assertEquals(ProfileResponse(displayName = "Player Two", homeCounty = "US-ZZ-003", homeCountyInPacks = false), accounts.profile(player))
     }
 
     @Test
@@ -156,7 +158,7 @@ class AccountsTest {
             assertEquals(name, ProfileUpdate.DisplayNameInvalid, result)
         }
 
-        assertEquals(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-001"), accounts.profile(player))
+        assertEquals(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-001", homeCountyInPacks = true), accounts.profile(player))
     }
 
     @Test
@@ -189,7 +191,7 @@ class AccountsTest {
 
     @Test
     fun `creating accounts stops at the rate limit for that address`() {
-        val limited = Accounts(InMemoryPlayerStore(), leagues, creationLimit = FixedWindowRateLimiter(2, Accounts.CREATION_WINDOW))
+        val limited = Accounts(InMemoryPlayerStore(), leagues, charts, creationLimit = FixedWindowRateLimiter(2, Accounts.CREATION_WINDOW))
 
         assertNotNull(limited.create(ADDRESS))
         assertNotNull(limited.create(ADDRESS))

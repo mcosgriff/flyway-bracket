@@ -6,6 +6,7 @@ import io.cosgriff.flywaybracket.api.UpdateProfileRequest
 import io.cosgriff.flywaybracket.domain.place.CountyCode
 import io.cosgriff.flywaybracket.domain.player.DisplayName
 import io.cosgriff.flywaybracket.domain.player.DisplayNameCheck
+import io.cosgriff.flywaybracket.server.pack.CountyCharts
 import java.security.SecureRandom
 import java.time.Duration
 import java.util.Base64
@@ -31,11 +32,13 @@ sealed interface ProfileUpdate {
  * blocks on the database and on the hash; call it off the request threads.
  *
  * @param leagues the player's league, shown with their profile and left when they delete their account
+ * @param charts the packs' county charts, to tell a player whether one holds their home county
  * @param creationLimit counts account creations by the caller's address
  */
 class Accounts(
     private val players: PlayerStore,
     private val leagues: PlayerLeagues,
+    private val charts: CountyCharts,
     private val creationLimit: RateLimiter = FixedWindowRateLimiter(CREATIONS_PER_ADDRESS, CREATION_WINDOW),
     private val hasher: SecretHasher = Argon2idHasher(),
     private val random: SecureRandom = SecureRandom(),
@@ -63,9 +66,18 @@ class Accounts(
         return if (id != null && stored != null && matches) SignedInPlayer(id) else null
     }
 
-    /** The player's profile and league, or null when the account was deleted after the request was signed. */
+    /**
+     * The player's profile and league, and whether a pack holds their home county (without one, they are
+     * left out of seeding and are never eligible there); null when the account was deleted after the
+     * request was signed.
+     */
     fun profile(player: SignedInPlayer): ProfileResponse? = players.profile(player.id)?.let {
-        ProfileResponse(displayName = it.displayName, homeCounty = it.homeCounty, league = leagues.current(player.id))
+        ProfileResponse(
+            displayName = it.displayName,
+            homeCounty = it.homeCounty,
+            league = leagues.current(player.id),
+            homeCountyInPacks = it.homeCounty?.let { county -> charts.chartFor(county) != null },
+        )
     }
 
     /**

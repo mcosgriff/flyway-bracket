@@ -69,13 +69,21 @@ data class JoinLeagueRequest(val inviteCode: String)
  * One player's place in a league. It holds only what ADR 0001 lets the others see: no county, no
  * sightings, and no account id.
  *
- * @property rank 1 is first. Players level on points share a rank.
+ * @property rank 1 is first. Players level on points and on [rightPicks] share a rank.
  * @property memberKey names this member in the league's paths, such as [ApiPaths.memberPicks]: made by the
  *   server when the player joins, one per league, and never the account id.
  * @property you whether this is the player who asked.
+ * @property rightPicks how many decided matchups the player picked the winner of; it breaks a tie on points.
  */
 @Serializable
-data class Standing(val displayName: String, val points: Int, val rank: Int, val memberKey: String, val you: Boolean = false)
+data class Standing(
+    val displayName: String,
+    val points: Int,
+    val rank: Int,
+    val memberKey: String,
+    val you: Boolean = false,
+    val rightPicks: Int = 0,
+)
 
 /**
  * A league, its members and its season.

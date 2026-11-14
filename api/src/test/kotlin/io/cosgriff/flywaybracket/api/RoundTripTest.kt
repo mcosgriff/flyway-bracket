@@ -35,8 +35,8 @@ class RoundTripTest {
     )
 
     private val standings = listOf(
-        Standing(displayName = "Player One", points = 12, rank = 1, memberKey = "member-1", you = true),
-        Standing(displayName = "Player Two", points = 9, rank = 2, memberKey = "member-2"),
+        Standing(displayName = "Player One", points = 12, rank = 1, memberKey = "member-1", you = true, rightPicks = 5),
+        Standing(displayName = "Player Two", points = 9, rank = 2, memberKey = "member-2", rightPicks = 6),
     )
 
     /** One made-up bird per slot. */

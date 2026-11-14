@@ -27,6 +27,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -48,6 +49,9 @@ abstract class LeaguesTest {
 
     /** The leagues of [players]' players, holding none. */
     protected abstract fun leagueStore(players: PlayerStore): LeagueStore
+
+    /** Lists [id] as deleted at [at], as an operator copying the list in after a restore does. */
+    protected abstract fun listAsDeleted(id: UUID, at: Instant)
 
     protected val playerStore by lazy { players() }
 
@@ -530,6 +534,21 @@ abstract class LeaguesTest {
         assertEquals(LeagueState.IN_SEASON, detail.league.state)
         assertEquals(START, detail.seasonStart)
         assertEquals(7, detail.league.players)
+    }
+
+    @Test
+    fun `an account a restore brought back is deleted again as deleting it would, and leaves its league`() {
+        val owner = newPlayer()
+        val league = create(owner)
+        val restored = fill(league, 1).single()
+        listAsDeleted(restored.id, clock.instant().minus(Duration.ofDays(1)))
+
+        assertEquals(1, Accounts(playerStore, leagues, charts, clock = clock).deleteAgainListed())
+
+        assertNull(playerStore.profile(restored.id))
+        assertEquals(emptyList<UUID>(), playerStore.deletedButPresent())
+        assertEquals(1, leagues.mine(owner).single().players)
+        assertEquals(listOf("Player 1"), checkNotNull(leagues.detail(owner, league.id)).members.map { it.displayName })
     }
 
     // What a member sees

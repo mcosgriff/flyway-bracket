@@ -8,6 +8,7 @@ import io.cosgriff.flywaybracket.domain.player.DisplayName
 import io.cosgriff.flywaybracket.domain.player.DisplayNameCheck
 import io.cosgriff.flywaybracket.server.pack.CountyCharts
 import java.security.SecureRandom
+import java.time.Clock
 import java.time.Duration
 import java.util.Base64
 import java.util.UUID
@@ -42,6 +43,7 @@ class Accounts(
     private val creationLimit: RateLimiter = FixedWindowRateLimiter(CREATIONS_PER_ADDRESS, CREATION_WINDOW),
     private val hasher: SecretHasher = Argon2idHasher(),
     private val random: SecureRandom = SecureRandom(),
+    private val clock: Clock = Clock.systemUTC(),
 ) {
     /**
      * Checked against when the id names no player, so that an unknown id costs the same hash as a known
@@ -98,11 +100,36 @@ class Accounts(
     /**
      * Deletes the player. Cannot be undone: nothing else proves who they were. They leave their leagues
      * first, as leaving would take them out, so that a league whose start has arrived is settled with them
-     * still counted; then deleting the row deletes their league places with it.
+     * still counted; then deleting the row deletes their league places with it. Their id, and nothing else,
+     * stays listed as deleted for [DELETED_IDS_KEEP_DAYS] days (ADR 0001), for [deleteAgainListed].
      */
     fun delete(player: SignedInPlayer) {
-        leagues.leaveAll(player.id)
-        players.delete(player.id)
+        delete(player.id)
+    }
+
+    /**
+     * Deletes again, as [delete] does, every account listed as deleted that still exists. There is none
+     * unless the database was restored from a backup and the list of deleted accounts was copied in from
+     * the database as it was before (docs/server/backups.md).
+     *
+     * @return how many were deleted
+     */
+    fun deleteAgainListed(): Int {
+        val ids = players.deletedButPresent()
+        ids.forEach(::delete)
+        return ids.size
+    }
+
+    /**
+     * Forgets the ids of accounts deleted more than [DELETED_IDS_KEEP_DAYS] days ago.
+     *
+     * @return how many were forgotten
+     */
+    fun forgetOldDeletions(): Int = players.forgetDeletedBefore(clock.instant().minus(Duration.ofDays(DELETED_IDS_KEEP_DAYS)))
+
+    private fun delete(id: UUID) {
+        leagues.leaveAll(id)
+        players.delete(id)
     }
 
     private fun newSecret(): String {
@@ -116,6 +143,14 @@ class Accounts(
         /** Enough for a household sharing one address to set up its phones; the beta needs no more. */
         const val CREATIONS_PER_ADDRESS = 10
         val CREATION_WINDOW: Duration = Duration.ofHours(1)
+
+        /**
+         * How long a deleted account's id is kept, for deleting it again after a restore. It matches the
+         * R2 lifecycle rule in docs/server/backups.md, which deletes each backup after 35 days, and must
+         * change with it: once no backup can hold the account, its id is not needed. ADR 0001 and the
+         * privacy texts promise this number.
+         */
+        const val DELETED_IDS_KEEP_DAYS = 35L
 
         /** Only the form the server writes, so one account has one id text. */
         private fun parseId(text: String): UUID? = try {

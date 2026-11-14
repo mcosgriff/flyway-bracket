@@ -2,6 +2,7 @@ package io.cosgriff.flywaybracket.server.account
 
 import io.cosgriff.flywaybracket.api.ProfileResponse
 import io.cosgriff.flywaybracket.api.UpdateProfileRequest
+import io.cosgriff.flywaybracket.server.league.HandClock
 import io.cosgriff.flywaybracket.server.league.InMemoryLeagueStore
 import io.cosgriff.flywaybracket.server.league.Leagues
 import io.cosgriff.flywaybracket.server.pack.testCharts
@@ -11,6 +12,8 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.time.Duration
+import java.time.Instant
 import java.util.Base64
 import java.util.UUID
 
@@ -29,11 +32,12 @@ class AccountsTest {
         }
     }
 
-    private val store = InMemoryPlayerStore()
+    private val clock = HandClock(Instant.parse("2027-02-17T19:00:00Z"))
+    private val store = InMemoryPlayerStore(clock)
     private val hasher = CountingHasher()
     private val charts = testCharts()
     private val leagues = Leagues(InMemoryLeagueStore(store), charts)
-    private val accounts = Accounts(store, leagues, charts, creationLimit = { true }, hasher = hasher)
+    private val accounts = Accounts(store, leagues, charts, creationLimit = { true }, hasher = hasher, clock = clock)
 
     private fun newPlayer(): Pair<String, String> {
         val created = checkNotNull(accounts.create(ADDRESS))
@@ -124,6 +128,50 @@ class AccountsTest {
         accounts.delete(signedIn())
 
         assertNotNull(accounts.authenticate(id, secret))
+    }
+
+    // Deleted accounts' ids, kept for deleting them again after a restore (docs/server/backups.md)
+
+    @Test
+    fun `deleting an account lists its id with the time, and nothing else`() {
+        val player = signedIn()
+
+        accounts.delete(player)
+
+        assertEquals(clock.now, store.deletedAt(player.id))
+        assertNull(store.profile(player.id))
+        assertEquals(emptyList<UUID>(), store.deletedButPresent())
+    }
+
+    @Test
+    fun `a deleted account's id is kept for 35 days, then forgotten`() {
+        val player = signedIn()
+        val deletedAt = clock.now
+        accounts.delete(player)
+
+        clock.now = deletedAt.plus(Duration.ofDays(Accounts.DELETED_IDS_KEEP_DAYS))
+        assertEquals(0, accounts.forgetOldDeletions())
+        assertEquals(deletedAt, store.deletedAt(player.id))
+
+        clock.now = deletedAt.plus(Duration.ofDays(Accounts.DELETED_IDS_KEEP_DAYS)).plusSeconds(1)
+        assertEquals(1, accounts.forgetOldDeletions())
+        assertNull(store.deletedAt(player.id))
+    }
+
+    @Test
+    fun `an account a restore brought back is deleted again, and keeps the time it was first deleted`() {
+        val (id, secret) = newPlayer()
+        val kept = signedIn()
+        val firstDeleted = clock.now.minus(Duration.ofDays(2))
+        // As the operator does after a restore: the id comes from the list as it was before.
+        store.listAsDeleted(UUID.fromString(id), firstDeleted)
+
+        assertEquals(1, accounts.deleteAgainListed())
+
+        assertNull(accounts.authenticate(id, secret))
+        assertEquals(firstDeleted, store.deletedAt(UUID.fromString(id)))
+        assertNotNull(accounts.profile(kept))
+        assertEquals(0, accounts.deleteAgainListed())
     }
 
     @Test

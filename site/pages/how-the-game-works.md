@@ -69,6 +69,8 @@ Here is the same rule in steps.
 
 You count once for a bird, however many of it you saw.
 
+If you log a bird that is not expected that week where you live or where you went, it does not count.
+
 [Fair play across the country](fair-play.html) says who is eligible for a bird.
 
 ### If the shares are equal

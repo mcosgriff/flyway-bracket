@@ -43,7 +43,8 @@ jobs:
       - uses: gradle/actions/dependency-submission@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           dependency-graph: generate-and-upload
-          # :app's release classpath, and :domain's, which it takes in.
+          # :app's release classpath, and :domain's, which it takes in. :tools:packbuilder is a
+          # developer's tool that never ships, so it stays out.
           dependency-graph-include-configurations: '^(releaseRuntimeClasspath|runtimeClasspath)$'
           dependency-graph-include-projects: '^:(app|domain)$'
 

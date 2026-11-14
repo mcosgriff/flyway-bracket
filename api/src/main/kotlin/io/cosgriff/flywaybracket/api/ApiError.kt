@@ -34,7 +34,10 @@ enum class ApiErrorCode {
     /** The display name is empty, too long or not allowed. */
     DISPLAY_NAME_INVALID,
 
-    /** The county code is not a county of any pack. */
+    /**
+     * The county code is not one the server accepts: not a well-formed county code (a home county), or
+     * not a county of any pack (a sighting).
+     */
     COUNTY_UNKNOWN,
 
     /** The bird is not one the server knows (a sighting), or not one of the matchup's two (a pick). */

@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -34,6 +35,8 @@ import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.cosgriff.flywaybracket.R
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.domain.bracket.Season
@@ -46,10 +49,11 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
-/** Home, before any outing or league exists: nothing is stored yet, so every part shows its empty state. */
+/** Home, with the season figures and recent outings saved on the phone. No league or tournament exists yet. */
 @Composable
-fun HomeScreen(onNavigate: (TopLevel) -> Unit, onStartOuting: () -> Unit) {
-    HomeContent(state = HomeState(), today = LocalDate.now(), onNavigate = onNavigate, onStartOuting = onStartOuting)
+fun HomeScreen(onNavigate: (TopLevel) -> Unit, onStartOuting: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    HomeContent(state = state, today = LocalDate.now(), onNavigate = onNavigate, onStartOuting = onStartOuting)
 }
 
 @Composable
@@ -289,7 +293,11 @@ private fun OutingRowItem(outing: OutingRow, today: LocalDate) {
             horizontalArrangement = Arrangement.spacedBy(FlywayDimens.space3),
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(outing.place, style = MaterialTheme.typography.titleMedium)
+                // An outing may have no place name (#25).
+                Text(
+                    text = outing.place.ifEmpty { stringResource(R.string.home_outing_unnamed) },
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 Text(
                     text = stringResource(R.string.home_outing_when, day(outing.date, today), length(outing.length)),
                     style = MaterialTheme.typography.bodySmall,

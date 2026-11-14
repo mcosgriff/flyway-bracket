@@ -50,6 +50,8 @@
     <string name="home_stat_outings">Outings</string>
     <string name="home_recent_title">Recent outings</string>
     <string name="home_recent_empty">No outings yet. Start one to log your first birds.</string>
+    <!-- The title of an outing the player gave no place name. -->
+    <string name="home_outing_unnamed">Unnamed place</string>
     <string name="home_outing_today">Today</string>
     <!-- The day, then how long the outing lasted: "Today · 1 h 12 min". -->
     <string name="home_outing_when">%1$s · %2$s</string>

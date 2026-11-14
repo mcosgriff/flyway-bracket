@@ -22,14 +22,17 @@ What exists:
   chart and its outline, and finding the county a place is in. A developer's command-line tool builds a
   pack from files downloaded by hand ([`docs/packs.md`](docs/packs.md)). The app does not download or
   read a pack yet.
-- The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen with its empty state.
+- Outings and sightings saved on the phone, and Home's figures for the calendar year counted from them:
+  species, new lifers, outings and the five most recent outings. No screen logs an outing yet, so Home
+  still shows its empty state.
+- The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen.
   The other screens are placeholders. Every screen is screenshot-tested in light and dark and checked
   for accessibility (touch targets, contrast, labels) on each build.
 
 - The [user guide](https://mcosgriff.github.io/flyway-bracket/), a small website built from `site/` and
   served by GitHub Pages. Its pages about things the app cannot do yet are marked "Coming in the beta".
 
-What does not exist yet: bird packs on the phone, outings and sightings, the bracket screens, leagues, and
+What does not exist yet: bird packs on the phone, the screens for logging an outing, the bracket screens, leagues, and
 the server that leagues need.
 
 ## How the game works

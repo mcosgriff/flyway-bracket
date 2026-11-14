@@ -1,7 +1,6 @@
 package io.cosgriff.flywaybracket.data.db
 
 import android.content.Context
-import androidx.room3.Room
 import androidx.room3.testing.MigrationTestHelper
 import androidx.room3.useReaderConnection
 import androidx.sqlite.driver.AndroidSQLiteDriver
@@ -54,21 +53,48 @@ class MigrationTest {
                 AndroidSQLiteDriver(),
                 FlywayDatabase::class,
             )
-            // A made-up county code and day.
+            // Made-up county code, place, bird and times.
             helper.createDatabase(version).use { c ->
-                c.execSQL("INSERT INTO outings (id, countyCode, day) VALUES (1, 'US-ZZ-001', 20000)")
+                if (version == 1) {
+                    c.execSQL("INSERT INTO outings (id, countyCode, day) VALUES (1, 'US-ZZ-001', 20000)")
+                } else {
+                    c.execSQL(
+                        "INSERT INTO outings (id, placeName, countyCode, startedAt, endedAt) " +
+                            "VALUES (1, 'Test Pond', 'US-ZZ-001', $NOON_OF_DAY_20000, $NOON_OF_DAY_20000)",
+                    )
+                    c.execSQL(
+                        "INSERT INTO sightings (id, outingId, birdName, count, seenAt) " +
+                            "VALUES (1, 1, 'Test Warbler', 3, $NOON_OF_DAY_20000)",
+                    )
+                }
             }
-            val db = Room.databaseBuilder<FlywayDatabase>(context, name).build()
+            val db = FlywayDatabase.open(context, name)
             try {
                 val current = db.useReaderConnection { it.usePrepared("PRAGMA user_version") { s -> s.step(); s.getInt(0) } }
                 assertEquals(exported.last(), current)
-                val outing = db.outings().observeAll().first().single()
-                assertEquals("US-ZZ-001", outing.countyCode)
-                assertEquals(20000L, outing.day)
+                val saved = db.outings().observeFinishedWithSightings().first().single()
+                assertEquals(1L, saved.outing.id)
+                assertEquals("US-ZZ-001", saved.outing.countyCode)
+                // A version 1 outing had only a day: it is finished, at noon UTC of that day, with no place name.
+                assertEquals(NOON_OF_DAY_20000, saved.outing.startedAt)
+                assertEquals(NOON_OF_DAY_20000, saved.outing.endedAt)
+                assertEquals(if (version == 1) "" else "Test Pond", saved.outing.placeName)
+                assertEquals(if (version == 1) emptyList() else listOf("Test Warbler" to 3), saved.sightings.map { it.birdName to it.count })
+                // The rebuilt table still hands out ids after the rows it kept, and takes sightings.
+                val next = db.outings().insert(OutingEntity(placeName = "", countyCode = "US-ZZ-002", startedAt = 1, endedAt = null))
+                assertEquals(2L, next)
+                db.outings().addOrBump(next, "Sample Sparrow", at = 2)
+                assertEquals(1, db.outings().discardInProgress())
+                assertEquals(emptyList<SightingEntity>(), db.outings().observeSightings(next).first())
             } finally {
                 db.close()
                 context.deleteDatabase(name)
             }
         }
+    }
+
+    private companion object {
+        /** Noon UTC on epoch day 20000, in milliseconds. */
+        const val NOON_OF_DAY_20000 = 20000L * 86_400_000L + 43_200_000L
     }
 }

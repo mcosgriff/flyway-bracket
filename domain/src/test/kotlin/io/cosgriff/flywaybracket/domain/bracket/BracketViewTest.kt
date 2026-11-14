@@ -2,8 +2,10 @@ package io.cosgriff.flywaybracket.domain.bracket
 
 import io.cosgriff.flywaybracket.domain.league.Score
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 // Made-up birds (`testTeams()`) and made-up tallies. No name or figure is real.
@@ -176,5 +178,18 @@ class BracketViewTest {
         assertNull(view.matchup(first).pick)
         assertNull(view.matchup(first).result)
         assertEquals(Side.WinnerOf(first), view.matchup(at(Round.ROUND_OF_32, 0)).upper)
+    }
+
+    @Test
+    fun `a round's score, whether it is decided, and the picks by matchup`() {
+        val upsets = setOf(at(Round.ROUND_OF_64, 1))
+        val view = BracketView.of(teams, favourites, results(setOf(Round.ROUND_OF_64), upsets, favourites))
+
+        assertTrue(view.isDecided(Round.ROUND_OF_64))
+        assertFalse(view.isDecided(Round.ROUND_OF_32))
+        // 31 of the 32 favourites won.
+        assertEquals(Score(points = 31, rightPicks = 31), view.score(Round.ROUND_OF_64))
+        assertEquals(Score.NONE, view.score(Round.ROUND_OF_32))
+        assertEquals(favourites, view.pickedBirds)
     }
 }

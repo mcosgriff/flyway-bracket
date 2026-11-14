@@ -49,7 +49,21 @@ What exists:
 - An anonymous account on the league server, asked for on a consent page the first time you open League
   or Bracket. The page says what is sent, what other players see and how deleting works; Continue creates
   the account, Not now sends nothing and goes back Home. Without a network, or when the server does not
-  answer, the page says which and offers Try again. League and Bracket themselves are not built yet.
+  answer, the page says which and offers Try again. The League screen itself is not built yet.
+- The Bracket tab, once the phone has an account: your league's bracket, read from the server and kept on
+  the phone. Three views: a list by round (tabs with the neutral round names, and a quarter at a time up to
+  the quarterfinals), a tree of one quarter, and the whole field of 64, which scrolls both ways. Before
+  picks lock, tapping a bird picks it to win; the tab shows how many of the 63 picks are made and when
+  picks lock, and changing a pick that later picks depend on names those picks and asks first. Picks are
+  saved on the phone and sent to the server; ones the server has not taken yet are sent next time. After
+  the lock picks are read-only, the round being played is marked live, and a decided matchup shows each
+  bird's share of its eligible players with the count ("62% of 13") and the points your pick won. A
+  decided round shows its winners, upsets and your points. Tapping a matchup after the lock opens it:
+  both birds, how many eligible players logged each, who won and why (the higher share, a tie to the
+  better seed, or too few eligible players), your pick and points, and whether you were eligible for and
+  logged each bird, from the outings and packs on the phone. With no league, or a league still forming,
+  the tab says so and points to League. If picks locked before your latest changes reached the server, or
+  the preview's birds changed and cleared picks, the tab says so.
 - Settings, from the gear on Home. Profile: the display name and home county, changed with the first
   run's rules, and sent to the server when there is an account. Account: whether the phone has one, and
   "Delete my account", which says what the server deletes and that outings stay on the phone, asks twice,
@@ -59,7 +73,7 @@ What exists:
   licence line, Inter's licence, and the open-source libraries in the app, listed at build time from
   their Maven POMs.
 - The app shell: a bottom bar (Home, Bracket, League, Packs) and the Home screen, which shows the home
-  county, and the Packs screen. Bracket and League are placeholders. Every screen is screenshot-tested in light and dark and
+  county, and the Packs screen. League is a placeholder. Every screen is screenshot-tested in light and dark and
   checked for accessibility (touch targets, contrast, labels) on each build.
 
 - The [user guide](https://mcosgriff.github.io/flyway-bracket/), a small website built from `site/` and
@@ -69,10 +83,10 @@ What exists:
   creating, joining, auto-joining and leaving leagues, listing and downloading the state packs it is
   given (to signed-in players only), taking and deleting a player's sightings, each kept as a bird
   name, a county and a date only, and seeding each league's bracket: a preview before the season, fixed
-  48 hours before it starts. The app does not talk to it yet.
+  48 hours before it starts. The app uses it for the account and the bracket so far.
 
-What does not exist yet: downloading bird packs, the bracket screens, the League screen, and the app's side
-of the server.
+What does not exist yet: downloading bird packs, the League screen, and the rest of the app's side of the
+server (leagues and sightings).
 
 ## How the game works
 
@@ -150,8 +164,9 @@ and you can change an outing's county by hand.
 ### The league server
 
 Written down in [`docs/adr/0001-server-and-network.md`](docs/adr/0001-server-and-network.md). The account
-is built: creating it, and sending your display name and home county when you set or change them.
-Leagues, picks and sightings are not sent yet; the lines below say what will be.
+is built: creating it, and sending your display name and home county when you set or change them. The
+Bracket tab reads your league from your account, fetches its bracket and results, and sends your picks as
+you make them. Joining leagues and sightings are not sent yet; the lines below say what will be.
 
 - The app talks to one server, the project's own, over HTTPS, and to nothing else.
 - Nothing is sent before you say yes. Outings work with no account. When you open League or Bracket

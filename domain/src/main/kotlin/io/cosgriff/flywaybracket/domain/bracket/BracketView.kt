@@ -95,6 +95,16 @@ data class BracketView(val teams: List<Team>, val matchups: List<MatchupView>) {
     /** How many matchups are decided. */
     val decided: Int get() = matchups.count { it.result != null }
 
+    /** What the player's picks of [round] earned (#42): the finished round's points and right picks. */
+    fun score(round: Round): Score = Score.of(round(round).mapNotNull { it.score })
+
+    /** Whether every matchup of [round] is decided (#42). */
+    fun isDecided(round: Round): Boolean = round(round).all { it.result != null }
+
+    /** The player's picks, by matchup: what [BracketPicks.withPick] and [BracketPicks.clearedBy] take. */
+    val pickedBirds: Map<DrawPosition, String>
+        get() = matchups.mapNotNull { matchup -> matchup.pick?.let { matchup.at to it.commonName } }.toMap()
+
     /**
      * The birds the player picked to win a matchup of [round] that is not decided, and that have not lost:
      * their picks still alive in the round.

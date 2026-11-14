@@ -101,6 +101,17 @@ object Field {
         Seeding.firstRound(teams.filter { it.quarter == quarter }).flatMap { listOf(it.upper, it.lower) }
     }
 
+    /**
+     * The quarter a matchup is played in, by its name in [quarters] (#42): each quarter holds a quarter of
+     * the matchups of every round up to the quarterfinals, top to bottom. Null for a semifinal or the final,
+     * where two quarters meet.
+     */
+    fun quarterOf(at: DrawPosition): String? {
+        val perQuarter = at.round.teams / 2 / quarters.size
+        if (perQuarter == 0) return null
+        return quarters.getOrNull(at.position / perQuarter)
+    }
+
     /** The 32 first-round matchups, top to bottom. */
     fun firstRound(teams: List<Team>): List<Matchup> = drawOrder(teams).chunked(2).map { (upper, lower) -> Matchup(upper, lower) }
 

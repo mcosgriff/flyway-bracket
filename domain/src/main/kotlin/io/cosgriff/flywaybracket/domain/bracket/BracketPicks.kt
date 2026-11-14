@@ -63,6 +63,16 @@ object BracketPicks {
         return if (bird == null) kept else kept + (at to bird)
     }
 
+    /**
+     * The later picks that picking [bird] to win [at] would clear ([withPick]), so the bracket screen can say
+     * which before it changes them (#42): every pick other than the one at [at] that [withPick] drops. Empty
+     * when the change clears nothing else.
+     */
+    fun clearedBy(picks: Map<DrawPosition, String>, at: DrawPosition, bird: String?): Set<DrawPosition> {
+        val after = withPick(picks, at, bird)
+        return picks.keys.filterTo(LinkedHashSet()) { it != at && it !in after }
+    }
+
     private fun DrawPosition.isInBracket(): Boolean = position in 0 until round.teams / 2
 
     /** How many of the 64 birds, in [Field.drawOrder], can reach a matchup of [round]. */

@@ -219,4 +219,36 @@
     <string name="summary_count">× %1$d</string>
     <string name="summary_empty">No birds were logged on this outing.</string>
     <string name="summary_done">Done</string>
+
+    <!-- Consent: League and Bracket show it first, until the player has an account. The words say what
+         docs/adr/0001-server-and-network.md says; change the two together. -->
+    <string name="consent_title">Play in a league</string>
+    <string name="consent_intro">Leagues and brackets need the Flyway Bracket server, the project\'s own. The app talks to it over a secure connection and to no other server. Nothing has been sent yet. If you continue, this is what will be.</string>
+    <string name="consent_sent_title">What is sent</string>
+    <string name="consent_sent_account">An anonymous account: an id and a secret the server gives this phone. No email, no password, no phone number. The secret is kept encrypted on this phone.</string>
+    <string name="consent_sent_profile">Your display name and home county, when you set or change them.</string>
+    <string name="consent_sent_leagues">The leagues you create, join or leave, and your bracket picks.</string>
+    <string name="consent_sent_sightings">Each bird you log: its name, the county and the date.</string>
+    <string name="consent_never_sent">Never sent: your exact location, the time of day you saw a bird, or the place names you type.</string>
+    <string name="consent_seen_title">What other players see</string>
+    <string name="consent_seen_body">Your display name, your picks once they lock, your points, and how many birds you logged in a round.</string>
+    <string name="consent_not_seen_body">Not your county, and not your sightings.</string>
+    <string name="consent_delete_title">Deleting</string>
+    <string name="consent_delete_body">You can delete your account from Settings. The server then deletes your name, picks and sightings. It cannot be undone.</string>
+    <string name="consent_lost_body">The account lives on this phone. If you lose the phone, reset it or clear the app\'s data, the account is lost with it.</string>
+    <string name="consent_continue">Continue</string>
+    <string name="consent_creating">Creating your account…</string>
+    <string name="consent_try_again">Try again</string>
+    <string name="consent_not_now">Not now</string>
+    <string name="consent_not_now_hint">Outings work without an account, and nothing is sent.</string>
+
+    <!-- Why a call to the server failed. Never the server\'s own words: these come from its error code. -->
+    <string name="server_problem_no_network">No internet connection. Connect to a network, then try again.</string>
+    <string name="server_problem_no_answer">The server did not answer. Try again in a few minutes.</string>
+    <string name="server_problem_rate_limited">Too many tries from this network. Wait an hour, then try again.</string>
+    <string name="server_problem_server_error">The server had a problem. Nothing you sent was wrong. Try again later.</string>
+    <string name="server_problem_unauthorized">The server no longer knows this phone\'s account.</string>
+    <string name="server_problem_display_name_invalid">The server did not accept your display name. Change it in Settings.</string>
+    <string name="server_problem_county_unknown">The server did not accept your home county. Choose it again in Settings.</string>
+    <string name="server_problem_general">Something went wrong talking to the server. Try again.</string>
 </resources>

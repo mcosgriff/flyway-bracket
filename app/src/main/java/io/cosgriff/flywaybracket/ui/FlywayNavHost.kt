@@ -11,6 +11,7 @@ import androidx.navigation3.ui.NavDisplay
 import io.cosgriff.flywaybracket.R
 import io.cosgriff.flywaybracket.ui.components.NotBuiltYetContent
 import io.cosgriff.flywaybracket.ui.components.TopLevel
+import io.cosgriff.flywaybracket.ui.consent.ConsentScreen
 import io.cosgriff.flywaybracket.ui.home.HomeScreen
 import io.cosgriff.flywaybracket.ui.onboarding.OnboardingScreen
 import io.cosgriff.flywaybracket.ui.outing.OutingScreen
@@ -76,11 +77,16 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
             entry<HomeRoute> {
                 HomeScreen(onNavigate = navigate, onOpenOuting = { if (backStack.lastOrNull() != OutingRoute) backStack.add(OutingRoute) })
             }
+            // Both need the server: the consent page comes first until the phone has an account (#38).
             entry<BracketRoute> {
-                NotBuiltYetContent(title = R.string.nav_bracket, place = TopLevel.Bracket, onNavigate = navigate)
+                ConsentScreen(place = TopLevel.Bracket, onNavigate = navigate) {
+                    NotBuiltYetContent(title = R.string.nav_bracket, place = TopLevel.Bracket, onNavigate = navigate)
+                }
             }
             entry<LeagueRoute> {
-                NotBuiltYetContent(title = R.string.nav_league, place = TopLevel.League, onNavigate = navigate)
+                ConsentScreen(place = TopLevel.League, onNavigate = navigate) {
+                    NotBuiltYetContent(title = R.string.nav_league, place = TopLevel.League, onNavigate = navigate)
+                }
             }
             entry<PacksRoute> {
                 PacksScreen(onNavigate = navigate)

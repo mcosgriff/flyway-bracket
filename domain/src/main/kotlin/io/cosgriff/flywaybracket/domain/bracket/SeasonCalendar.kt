@@ -68,6 +68,15 @@ class SeasonCalendar private constructor(val startDate: LocalDate) {
     /** The round played on [date]; null before the season and after the final. */
     fun roundOn(date: LocalDate): Round? = Round.entries.firstOrNull { date in roundDates(it) }
 
+    /** The season's first Monday through the final's Sunday. */
+    val seasonDates: ClosedRange<LocalDate> get() = startDate..roundDates(Round.FINAL).endInclusive
+
+    /**
+     * Whether a sighting dated [date] is one the app sends for this season (#43): only those dated inside
+     * [seasonDates]. A sighting logged before the player joined is sent when they join, if it is inside.
+     */
+    fun isSentForSeason(date: LocalDate): Boolean = date in seasonDates
+
     /**
      * Every [TimeBin] one of the round's seven days falls in, earliest first, each once. A bird is
      * expected for the round when it is expected in any of them.

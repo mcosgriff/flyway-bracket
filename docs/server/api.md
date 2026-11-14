@@ -7,7 +7,8 @@ the endpoints that carry them. Change the two together.
 The server (`:server`, [running.md](running.md)) answers the health check, the account endpoints, the
 league endpoints, a league's bracket, picks, results and standings, the pack endpoints and the sighting endpoints, and the app calls the account endpoints,
 after the player agrees (#38), a league's detail, bracket, picks and round results (#41,
-`BracketRepository`), and the pack endpoints (#39, `PackDownloads`). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
+`BracketRepository`), the pack endpoints (#39, `PackDownloads`), and the sighting endpoints, in the background (#43,
+`SightingSync`). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
 new field sent to the server needs a change to that record first.
 
 ## Rules for every call

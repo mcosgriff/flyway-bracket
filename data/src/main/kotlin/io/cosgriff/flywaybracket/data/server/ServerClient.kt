@@ -13,6 +13,7 @@ import io.cosgriff.flywaybracket.api.ProfileResponse
 import io.cosgriff.flywaybracket.api.RoundResultsResponse
 import io.cosgriff.flywaybracket.api.SubmitPicksRequest
 import io.cosgriff.flywaybracket.api.UpdateProfileRequest
+import io.cosgriff.flywaybracket.api.UploadSightingsRequest
 import io.cosgriff.flywaybracket.data.MAX_PACK_BYTES
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.ktor.client.HttpClient
@@ -100,10 +101,10 @@ sealed interface PackFetch {
 }
 
 /**
- * The league server's account endpoints, a league's dates, bracket, picks and results, and the pack
- * endpoints (`docs/server/api.md`), with the messages of `:api`. Bodies are written and read with
- * `ApiJson`. Each call sends only what its message holds: ADR 0001's table lists every field the app may
- * send.
+ * The league server's account endpoints, a league's dates, bracket, picks and results, the pack endpoints,
+ * and the player's sightings (`docs/server/api.md`), with the messages of `:api`. Bodies are written and read
+ * with `ApiJson`. Each call sends only what its message holds: ADR 0001's table lists every field the app
+ * may send.
  *
  * @param baseUrl the server's address with no path and no slash at the end, such as `https://example.org`.
  *   Whether a plain `http://` one may connect is the network security config's to say, not this class's.
@@ -231,6 +232,23 @@ class ServerClient(
     /** `GET /v1/leagues/{leagueId}/rounds/{round}/results`: how each matchup of a decided round went. */
     suspend fun roundResults(credentials: Credentials, leagueId: String, round: Round): ServerResult<RoundResultsResponse> =
         call(HttpMethod.Get, ApiPaths.roundResults(leagueId, round), credentials, body = null, answer = RoundResultsResponse.serializer())
+
+    /**
+     * `POST /v1/sightings` (#43): at most `UploadSightingsRequest.MAX_SIGHTINGS`. Each sighting is the bird, the
+     * county, the date and its id, all ADR 0001's table lets the app send. A sighting the server already
+     * has is not counted again.
+     */
+    suspend fun uploadSightings(credentials: Credentials, sightings: UploadSightingsRequest): ServerResult<Unit> = call(
+        method = HttpMethod.Post,
+        path = ApiPaths.SIGHTINGS,
+        credentials = credentials,
+        body = ApiJson.encodeToString(UploadSightingsRequest.serializer(), sightings),
+        answer = null,
+    )
+
+    /** `DELETE /v1/sightings/{clientId}`: `SIGHTING_NOT_FOUND` means the server does not have it. */
+    suspend fun deleteSighting(credentials: Credentials, clientId: String): ServerResult<Unit> =
+        call(HttpMethod.Delete, ApiPaths.sighting(clientId), credentials, body = null, answer = null)
 
     /** @param answer how to read a successful answer's body, or null when it has none worth reading */
     private suspend fun <T> call(

@@ -30,6 +30,8 @@ data class HomeState(
     val packOffer: PackOffer? = null,
     /** The offered pack is over 5 MB, the connection is metered, and Home asks first (#39). */
     val askMetered: MeteredAsk? = null,
+    /** Sightings have waited more than a day to reach the league server (#43): Home offers to send them now. */
+    val sightingsUnsent: Boolean = false,
 )
 
 /**

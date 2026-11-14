@@ -104,6 +104,11 @@ class ScreensScreenshotTest(private val shade: Shade) {
     }
 
     @Test
+    fun homeUnsent() = compose.shoot("home_unsent", shade) {
+        HomeContent(previewState.copy(sightingsUnsent = true), previewToday, onNavigate = {}, onStartOuting = {})
+    }
+
+    @Test
     fun homePackOffer() = compose.shoot("home_pack_offer", shade) {
         HomeContent(previewPackOffer, previewToday, onNavigate = {}, onStartOuting = {})
     }

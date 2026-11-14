@@ -1,0 +1,458 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "5bdc1e0865a786246d1783f6e3ffa895",
+    "entities": [
+      {
+        "tableName": "outings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `placeName` TEXT NOT NULL, `countyCode` TEXT NOT NULL, `startedAt` INTEGER NOT NULL, `endedAt` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "placeName",
+            "columnName": "placeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "countyCode",
+            "columnName": "countyCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endedAt",
+            "columnName": "endedAt",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "sightings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `outingId` INTEGER NOT NULL, `birdName` TEXT NOT NULL, `count` INTEGER NOT NULL, `seenAt` INTEGER NOT NULL, `clientId` TEXT NOT NULL, FOREIGN KEY(`outingId`) REFERENCES `outings`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outingId",
+            "columnName": "outingId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "birdName",
+            "columnName": "birdName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "count",
+            "columnName": "count",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seenAt",
+            "columnName": "seenAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clientId",
+            "columnName": "clientId",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sightings_outingId_birdName",
+            "unique": true,
+            "columnNames": [
+              "outingId",
+              "birdName"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_sightings_outingId_birdName` ON `${TABLE_NAME}` (`outingId`, `birdName`)"
+          },
+          {
+            "name": "index_sightings_clientId",
+            "unique": true,
+            "columnNames": [
+              "clientId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_sightings_clientId` ON `${TABLE_NAME}` (`clientId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "outings",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "outingId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "brackets",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`leagueId` TEXT NOT NULL, `preview` INTEGER NOT NULL, `seasonStart` TEXT NOT NULL, `timeZone` TEXT NOT NULL, `picksLocked` INTEGER NOT NULL, `picksUnsent` INTEGER NOT NULL, `picksNotice` TEXT, PRIMARY KEY(`leagueId`))",
+        "fields": [
+          {
+            "fieldPath": "leagueId",
+            "columnName": "leagueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "preview",
+            "columnName": "preview",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seasonStart",
+            "columnName": "seasonStart",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeZone",
+            "columnName": "timeZone",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "picksLocked",
+            "columnName": "picksLocked",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "picksUnsent",
+            "columnName": "picksUnsent",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "picksNotice",
+            "columnName": "picksNotice",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "leagueId"
+          ]
+        }
+      },
+      {
+        "tableName": "bracket_teams",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`leagueId` TEXT NOT NULL, `commonName` TEXT NOT NULL, `quarter` TEXT NOT NULL, `seed` INTEGER NOT NULL, PRIMARY KEY(`leagueId`, `commonName`), FOREIGN KEY(`leagueId`) REFERENCES `brackets`(`leagueId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "leagueId",
+            "columnName": "leagueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "commonName",
+            "columnName": "commonName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quarter",
+            "columnName": "quarter",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seed",
+            "columnName": "seed",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "leagueId",
+            "commonName"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "brackets",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "leagueId"
+            ],
+            "referencedColumns": [
+              "leagueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "bracket_picks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`leagueId` TEXT NOT NULL, `slot` INTEGER NOT NULL, `bird` TEXT NOT NULL, PRIMARY KEY(`leagueId`, `slot`), FOREIGN KEY(`leagueId`) REFERENCES `brackets`(`leagueId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "leagueId",
+            "columnName": "leagueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "slot",
+            "columnName": "slot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bird",
+            "columnName": "bird",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "leagueId",
+            "slot"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "brackets",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "leagueId"
+            ],
+            "referencedColumns": [
+              "leagueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "bracket_results",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`leagueId` TEXT NOT NULL, `slot` INTEGER NOT NULL, `winner` TEXT NOT NULL, `upperEligible` INTEGER NOT NULL, `upperLogged` INTEGER NOT NULL, `lowerEligible` INTEGER NOT NULL, `lowerLogged` INTEGER NOT NULL, `reason` TEXT NOT NULL, `roundPoints` INTEGER NOT NULL, `upsetBonus` INTEGER NOT NULL, PRIMARY KEY(`leagueId`, `slot`), FOREIGN KEY(`leagueId`) REFERENCES `brackets`(`leagueId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "leagueId",
+            "columnName": "leagueId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "slot",
+            "columnName": "slot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "winner",
+            "columnName": "winner",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upperEligible",
+            "columnName": "upperEligible",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upperLogged",
+            "columnName": "upperLogged",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lowerEligible",
+            "columnName": "lowerEligible",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lowerLogged",
+            "columnName": "lowerLogged",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "roundPoints",
+            "columnName": "roundPoints",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "upsetBonus",
+            "columnName": "upsetBonus",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "leagueId",
+            "slot"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "brackets",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "leagueId"
+            ],
+            "referencedColumns": [
+              "leagueId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "sync_queue",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`clientId` TEXT NOT NULL, `action` TEXT NOT NULL, `commonName` TEXT NOT NULL, `countyCode` TEXT NOT NULL, `date` TEXT NOT NULL, `queuedAt` INTEGER NOT NULL, `mayBeOnServer` INTEGER NOT NULL, `refused` INTEGER NOT NULL, PRIMARY KEY(`clientId`))",
+        "fields": [
+          {
+            "fieldPath": "clientId",
+            "columnName": "clientId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "action",
+            "columnName": "action",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "commonName",
+            "columnName": "commonName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "countyCode",
+            "columnName": "countyCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "queuedAt",
+            "columnName": "queuedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mayBeOnServer",
+            "columnName": "mayBeOnServer",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "refused",
+            "columnName": "refused",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "clientId"
+          ]
+        }
+      },
+      {
+        "tableName": "sync_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `leagueId` TEXT, `leagueSince` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leagueId",
+            "columnName": "leagueId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "leagueSince",
+            "columnName": "leagueSince",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5bdc1e0865a786246d1783f6e3ffa895')"
+    ]
+  }
+}

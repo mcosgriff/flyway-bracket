@@ -5,6 +5,7 @@ import android.icu.text.MessageFormat
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -108,6 +109,7 @@ fun HomeScreen(
         onConfirmMetered = viewModel::onMeteredConfirmed,
         onDismissMetered = viewModel::onMeteredDismissed,
         onOpenSettings = onOpenSettings,
+        onSendNow = viewModel::onSendNow,
     )
 }
 
@@ -118,6 +120,7 @@ fun HomeScreen(
  * @param onConfirmMetered the player said yes to a large download on a metered connection
  * @param onDismissMetered the player said not now to it
  * @param onOpenSettings the gear in the header (#44)
+ * @param onSendNow Send now, on the note that sightings have not been sent (#43)
  */
 @Composable
 fun HomeContent(
@@ -131,6 +134,7 @@ fun HomeContent(
     onConfirmMetered: () -> Unit = {},
     onDismissMetered: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onSendNow: () -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -152,6 +156,7 @@ fun HomeContent(
                 NoLeagueHero(onFindLeague = { onNavigate(TopLevel.League) })
             }
             StartOutingButton(continuing = state.outingInProgress, finding = state.findingCounty, onClick = onStartOuting)
+            if (state.sightingsUnsent) UnsentNote(onSendNow)
             if (state.league != null) LeagueRow(state.league, onClick = { onNavigate(TopLevel.League) })
             SeasonTiles(state.season)
             RecentOutings(state.recentOutings, today)
@@ -411,6 +416,35 @@ private fun StartOutingButton(continuing: Boolean, finding: Boolean, onClick: ()
             ),
             style = MaterialTheme.typography.titleLarge,
         )
+    }
+}
+
+/** Sightings have waited more than a day to reach the league server (#43). */
+@Composable
+private fun UnsentNote(onSendNow: () -> Unit) {
+    val colors = FlywayTheme.colors
+    Surface(
+        color = colors.warningContainer,
+        contentColor = colors.onWarningContainer,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(FlywayDimens.border, colors.warningBorder),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = FlywayDimens.space4, end = FlywayDimens.space2, top = FlywayDimens.space2, bottom = FlywayDimens.space2),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(FlywayDimens.space2),
+        ) {
+            Text(stringResource(R.string.home_unsent), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            TextButton(
+                onClick = onSendNow,
+                modifier = Modifier.heightIn(min = FlywayDimens.tapMin),
+                colors = ButtonDefaults.textButtonColors(contentColor = colors.onWarningContainer),
+            ) {
+                Text(stringResource(R.string.home_unsent_send), style = MaterialTheme.typography.labelLarge)
+            }
+        }
     }
 }
 

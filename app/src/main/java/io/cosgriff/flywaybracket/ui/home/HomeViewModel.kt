@@ -16,6 +16,8 @@ import io.cosgriff.flywaybracket.data.PackListing
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
 import io.cosgriff.flywaybracket.data.asksBeforeDownload
+import io.cosgriff.flywaybracket.data.sync.SightingSync
+import io.cosgriff.flywaybracket.data.sync.SyncScheduler
 import io.cosgriff.flywaybracket.domain.outing.OutingLog
 import io.cosgriff.flywaybracket.domain.outing.newLifersSince
 import io.cosgriff.flywaybracket.domain.outing.outingsSince
@@ -49,6 +51,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * county the phone is in, found from its approximate location, else in the home county (#27). With an
  * account, when the server has the pack of the home county's state and the phone does not, Home offers to
  * download it (#39). The league and tournament parts stay empty until there is something to read them from.
+ * A note says when sightings have waited more than a day to reach the league server, and Send now sends
+ * them (#43).
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -61,6 +65,8 @@ class HomeViewModel @Inject constructor(
     private val downloads: PackDownloads,
     accounts: AccountRepository,
     private val meter: NetworkMeter,
+    sync: SightingSync,
+    private val scheduler: SyncScheduler,
 ) : ViewModel() {
     private val starting = MutableStateFlow(Starting())
     private val opened = Channel<OpenOuting>(Channel.BUFFERED)
@@ -91,8 +97,13 @@ class HomeViewModel @Inject constructor(
         offered,
         downloads.state,
         askMetered,
-    ) { home, offer, running, ask ->
-        home.copy(packOffer = offer?.let { packOffer(it, running) }, askMetered = ask)
+        sync.queueState(),
+    ) { home, offer, running, ask, queue ->
+        home.copy(
+            packOffer = offer?.let { packOffer(it, running) },
+            askMetered = ask,
+            sightingsUnsent = queue.isLate(clock.instant()),
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), HomeState())
 
     init {
@@ -163,6 +174,11 @@ class HomeViewModel @Inject constructor(
     /** The player left the location page with Back: no outing starts, and the page comes back next time. */
     fun onLocationCancelled() {
         starting.update { it.copy(askLocation = false) }
+    }
+
+    /** Send now, on the note that sightings have not been sent: sends them as soon as the phone is online (#43). */
+    fun onSendNow() {
+        scheduler.syncNow()
     }
 
     fun onPackMissingDismissed() {

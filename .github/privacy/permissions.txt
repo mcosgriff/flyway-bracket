@@ -13,9 +13,20 @@ android.permission.ACCESS_COARSE_LOCATION
 android.permission.INTERNET
 # ACCESS_NETWORK_STATE (install-time; the user is never asked): whether the connection is metered, so that
 # a pack download over 5 MB asks first on mobile data (#39). Only that yes or no is read. README.md,
-# Privacy, says so.
+# Privacy, says so. WorkManager also asks for it, to wait until the phone is online before a background run
+# (#43).
 android.permission.ACCESS_NETWORK_STATE
 
 # Merged in from libraries. Install-time; the user is never asked for it.
 # androidx.core, which protects the app's own unexported receivers with it:
 io.cosgriff.flywaybracket.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+# androidx.work (WorkManager), which sends queued sightings and fetches results in the background (#43). None
+# of these reads anything about the player, and none sends anything: README.md, Privacy, says when the app does.
+# (It also asks for ACCESS_NETWORK_STATE, which the app declares itself: above.)
+# WAKE_LOCK: to keep the phone awake while a run finishes.
+android.permission.WAKE_LOCK
+# RECEIVE_BOOT_COMPLETED: to put queued runs back after the phone restarts.
+android.permission.RECEIVE_BOOT_COMPLETED
+# FOREGROUND_SERVICE: declared for WorkManager's long-running workers. The sync worker is not one: it never
+# starts a foreground service or shows a notification, and the app asks for no notification permission.
+android.permission.FOREGROUND_SERVICE

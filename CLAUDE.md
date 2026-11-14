@@ -63,6 +63,10 @@ the `CODECOV_TOKEN` secret.
   - Tests run on the JVM under Robolectric; Gradle resolves its Android jar (root `build.gradle.kts`).
 - `:app` — Compose UI, theme, navigation (Navigation 3, `@Serializable` `NavKey` routes in
   `ui/FlywayNavHost.kt`). Hilt: `FlywayApp` is the application, `MainActivity` an entry point.
+- `site/` — not a Gradle module: the user guide for players. Markdown in `site/pages/`, built with pandoc
+  (`site/build.sh`), checked by `site/check.py` and pa11y, published to GitHub Pages by `pages.yml`. No
+  JavaScript, nothing from another host. A page about something not built yet has `beta: true`; remove it
+  when the feature ships. A rule changed in `:domain` is changed on the site in the same PR.
 
 Add `:baselineprofile` once the screens settle.
 

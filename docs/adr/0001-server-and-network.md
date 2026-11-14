@@ -112,6 +112,16 @@ Reason: `:domain` is pure Kotlin with no Android imports, so the server can use 
 rules means the app and the server cannot disagree about who is eligible or which bird won. One repository
 means a rule and both of its users change in the same pull request.
 
+### Where it runs
+
+The server runs on Cloudflare, which also handles the secure connection, so everything the app sends
+passes through Cloudflare. The server's database is stored by Neon, on Amazon Web Services in Oregon, USA
+(region us-west-2). The app's one host is `api.flywaybracket.cosgriff.io` (#16, `docs/server/hosting.md`).
+
+Reason: one bill for a small beta, deploys from GitHub after approval, and no server at home next to
+personal files. Cloudflare and Neon are processors of the data in the table above, not extra hosts the app
+talks to; the consent page, the README's Privacy section and the user guide's privacy page name both.
+
 ## Consequences
 
 - The app will need the `INTERNET` permission. It must be added to `.github/privacy/permissions.txt` and
@@ -122,8 +132,11 @@ means a rule and both of its users change in the same pull request.
   coordinates, the time of day and the place name; that is worth a test.
 - The server knows each player's home county and the county and date of each sighting. That is coarser
   than a location, but it is still personal data, and the server must be looked after as such.
-- Like any server, this one sees the IP address of each connection. This record does not decide what the
-  server logs.
+- Like any server, this one sees the IP address of each connection, and so does Cloudflare. The server uses
+  it only to limit how many accounts one address creates, counted in memory (#16). This record does not
+  decide what the server logs.
+- Changing the host, or adding a company that handles the data, needs a change to this record and to the
+  consent page first, as a new field does.
 - A player who loses or resets their phone, or clears the app's data, loses their account, league place
   and points. The app should say so before the player agrees.
 - Deleting an account cannot be undone, for the same reason: there is no way to prove who the player was.
@@ -139,4 +152,3 @@ means a rule and both of its users change in the same pull request.
   covers the home county and league membership.
 - How the server learns of an outing in which the player logged no birds. The eligibility rule counts the
   county of any outing, but only sightings are sent.
-- Where the server is hosted.

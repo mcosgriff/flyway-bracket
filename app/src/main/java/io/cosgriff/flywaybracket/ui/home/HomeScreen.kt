@@ -49,7 +49,10 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
-/** Home, before any outing or league exists: only the home county is stored, so every other part shows its empty state. */
+/**
+ * Home, with the home county from the settings and the season figures and recent outings saved on the
+ * phone. No league or tournament exists yet.
+ */
 @Composable
 fun HomeScreen(onNavigate: (TopLevel) -> Unit, onStartOuting: () -> Unit, viewModel: HomeViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -298,7 +301,11 @@ private fun OutingRowItem(outing: OutingRow, today: LocalDate) {
             horizontalArrangement = Arrangement.spacedBy(FlywayDimens.space3),
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(outing.place, style = MaterialTheme.typography.titleMedium)
+                // An outing may have no place name (#25).
+                Text(
+                    text = outing.place.ifEmpty { stringResource(R.string.home_outing_unnamed) },
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 Text(
                     text = stringResource(R.string.home_outing_when, day(outing.date, today), length(outing.length)),
                     style = MaterialTheme.typography.bodySmall,

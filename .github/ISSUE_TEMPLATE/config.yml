@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  # There is no user guide yet. Switch this link to the guide when #47 is done.
+  # The user guide (site/, #47). Change the address when the site moves to its own domain.
   - name: How the game works
-    url: https://github.com/mcosgriff/flyway-bracket#how-the-game-works
+    url: https://mcosgriff.github.io/flyway-bracket/how-the-game-works.html
     about: Read the rules of the game. Your question may be answered there.
   - name: Report a security or privacy problem
     url: https://github.com/mcosgriff/flyway-bracket/security/advisories/new

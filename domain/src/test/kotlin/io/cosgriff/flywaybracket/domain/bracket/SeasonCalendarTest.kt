@@ -10,6 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 class SeasonCalendarTest {
     private fun calendar(startDate: LocalDate) = (SeasonCalendar.of(startDate) as SeasonCalendarResult.Valid).calendar
@@ -158,6 +159,28 @@ class SeasonCalendarTest {
         assertEquals(LocalDate.of(2028, 1, 9), acrossNewYear.roundDates(Round.FINAL).endInclusive)
         assertNull(acrossNewYear.roundOn(LocalDate.of(2027, 11, 28)))
         assertNull(acrossNewYear.roundOn(LocalDate.of(2028, 1, 10)))
+    }
+
+    // Deciding a round
+
+    @Test
+    fun `a round is decided 12 hours after its Sunday ends`() {
+        assertEquals(12L, SeasonCalendar.DECISION_DELAY_HOURS)
+        // Round 1 is Monday 1 to Sunday 7 March: decided at noon on Monday 8 March.
+        assertEquals(LocalDateTime.of(2027, 3, 8, 12, 0), spring.decidedAt(Round.ROUND_OF_64))
+        assertEquals(LocalDateTime.of(2027, 4, 12, 12, 0), spring.decidedAt(Round.FINAL))
+        assertEquals(LocalDateTime.of(2028, 1, 10, 12, 0), acrossNewYear.decidedAt(Round.FINAL))
+    }
+
+    @Test
+    fun `a round is not decided a moment before its time, and stays decided after`() {
+        assertFalse(spring.isDecided(Round.ROUND_OF_64, LocalDateTime.of(2027, 3, 7, 23, 59)))
+        assertFalse(spring.isDecided(Round.ROUND_OF_64, LocalDateTime.of(2027, 3, 8, 11, 59, 59)))
+        assertTrue(spring.isDecided(Round.ROUND_OF_64, LocalDateTime.of(2027, 3, 8, 12, 0)))
+        assertTrue(spring.isDecided(Round.ROUND_OF_64, LocalDateTime.of(2027, 5, 1, 0, 0)))
+        // The next round has started by then, and is not decided.
+        assertEquals(Round.ROUND_OF_32, spring.roundOn(LocalDate.of(2027, 3, 8)))
+        assertFalse(spring.isDecided(Round.ROUND_OF_32, LocalDateTime.of(2027, 3, 8, 12, 0)))
     }
 
     // With the rules that take bins

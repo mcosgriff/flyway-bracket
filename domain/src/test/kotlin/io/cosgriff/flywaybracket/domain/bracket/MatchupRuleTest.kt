@@ -112,6 +112,48 @@ class MatchupRuleTest {
     }
 
     @Test
+    fun `a player with no home county in a pack is eligible only where they went`() {
+        assertFalse(MatchupRule.isEligible("Test Hummingbird", spring, home = null))
+        assertTrue(MatchupRule.isEligible("Test Kingbird", spring, home = null, visited = listOf(plains)))
+    }
+
+    // Tallies
+
+    @Test
+    fun `a tally counts the eligible players, and those of them who logged the bird`() {
+        val players = listOf(
+            PlayerRound(home = foothills, logged = setOf("Test Hummingbird")),
+            PlayerRound(home = foothills, logged = setOf("Test Hummingbird", "Test Kingbird")),
+            PlayerRound(home = foothills),
+            PlayerRound(home = plains),
+        )
+
+        assertEquals(Tally(eligible = 3, logged = 2), MatchupRule.tally("Test Hummingbird", spring, players))
+    }
+
+    @Test
+    fun `a bird logged by a player who was not eligible for it is not counted`() {
+        // The second player logged a kingbird at home in the foothills, where none is expected: not counted
+        // at all, neither as eligible nor as logged.
+        val players = listOf(
+            PlayerRound(home = plains, logged = setOf("Test Kingbird")),
+            PlayerRound(home = foothills, visited = listOf(foothills), logged = setOf("Test Kingbird")),
+        )
+
+        assertEquals(Tally(eligible = 1, logged = 1), MatchupRule.tally("Test Kingbird", spring, players))
+    }
+
+    @Test
+    fun `a traveler is eligible through a county where they logged a sighting`() {
+        // Home in the foothills, with a sighting on the plains that week: the kingbird counts for them.
+        val traveler = PlayerRound(home = foothills, visited = listOf(plains), logged = setOf("Test Kingbird"))
+
+        assertEquals(Tally(eligible = 1, logged = 1), MatchupRule.tally("Test Kingbird", spring, listOf(traveler)))
+        assertEquals(Tally(eligible = 1, logged = 0), MatchupRule.tally("Test Hummingbird", spring, listOf(traveler)))
+        assertEquals(Tally(eligible = 0, logged = 0), MatchupRule.tally("Test Kingbird", spring, listOf(PlayerRound(home = foothills))))
+    }
+
+    @Test
     fun `a bird due in any part of the round counts`() {
         val arrivesMidRound = chart(seasonal("Test Oriole", TimeBin.of(5, 2), TimeBin.of(8, 4), inSeason = 0.20))
         assertTrue(MatchupRule.isEligible("Test Oriole", spring, home = arrivesMidRound))

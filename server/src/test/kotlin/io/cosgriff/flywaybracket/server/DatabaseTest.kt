@@ -8,6 +8,8 @@ import io.cosgriff.flywaybracket.server.account.PostgresPlayerStore
 import io.cosgriff.flywaybracket.server.league.Leagues
 import io.cosgriff.flywaybracket.server.league.PostgresLeagueStore
 import io.cosgriff.flywaybracket.server.pack.noPacks
+import io.cosgriff.flywaybracket.server.sighting.PostgresSightingStore
+import io.cosgriff.flywaybracket.server.sighting.Sightings
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.server.testing.testApplication
@@ -70,6 +72,55 @@ class DatabaseTest {
         )
     }
 
+    /** ADR 0001: a bird's name, a county and a date, and no column for anything else. */
+    @Test
+    fun `the third migration makes the sightings table, with nothing beyond the ADR's fields`() {
+        assertEquals(
+            mapOf(
+                "player_id" to ("uuid" to "NO"),
+                "client_id" to ("uuid" to "NO"),
+                "common_name" to ("text" to "NO"),
+                "county_code" to ("text" to "NO"),
+                "sighted_on" to ("date" to "NO"),
+            ),
+            columns("sightings"),
+        )
+    }
+
+    @Test
+    fun `deleting a player deletes their sightings`() {
+        val kept = UUID.randomUUID()
+        val deleted = UUID.randomUUID()
+        database.dataSource.connection.use { connection ->
+            listOf(kept, deleted).forEach { id ->
+                connection.prepareStatement("INSERT INTO players (id, secret_hash) VALUES (?, ?)").use { insert ->
+                    insert.setObject(1, id)
+                    insert.setString(2, "made-up-hash")
+                    insert.executeUpdate()
+                }
+                connection.prepareStatement(
+                    "INSERT INTO sightings (player_id, client_id, common_name, county_code, sighted_on) VALUES (?, ?, 'Test Warbler', 'XX-TS-001', DATE '2027-03-04')",
+                ).use { insert ->
+                    insert.setObject(1, id)
+                    insert.setObject(2, UUID.randomUUID())
+                    insert.executeUpdate()
+                }
+            }
+            connection.prepareStatement("DELETE FROM players WHERE id = ?").use { delete ->
+                delete.setObject(1, deleted)
+                delete.executeUpdate()
+            }
+            connection.prepareStatement("SELECT player_id FROM sightings WHERE player_id IN (?, ?)").use { select ->
+                select.setObject(1, kept)
+                select.setObject(2, deleted)
+                val rows = select.executeQuery()
+                assertTrue(rows.next())
+                assertEquals(kept, rows.getObject(1, UUID::class.java))
+                assertFalse(rows.next())
+            }
+        }
+    }
+
     @Test
     fun `the first migration makes the players table`() {
         val columns = columns("players")
@@ -114,7 +165,9 @@ class DatabaseTest {
     @Test
     fun `health says the database answers`() = testApplication {
         val leagues = Leagues(PostgresLeagueStore(database.dataSource))
-        application { module(database, Accounts(PostgresPlayerStore(database.dataSource), leagues), leagues, noPacks(), version = "1.2.3") }
+        val packs = noPacks()
+        val sightings = Sightings(PostgresSightingStore(database.dataSource), packs)
+        application { module(database, Accounts(PostgresPlayerStore(database.dataSource), leagues), leagues, packs, sightings, version = "1.2.3") }
 
         val health = ApiJson.decodeFromString<HealthResponse>(client.get(ApiPaths.HEALTH).bodyAsText())
 
@@ -141,7 +194,7 @@ class DatabaseTest {
         fun startPostgres() {
             postgres.start()
             database = Database.connect(postgres.jdbcUrl, postgres.username, postgres.password)
-            assertEquals(2, database.migrate())
+            assertEquals(3, database.migrate())
         }
 
         @AfterClass

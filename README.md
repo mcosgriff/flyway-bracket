@@ -58,8 +58,9 @@ What exists:
   served by GitHub Pages. Its pages about things the app cannot do yet are marked "Coming in the beta".
 
 - The league server (`server/`, [`docs/server/api.md`](docs/server/api.md)): anonymous accounts,
-  creating, joining, auto-joining and leaving leagues, and listing and downloading the state packs it is
-  given (to signed-in players only). The app does not talk to it yet.
+  creating, joining, auto-joining and leaving leagues, listing and downloading the state packs it is
+  given (to signed-in players only), and taking and deleting a player's sightings, each kept as a bird
+  name, a county and a date only. The app does not talk to it yet.
 
 What does not exist yet: downloading bird packs, the bracket screens, the League screen, and the app's side
 of the server.

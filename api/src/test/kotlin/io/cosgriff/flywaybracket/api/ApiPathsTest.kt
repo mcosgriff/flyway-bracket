@@ -14,6 +14,7 @@ class ApiPathsTest {
         ApiPaths.JOIN_LEAGUE,
         ApiPaths.AUTO_JOIN_LEAGUE,
         ApiPaths.SIGHTINGS,
+        ApiPaths.sighting("6f1c0d4e-0000-4000-8000-000000000001"),
         ApiPaths.PACKS,
         ApiPaths.pack("US-ZZ"),
         ApiPaths.league("league-1"),
@@ -39,5 +40,6 @@ class ApiPathsTest {
         assertEquals("/v1/leagues/{leagueId}/rounds/{round}/results", ApiPaths.roundResults("{leagueId}", "{round}"))
         assertEquals("/v1/leagues/league-1/rounds/ROUND_OF_16/results", ApiPaths.roundResults("league-1", Round.ROUND_OF_16))
         assertEquals("/v1/packs/{state}", ApiPaths.pack("{state}"))
+        assertEquals("/v1/sightings/{clientId}", ApiPaths.sighting("{clientId}"))
     }
 }

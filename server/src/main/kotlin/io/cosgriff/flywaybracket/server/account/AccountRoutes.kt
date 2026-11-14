@@ -15,6 +15,7 @@ import io.ktor.server.auth.AuthenticationFailedCause
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.plugins.origin
+import io.ktor.server.request.ApplicationRequest
 import io.ktor.server.request.receive
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
@@ -76,11 +77,28 @@ internal fun basicCredentials(header: String?): Pair<String, String>? {
     return text.substring(0, colon) to text.substring(colon + 1)
 }
 
-/** `POST /v1/accounts`, and `GET`, `PATCH` and `DELETE` on `/v1/account` (docs/server/api.md). */
-fun Route.accountRoutes(accounts: Accounts) {
+/**
+ * The caller's address, for the account creation limit only: counted in memory, never stored and never
+ * logged.
+ *
+ * @param trustedHeader the header a proxy in front of the server sets on every request, overwriting any
+ *   the caller sent (`ServerConfig.clientAddressHeader`); null when there is none, as on a developer's
+ *   machine. Without it, a header the caller sent is ignored and the connection's address is used.
+ */
+internal fun clientAddress(request: ApplicationRequest, trustedHeader: String?): String {
+    val fromProxy = trustedHeader?.let { request.headers[it] }?.trim()?.takeIf { it.isNotEmpty() }
+    return fromProxy ?: request.origin.remoteAddress
+}
+
+/**
+ * `POST /v1/accounts`, and `GET`, `PATCH` and `DELETE` on `/v1/account` (docs/server/api.md).
+ *
+ * @param clientAddressHeader where the caller's address is read from; see [clientAddress]
+ */
+fun Route.accountRoutes(accounts: Accounts, clientAddressHeader: String? = null) {
     post(ApiPaths.ACCOUNTS) {
         // The address is only counted, in memory, for the rate limit; it is not stored with the account.
-        val address = call.request.origin.remoteAddress
+        val address = clientAddress(call.request, clientAddressHeader)
         call.receive<CreateAccountRequest>()
         val created = withContext(Dispatchers.IO) { accounts.create(address) }
         if (created == null) {

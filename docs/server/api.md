@@ -109,8 +109,11 @@ list only the codes an endpoint adds to these.
   `INVALID_REQUEST`; the 401 carries `WWW-Authenticate: Basic`.
 - **Account creation is limited** to 10 per address per hour, in fixed windows counted from the hour.
   The 11th answers 429 `RATE_LIMITED`. The addresses are counted in memory and forgotten when the window
-  ends; they are not stored with the account or logged. Behind a proxy the server sees the proxy's address:
-  where it is hosted is not decided (#16), and the proxy's forwarded address must be read then.
+  ends; they are not stored with the account or logged. Behind a proxy the server sees the proxy's address,
+  so when `CLIENT_IP_HEADER` names a header, the address is read from that header instead. Only a proxy
+  that sets the header on every request, replacing any the caller sent, may be named: the hosted server's
+  Worker sets `X-Flyway-Client-Ip` ([hosting.md](hosting.md#the-callers-address)). Without
+  `CLIENT_IP_HEADER` a caller's header is ignored.
 - `GET /v1/account` is the asking player's own profile: their display name and home county, each absent
   until set, and `league`, the `LeagueSummary` of their league: the one forming or in season, else their
   latest finished or closed one; absent when they are in none. A league whose state is `CLOSED` never

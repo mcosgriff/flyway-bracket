@@ -9,6 +9,11 @@ RUN addgroup -S -g 10001 server && adduser -S -u 10001 -G server -H -s /sbin/nol
 
 COPY build/install/server /opt/server
 
+# An empty directory for the packs. A local run mounts the packs over it (`-v …:/packs:ro`); the hosted
+# server (docs/server/hosting.md) points PACKS_DIR here and starts with no packs, because a container's
+# disk is wiped on restart and serving packs built from eBird data needs the Cornell Lab's permission.
+RUN mkdir /packs && chown 10001:10001 /packs
+
 USER 10001:10001
 ENV PORT=8080
 EXPOSE 8080

@@ -14,12 +14,12 @@ answers `201` with a `playerId` and a `secret`. Later calls send them as HTTP Ba
 `curl -u "<playerId>:<secret>" http://localhost:8080/v1/account`. A shell's history keeps that command, so
 use only an account made for the test.
 
-The plan for hosting is the server on Cloudflare Containers and its database on Neon's Postgres (issue
-#16). This page is for a developer's own machine.
+The hosted server runs on Cloudflare Containers, with its database on Neon's Postgres (issue #16):
+[hosting.md](hosting.md) says how. This page is for a developer's own machine.
 
 ## Configuration
 
-The server reads five environment variables and nothing else: no config file, no command-line option.
+The server reads six environment variables and nothing else: no config file, no command-line option.
 
 | Variable | Meaning | When not set |
 | --- | --- | --- |
@@ -28,6 +28,7 @@ The server reads five environment variables and nothing else: no config file, no
 | `DATABASE_PASSWORD` | That user's password | The server does not start |
 | `PORT` | The port to listen on, 1 to 65535 | 8080 |
 | `PACKS_DIR` | The directory that holds the state packs ([State packs](#state-packs)); it must exist | The server does not start |
+| `CLIENT_IP_HEADER` | The request header that holds the caller's address, set by a proxy in front of the server that replaces any value the caller sent ([hosting.md](hosting.md#the-callers-address)). Used for the account creation limit only | The connection's own address is used, and the header is ignored |
 
 `server/.env.example` holds made-up values that fit the local Postgres below. For a Neon database,
 `server/neon-env.py` writes `server/.env` instead ([A Neon database](#a-neon-database-development-branch)).
@@ -112,7 +113,7 @@ the Neon CLI, and `uv` for the converter script.
 
 The production database's credentials never go in a file in the repository, and stay on a laptop no
 longer than needed. They are set as Worker secrets (`wrangler secret put`) when the server is deployed
-(#16; `docs/server/hosting.md` will say how).
+([hosting.md](hosting.md#4-the-database-secrets) says how).
 
 ## Start the server
 

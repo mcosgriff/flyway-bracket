@@ -134,7 +134,9 @@ the `CODECOV_TOKEN` secret.
     code from `:domain`), `PlayerStore` the `players` table (`PostgresPlayerStore`; tests also use an
     in-memory one), `AccountRoutes` the endpoints and the HTTP Basic sign-in. The secret is kept only as
     an Argon2id hash (`Argon2idHasher`, Bouncy Castle), compared in constant time; an unknown id is
-    checked against a hash too. Account creation is limited per address (`FixedWindowRateLimiter`).
+    checked against a hash too. Account creation is limited per address (`FixedWindowRateLimiter`);
+    the address comes from the header `CLIENT_IP_HEADER` names when a trusted proxy sets it (the
+    Worker), else from the connection, and is never stored or logged.
     `AccountEndpointsTest` holds the HTTP cases once and runs them on both stores.
   - `server/league` — leagues. `Leagues` applies `domain/league`'s rules; `LeagueStore` the `leagues` and
     `league_members` tables inside one transaction (`PostgresLeagueStore`; tests also use an in-memory
@@ -148,8 +150,14 @@ the `CODECOV_TOKEN` secret.
   - Logging is `slf4j-simple`, not Logback: a server dependency's licence must be on the allow-list in
     `.github/dependency-review-config.yml`, like the app's.
   - `server/Dockerfile` — a small image that runs as a user that is not root. CI builds it and pushes
-    nothing. Left out of the coverage report; its runtime classpath is in the dependency graph sent to
-    GitHub.
+    nothing; `deploy-server.yml` deploys it. Left out of the coverage report; its runtime classpath is in
+    the dependency graph sent to GitHub.
+- `worker/` — not Gradle: the TypeScript Worker and `wrangler.jsonc` that host the server on Cloudflare
+  Containers at `api.flywaybracket.cosgriff.io`, with its database on Neon (#16,
+  `docs/server/hosting.md`). **One container instance** (`max_instances: 1`): the account rate limiter
+  and `SeasonStartJob` live in the server's memory. An hourly cron wakes the sleeping container so leagues
+  are settled on time. No secret in the repository: the database values are Worker secrets, the API token
+  a secret of the `production` environment, whose approval every deploy waits for.
 - `site/` — not a Gradle module: the user guide for players. Markdown in `site/pages/`, built with pandoc
   (`site/build.sh`), checked by `site/check.py` and pa11y, published to GitHub Pages by `pages.yml`. No
   JavaScript, nothing from another host. A page about something not built yet has `beta: true`; remove it

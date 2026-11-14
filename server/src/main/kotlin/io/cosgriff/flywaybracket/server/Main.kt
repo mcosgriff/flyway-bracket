@@ -32,7 +32,7 @@ fun main() {
             seasonStarts.close()
             database.close()
         }
-        module(database, accounts, leagues, packs, sightings, ServerVersion.current)
+        module(database, accounts, leagues, packs, sightings, ServerVersion.current, config.clientAddressHeader)
     }.start(wait = true)
 }
 

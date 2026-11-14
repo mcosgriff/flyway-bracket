@@ -19,6 +19,10 @@ data class HomeState(
     val outingInProgress: Boolean = false,
     /** The player tried to start an outing and the home county's pack is not on the phone (#26). */
     val packMissing: Boolean = false,
+    /** Start outing was tapped, and the page that explains the use of the phone's location comes first (#27). */
+    val askLocation: Boolean = false,
+    /** A new outing is waiting for the phone's location to find its county (#27). */
+    val findingCounty: Boolean = false,
 )
 
 /** A county by its name without "County" and its state's postal abbreviation: `Jefferson`, `CO`. */

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
+import kotlinx.serialization.Serializable
 
 /** A county by its name without "County" and its state's postal abbreviation: `Jefferson`, `CO`. */
 @Immutable
@@ -14,18 +15,44 @@ data class OutingCounty(val name: String, val stateAbbreviation: String)
  * this, since it changes every second.
  *
  * @property place the place name the player gave; empty when they gave none
+ * @property countyCode the outing's county (`US-CO-059`)
  * @property county null when the county's name is not known on this phone
  * @property sightings in the order the birds were first logged, the latest first
+ * @property fallback why the outing is in the home county rather than where the phone is; null when it
+ *   is where the phone is, or the player chose its county
  */
 @Immutable
 data class OutingState(
     val place: String = "",
+    val countyCode: String = "",
     val county: OutingCounty? = null,
     val sightings: List<SightingRow> = emptyList(),
+    val fallback: CountyFallback? = null,
 ) {
     val species: Int get() = sightings.size
     val birds: Int get() = sightings.sumOf { it.count }
 }
+
+/**
+ * Why a new outing is in the home county although the app may use the phone's location (#27). The Outing
+ * screen says so and offers to change the county.
+ */
+@Serializable
+enum class CountyFallback {
+    /** The phone gave no location in time, or location is off. */
+    NO_LOCATION,
+
+    /** The phone is in no county of a pack on the phone. */
+    OUTSIDE_PACKS,
+}
+
+/** A state's counties the player can move the outing to, from its installed pack. */
+@Immutable
+data class StateCounties(val state: String, val counties: List<CountyChoice>)
+
+/** A county in the county picker, by its code (`US-CO-059`) and its name without "County". */
+@Immutable
+data class CountyChoice(val code: String, val name: String)
 
 /** A bird on the outing. [seenAt] is the local time it was first logged. */
 @Immutable

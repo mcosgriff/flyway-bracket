@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.cosgriff.flywaybracket.data.BundledCounties
+import io.cosgriff.flywaybracket.data.CountyFix
+import io.cosgriff.flywaybracket.data.CountyLocator
 import io.cosgriff.flywaybracket.data.OutingRepository
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
@@ -12,6 +14,7 @@ import io.cosgriff.flywaybracket.domain.outing.newLifersSince
 import io.cosgriff.flywaybracket.domain.outing.outingsSince
 import io.cosgriff.flywaybracket.domain.outing.speciesSince
 import io.cosgriff.flywaybracket.domain.place.CountyTable
+import io.cosgriff.flywaybracket.ui.outing.CountyFallback
 import java.time.Clock
 import java.time.Duration
 import java.time.LocalDate
@@ -26,12 +29,15 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Home's figures, from the outings saved on the phone (#25), and its region, from the home county in the
- * player's settings (#23). Start outing starts one in the home county, or continues the one in progress
- * (#26). The league and tournament parts stay empty until there is something to read them from.
+ * player's settings (#23). Start outing continues the outing in progress, or starts one (#26) in the
+ * county the phone is in, found from its approximate location, else in the home county (#27). The league
+ * and tournament parts stay empty until there is something to read them from.
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -39,56 +45,128 @@ class HomeViewModel @Inject constructor(
     private val settings: SettingsRepository,
     counties: BundledCounties,
     private val packs: PackRepository,
+    private val locator: CountyLocator,
     clock: Clock,
 ) : ViewModel() {
-    private val packMissing = MutableStateFlow(false)
-    private val opened = Channel<Unit>(Channel.BUFFERED)
+    private val starting = MutableStateFlow(Starting())
+    private val opened = Channel<OpenOuting>(Channel.BUFFERED)
 
     val state: StateFlow<HomeState> = combine(
         outings.finishedLogs(),
         settings.settings(),
         outings.inProgress(),
-        packMissing,
-    ) { logs, player, inProgress, missing ->
+        starting,
+    ) { logs, player, inProgress, start ->
         homeState(
             finished = logs,
             today = LocalDate.now(clock),
             zone = clock.zone,
             region = homeRegion(player.homeCountyCode, counties.table()),
-        ).copy(outingInProgress = inProgress != null, packMissing = missing)
+        ).copy(
+            outingInProgress = inProgress != null,
+            packMissing = start.packMissing,
+            askLocation = start.askLocation,
+            findingCounty = start.findingCounty,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), HomeState())
 
     /** Emits once each time the Outing screen should open, with an outing in progress. */
-    val openOuting: Flow<Unit> = opened.receiveAsFlow()
+    val openOuting: Flow<OpenOuting> = opened.receiveAsFlow()
 
     /**
-     * Opens the outing in progress, or starts one in the home county now. With no pack holding the home
-     * county, nothing starts and Home says why.
+     * Opens the outing in progress, or starts one. The first time, while the app may not use the phone's
+     * location, Home first shows the page that explains why it would; the answer comes to
+     * [onLocationAnswered]. With no county found and no pack holding the home county, nothing starts and
+     * Home says why.
      */
     fun onStartOuting() {
+        if (starting.value.findingCounty) return
         viewModelScope.launch {
-            if (startOrContinue()) opened.send(Unit) else packMissing.value = true
+            when {
+                outings.inProgress().first() != null -> opened.send(OpenOuting())
+                !locator.permitted() && !settings.locationAsked().first() -> starting.update { it.copy(askLocation = true) }
+                else -> startNew()
+            }
         }
     }
 
+    /**
+     * The player has answered the location page: Not now, or Android's prompt, whatever they chose there.
+     * The page is not shown again, and the outing starts.
+     */
+    fun onLocationAnswered() {
+        starting.update { it.copy(askLocation = false) }
+        viewModelScope.launch {
+            settings.setLocationAsked()
+            startNew()
+        }
+    }
+
+    /** The player left the location page with Back: no outing starts, and the page comes back next time. */
+    fun onLocationCancelled() {
+        starting.update { it.copy(askLocation = false) }
+    }
+
     fun onPackMissingDismissed() {
-        packMissing.value = false
+        starting.update { it.copy(packMissing = false) }
     }
 
-    /** Whether an outing is now in progress. */
-    private suspend fun startOrContinue(): Boolean {
-        if (outings.inProgress().first() != null) return true
-        val home = settings.settings().first().homeCountyCode ?: return false
-        if (packs.chartFor(home) == null) return false
-        // No place name yet: the player gives one on the Outing screen if they like.
-        outings.start(placeName = "", countyCode = home)
-        return true
+    /**
+     * Starts an outing in the county the phone is in, when the app may use its location and the county is
+     * found within [LOCATE_TIMEOUT_MILLIS]; else in the home county. Then opens it, or says the home
+     * county's pack is missing.
+     */
+    private suspend fun startNew() {
+        starting.update { it.copy(findingCounty = true) }
+        try {
+            // Null when the app may not use the location: the player said no, which needs no notice.
+            val fix = if (locator.permitted()) withTimeoutOrNull(LOCATE_TIMEOUT_MILLIS) { locator.locate() } ?: CountyFix.NoLocation else null
+            if (fix is CountyFix.Found) {
+                start(fix.countyCode)
+                opened.send(OpenOuting())
+                return
+            }
+            val home = settings.settings().first().homeCountyCode
+            if (home == null || packs.chartFor(home) == null) {
+                starting.update { it.copy(packMissing = true) }
+                return
+            }
+            start(home)
+            opened.send(OpenOuting(fallback = fix?.let(::fallbackFor)))
+        } finally {
+            starting.update { it.copy(findingCounty = false) }
+        }
     }
 
-    private companion object {
+    // No place name yet: the player gives one on the Outing screen if they like.
+    private suspend fun start(countyCode: String) {
+        outings.start(placeName = "", countyCode = countyCode)
+    }
+
+    /** Where starting an outing stands. */
+    private data class Starting(val packMissing: Boolean = false, val askLocation: Boolean = false, val findingCounty: Boolean = false)
+
+    internal companion object {
         /** Long enough to keep the figures across a rotation. */
         const val STOP_AFTER_MILLIS = 5_000L
+
+        /** How long a new outing waits for the phone's location before it falls back to the home county. */
+        const val LOCATE_TIMEOUT_MILLIS = 5_000L
     }
+}
+
+/**
+ * The Outing screen is to open, with an outing in progress.
+ *
+ * @property fallback why a new outing is in the home county; null when it is not, or was in progress already
+ */
+data class OpenOuting(val fallback: CountyFallback? = null)
+
+/** Why a new outing fell back to the home county, for a [fix] that found no county. */
+internal fun fallbackFor(fix: CountyFix): CountyFallback? = when (fix) {
+    is CountyFix.Found -> null
+    CountyFix.OutsidePacks -> CountyFallback.OUTSIDE_PACKS
+    CountyFix.NoLocation -> CountyFallback.NO_LOCATION
 }
 
 /** How many outings Home lists under "Recent outings". */

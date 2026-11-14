@@ -5,13 +5,17 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.cosgriff.flywaybracket.data.BundledCounties
 import io.cosgriff.flywaybracket.data.OutingRepository
+import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.domain.outing.Outing
 import io.cosgriff.flywaybracket.domain.outing.Sighting
+import io.cosgriff.flywaybracket.domain.pack.StatePack
 import io.cosgriff.flywaybracket.domain.place.CountyTable
+import java.text.Collator
 import java.time.Clock
 import java.time.Duration
 import java.time.ZoneId
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -22,6 +26,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.shareIn
@@ -37,12 +42,16 @@ sealed interface OutingExit {
     data object Closed : OutingExit
 }
 
-/** The outing in progress (#26): its place, its sightings and the time since it started. */
+/**
+ * The outing in progress (#26): its place, its county, its sightings and the time since it started. The
+ * county can be changed by hand to any county of an installed pack (#27).
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class OutingViewModel @Inject constructor(
     private val outings: OutingRepository,
     counties: BundledCounties,
+    packs: PackRepository,
     private val clock: Clock,
 ) : ViewModel() {
     private val current = outings.inProgress().shareIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), replay = 1)
@@ -61,6 +70,12 @@ class OutingViewModel @Inject constructor(
         if (outing == null) flowOf(Duration.ZERO) else everySecond().map { elapsedSince(outing, clock) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), Duration.ZERO)
 
+    /** The counties the outing can move to: those of the installed packs, by state. */
+    val countyChoices: StateFlow<List<StateCounties>> = packs.installed()
+        .map { installed -> countyChoices(installed.map { it.pack }) }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), emptyList())
+
     /** Emits when the screen should close. */
     val exit: Flow<OutingExit> = exits.receiveAsFlow()
 
@@ -71,6 +86,11 @@ class OutingViewModel @Inject constructor(
 
     fun onRename(place: String) {
         viewModelScope.launch { outings.rename(place) }
+    }
+
+    /** Moves the outing to the county with this code, which the player picked from [countyChoices]. */
+    fun onChangeCounty(countyCode: String) {
+        viewModelScope.launch { outings.setCounty(countyCode) }
     }
 
     fun onOneMore(sighting: SightingRow) {
@@ -130,9 +150,22 @@ internal fun elapsedSince(outing: Outing, clock: Clock): Duration =
 internal fun outingState(outing: Outing, sightings: List<Sighting>, table: CountyTable, zone: ZoneId): OutingState =
     OutingState(
         place = outing.placeName,
+        countyCode = outing.countyCode,
         county = outingCounty(outing.countyCode, table),
         sightings = sightings.asReversed().map { SightingRow(it.id, it.birdName, it.count, it.seenAt.atZone(zone).toLocalTime()) },
     )
 
 internal fun outingCounty(countyCode: String, table: CountyTable): OutingCounty? =
     table.locate(countyCode)?.let { OutingCounty(it.county.name, it.state.abbreviation) }
+
+/**
+ * The counties of [packs] for the county picker: the states in the order given (Packs lists them by
+ * name), each state's counties in alphabetical order for the phone's language.
+ */
+internal fun countyChoices(packs: List<StatePack>, collator: Collator = Collator.getInstance()): List<StateCounties> =
+    packs.map { pack ->
+        StateCounties(
+            state = pack.state.name,
+            counties = pack.counties.map { CountyChoice(it.code, it.name) }.sortedWith(compareBy(collator) { it.name }),
+        )
+    }

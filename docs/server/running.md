@@ -3,8 +3,8 @@
 The league server is the `:server` module: Ktor on Netty, with Postgres behind it. It is not part of the
 app; the app calls its account endpoints once the player agrees (#38). What it may be sent is decided by
 [ADR 0001](../adr/0001-server-and-network.md); its endpoints are listed in [api.md](api.md). Today it has
-the health check (`GET /v1/health`) and anonymous accounts (`POST /v1/accounts`, and `GET`, `PATCH` and
-`DELETE /v1/account`).
+the health check (`GET /v1/health`), anonymous accounts (`POST /v1/accounts`, and `GET`, `PATCH` and
+`DELETE /v1/account`), leagues, and the state packs (`GET /v1/packs` and `GET /v1/packs/{state}`).
 
 ```sh
 curl -X POST -H 'Content-Type: application/json' -d '{}' http://localhost:8080/v1/accounts
@@ -18,7 +18,7 @@ Where the server is hosted is not decided (issue #16). This page is for a develo
 
 ## Configuration
 
-The server reads four environment variables and nothing else: no config file, no command-line option.
+The server reads five environment variables and nothing else: no config file, no command-line option.
 
 | Variable | Meaning | When not set |
 | --- | --- | --- |
@@ -26,6 +26,7 @@ The server reads four environment variables and nothing else: no config file, no
 | `DATABASE_USER` | The Postgres user | The server does not start |
 | `DATABASE_PASSWORD` | That user's password | The server does not start |
 | `PORT` | The port to listen on, 1 to 65535 | 8080 |
+| `PACKS_DIR` | The directory that holds the state packs ([State packs](#state-packs)); it must exist | The server does not start |
 
 `server/.env.example` holds made-up values that fit the local Postgres below. A real value never goes in
 the repository: `.env` is ignored by git.
@@ -63,6 +64,40 @@ curl http://localhost:8080/v1/health
 answers `{"version":"0.1.0","database":true}`. The version comes from `version.txt`. If the database stops
 answering later, the health check still answers 200, with `"database":false`.
 
+## State packs
+
+The server hands the app the state packs, `<state code>.fbpack` files built with the pack builder
+([docs/packs.md](../packs.md)), and will seed brackets and decide matchups from the same files. They live
+in the directory `PACKS_DIR` names, and nowhere else: **no pack is ever in the repository or the
+container image.** eBird's terms of use don't allow its data, or files built from it, in this repository.
+
+To put packs on the server, copy each file into that directory under its own name, such as `US-CO.fbpack`.
+Copy it in under another name first and then rename it, so the server never reads half a file (a name
+that does not end in `.fbpack` is not read):
+
+```sh
+cp packs-local/out/US-CO.fbpack /srv/flywaybracket/packs/US-CO.fbpack.part
+mv /srv/flywaybracket/packs/US-CO.fbpack.part /srv/flywaybracket/packs/US-CO.fbpack
+```
+
+- The server reads every pack at start. After that, each pack request first lists the directory and
+  compares each file's modified time and size with what it read last; a new or changed file is read again,
+  and a removed one is dropped. No restart is needed. A file is held in memory whole, so a download is
+  always one version of it.
+- The server reads only files whose name ends in `.fbpack`. A file whose name is not a state code
+  (`US-CO`), whose pack is for another state than its name says, or that the pack format refuses, is
+  skipped, and the log names it and says why (`Pack file US-CO.fbpack skipped: Rejected(reason=NOT_GZIP)`).
+  The other packs are still served, and the server still starts.
+- A pack's version, in the list and as the download's `ETag`, is the SHA-256 of its file. Replacing a file
+  with a rebuilt one changes it, and the app downloads the pack again.
+- For a server on your own machine, `server/.env.example` points `PACKS_DIR` at `packs-local/out`, where
+  the pack builder writes, which git ignores.
+
+```sh
+curl -u "<playerId>:<secret>" http://localhost:8080/v1/packs
+curl -u "<playerId>:<secret>" -o US-CO.fbpack http://localhost:8080/v1/packs/US-CO
+```
+
 ## Migrations
 
 The schema is the SQL files in `server/src/main/resources/db/migration`, applied in order by the Flyway
@@ -95,8 +130,12 @@ The image holds a Java runtime and the server's jars. It runs as a user that is 
 ```sh
 ./gradlew :server:installDist
 docker build -t flyway-bracket-server server
-docker run --rm -p 8080:8080 --env-file server/.env flyway-bracket-server
+docker run --rm -p 8080:8080 --env-file server/.env \
+  -v "$PWD/packs-local/out:/packs:ro" -e PACKS_DIR=/packs flyway-bracket-server
 ```
+
+The packs come in from outside the image, as a volume: `-v` mounts the directory of packs read-only, and
+`-e PACKS_DIR=/packs` tells the server where it is inside the container.
 
 Inside a container `localhost` is the container itself, so `DATABASE_URL` must name a host the container
 can reach: on Docker Desktop, `host.docker.internal`.

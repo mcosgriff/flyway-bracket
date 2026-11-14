@@ -50,6 +50,8 @@ dependencies {
     runtimeOnly(libs.slf4j.simple)
 
     testImplementation(libs.junit)
+    // The made-up pack, testStatePack(): no real pack file is in the repository.
+    testImplementation(testFixtures(project(":domain")))
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.testcontainers.postgresql)
 }

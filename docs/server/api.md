@@ -4,8 +4,9 @@ What the app and the server say to each other. The types are in the `:api` modul
 (`api/src/main/kotlin/io/cosgriff/flywaybracket/api/`), which both sides compile against; this page lists
 the endpoints that carry them. Change the two together.
 
-The server (`:server`, [running.md](running.md)) answers the health check, the account endpoints and the
-league endpoints, and the app calls the account endpoints, after the player agrees (#38). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
+The server (`:server`, [running.md](running.md)) answers the health check, the account endpoints, the
+league endpoints and the pack endpoints, and the app calls the account endpoints, after the player agrees
+(#38). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
 new field sent to the server needs a change to that record first.
 
 ## Rules for every call
@@ -52,12 +53,13 @@ null) and must treat it as a general failure.
 | `PICKS_INCOMPLETE` | 422 | Fewer than 63 picks, or a later-round pick of a bird not picked to reach that matchup |
 | `BRACKET_NOT_READY` | 409 | The league has no bracket yet |
 | `ROUND_NOT_DECIDED` | 409 | The round is not decided yet |
+| `PACK_NOT_FOUND` | 404 | The server holds no pack for this state |
 | `RATE_LIMITED` | 429 | Too many requests |
 | `SERVER_ERROR` | 500 | The server failed; nothing the app sent was wrong |
 
 A path the server does not have answers 404, a method it does not have on that path 405, and a body that
 is not JSON 415. All three carry `INVALID_REQUEST`: the status tells them apart. A 404 an endpoint gives
-itself (`LEAGUE_NOT_FOUND`, `INVITE_CODE_UNKNOWN`) carries its own code. `detail` is empty for
+itself (`LEAGUE_NOT_FOUND`, `INVITE_CODE_UNKNOWN`, `PACK_NOT_FOUND`) carries its own code. `detail` is empty for
 these and for bad JSON, so that an error never repeats what was sent.
 
 Every endpoint can return `RATE_LIMITED` and `SERVER_ERROR`. Every endpoint except `POST /v1/accounts` and `GET /v1/health` can
@@ -228,6 +230,19 @@ The rules are `domain/league` in `:domain` (#32); the server applies them.
 | Endpoint | Request | Response | Errors it adds |
 | --- | --- | --- | --- |
 | `GET /v1/packs` | none | `PackListResponse` | none |
+| `GET /v1/packs/{state}` | `If-None-Match` (optional) | the `.fbpack` file, or 304 | `PACK_NOT_FOUND` |
+
+The server's packs are the files in its packs directory ([running.md](running.md#state-packs), #33).
+
+- Both need an account, so the files are not open to the whole internet.
+- `PackSummary` gives the state's code and name, the file's size in bytes, the day the pack was built and
+  its `version`: the SHA-256 of the file, in lowercase hex. The list is in order of state name.
+- `{state}` is a state's code, such as `US-CO` (`ApiPaths.pack`). A code that is not one, or a state the
+  server holds no pack for, is `PACK_NOT_FOUND`.
+- The file is sent as it is on the server, `application/octet-stream`, with `ETag: "<version>"` and
+  `Cache-Control: private, no-cache`. The app reads it with `StatePackCodec`, as a file added by hand.
+- **Asking again.** The app sends `If-None-Match: "<version>"` with the version of the pack it holds. When
+  that is still the server's version, the answer is `304 Not Modified` with the `ETag` and no body.
 
 ## Not decided
 
@@ -248,9 +263,7 @@ ADR 0001 leaves these open, so no message or endpoint settles them:
 
 Also open, for the server issues:
 
-- Downloading a pack file. `PackListResponse` describes the packs; no endpoint for the file itself is
-  defined here.
-- Whether the pack list needs an account. Outings work with no account, and the app makes no network call
-  before the player agrees.
+- Whether the app may download packs before the player has an account. Both pack endpoints need one
+  (#33); outings work with no account, and the app makes no network call before the player agrees.
 - Seeing other players' picks once they lock, and how many birds each player logged in a round. ADR 0001
   allows both; issue #29 lists no type for either.

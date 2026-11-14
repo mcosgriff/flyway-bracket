@@ -4,14 +4,17 @@ import io.cosgriff.flywaybracket.server.account.Accounts
 import io.cosgriff.flywaybracket.server.account.PostgresPlayerStore
 import io.cosgriff.flywaybracket.server.league.Leagues
 import io.cosgriff.flywaybracket.server.league.PostgresLeagueStore
+import io.cosgriff.flywaybracket.server.pack.Packs
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import java.util.Properties
 
-/** Starts the server: reads the environment, migrates the database, then listens. */
+/** Starts the server: reads the environment and the packs, migrates the database, then listens. */
 fun main() {
     val config = ServerConfig.fromEnvironment(System.getenv())
+    // Before the database, so a packs directory that is not there stops the server at once.
+    val packs = Packs(config.packsDirectory)
     val database = Database.connect(config)
     database.migrate()
     val leagues = Leagues(PostgresLeagueStore(database.dataSource))
@@ -19,7 +22,7 @@ fun main() {
 
     embeddedServer(Netty, port = config.port) {
         monitor.subscribe(ApplicationStopped) { database.close() }
-        module(database, accounts, leagues, ServerVersion.current)
+        module(database, accounts, leagues, packs, ServerVersion.current)
     }.start(wait = true)
 }
 

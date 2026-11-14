@@ -20,6 +20,9 @@ object ApiPaths {
 
     fun league(leagueId: String): String = "$LEAGUES/$leagueId"
 
+    /** @param stateCode a state's region code, such as `US-CO`, or the server's route parameter. */
+    fun pack(stateCode: String): String = "$PACKS/$stateCode"
+
     fun membership(leagueId: String): String = "${league(leagueId)}/membership"
 
     fun bracket(leagueId: String): String = "${league(leagueId)}/bracket"

@@ -2,6 +2,8 @@ package io.cosgriff.flywaybracket.server.account
 
 import io.cosgriff.flywaybracket.api.ApiPaths
 import io.cosgriff.flywaybracket.server.Database
+import io.cosgriff.flywaybracket.server.league.LeagueStore
+import io.cosgriff.flywaybracket.server.league.PostgresLeagueStore
 import io.ktor.client.request.delete
 import org.junit.AfterClass
 import org.junit.Assert.assertEquals
@@ -20,6 +22,8 @@ import java.util.UUID
  */
 class PostgresAccountEndpointsTest : AccountEndpointsTest() {
     override fun store(): PlayerStore = PostgresPlayerStore(database.dataSource)
+
+    override fun leagueStore(players: PlayerStore): LeagueStore = PostgresLeagueStore(database.dataSource)
 
     /** The row's display name, home county and secret hash, or null when there is no row. */
     private fun row(playerId: String): Triple<String?, String?, String>? = database.dataSource.connection.use { connection ->

@@ -2,6 +2,8 @@ package io.cosgriff.flywaybracket.server.account
 
 import io.cosgriff.flywaybracket.api.ProfileResponse
 import io.cosgriff.flywaybracket.api.UpdateProfileRequest
+import io.cosgriff.flywaybracket.server.league.InMemoryLeagueStore
+import io.cosgriff.flywaybracket.server.league.Leagues
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -28,7 +30,8 @@ class AccountsTest {
 
     private val store = InMemoryPlayerStore()
     private val hasher = CountingHasher()
-    private val accounts = Accounts(store, creationLimit = { true }, hasher = hasher)
+    private val leagues = Leagues(InMemoryLeagueStore(store))
+    private val accounts = Accounts(store, leagues, creationLimit = { true }, hasher = hasher)
 
     private fun newPlayer(): Pair<String, String> {
         val created = checkNotNull(accounts.create(ADDRESS))
@@ -186,7 +189,7 @@ class AccountsTest {
 
     @Test
     fun `creating accounts stops at the rate limit for that address`() {
-        val limited = Accounts(InMemoryPlayerStore(), creationLimit = FixedWindowRateLimiter(2, Accounts.CREATION_WINDOW))
+        val limited = Accounts(InMemoryPlayerStore(), leagues, creationLimit = FixedWindowRateLimiter(2, Accounts.CREATION_WINDOW))
 
         assertNotNull(limited.create(ADDRESS))
         assertNotNull(limited.create(ADDRESS))

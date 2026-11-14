@@ -119,7 +119,7 @@ private const val BASIC = "Basic"
 private const val CHALLENGE = "$BASIC realm=\"flyway-bracket\", charset=\"UTF-8\""
 
 /** The player who signed the request; only inside [authenticate], where there always is one. */
-private fun RoutingContext.player(): SignedInPlayer = checkNotNull(call.principal<SignedInPlayer>())
+internal fun RoutingContext.player(): SignedInPlayer = checkNotNull(call.principal<SignedInPlayer>())
 
 private suspend fun ApplicationCall.respondUnauthorized() {
     respond(HttpStatusCode.Unauthorized, ApiError(ApiErrorCode.UNAUTHORIZED))

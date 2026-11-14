@@ -10,33 +10,17 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.toUpperCase
 import androidx.compose.ui.tooling.preview.Preview
@@ -44,8 +28,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import io.cosgriff.flywaybracket.R
 import io.cosgriff.flywaybracket.domain.place.CountyEntry
 import io.cosgriff.flywaybracket.domain.place.StateEntry
-import io.cosgriff.flywaybracket.domain.player.DisplayName
-import io.cosgriff.flywaybracket.domain.player.DisplayNameCheck
+import io.cosgriff.flywaybracket.ui.components.ProfileFields
 import io.cosgriff.flywaybracket.ui.theme.FlywayDimens
 import io.cosgriff.flywaybracket.ui.theme.FlywayTheme
 
@@ -94,24 +77,14 @@ fun OnboardingContent(
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.semantics { heading() },
                 )
-                NameField(state.name, state.nameCheck, onName)
-                PickerField(
-                    label = stringResource(R.string.onboarding_state_label),
-                    chosen = state.state?.name.orEmpty(),
-                    options = state.states,
-                    optionName = StateEntry::name,
-                    enabled = state.states.isNotEmpty(),
-                    hint = null,
-                    onPick = onState,
-                )
-                PickerField(
-                    label = stringResource(R.string.onboarding_county_label),
-                    chosen = state.county?.name.orEmpty(),
-                    options = state.state?.counties.orEmpty(),
-                    optionName = CountyEntry::name,
-                    enabled = state.state != null,
-                    hint = if (state.state == null) stringResource(R.string.onboarding_county_needs_state) else null,
-                    onPick = onCounty,
+                ProfileFields(
+                    name = state.name,
+                    states = state.states,
+                    state = state.state,
+                    county = state.county,
+                    onName = onName,
+                    onState = onState,
+                    onCounty = onCounty,
                 )
                 Text(
                     text = stringResource(R.string.onboarding_explanation),
@@ -138,102 +111,6 @@ fun OnboardingContent(
             }
         }
     }
-}
-
-/** The name, with the rule under it; the rule gives way to the reason when the name breaks it. */
-@Composable
-private fun NameField(name: String, check: DisplayNameCheck, onName: (String) -> Unit) {
-    val message = when (check) {
-        DisplayNameCheck.TOO_SHORT ->
-            pluralStringResource(R.plurals.onboarding_name_too_short, DisplayName.MIN_LENGTH, DisplayName.MIN_LENGTH)
-        DisplayNameCheck.TOO_LONG ->
-            pluralStringResource(R.plurals.onboarding_name_too_long, DisplayName.MAX_LENGTH, DisplayName.MAX_LENGTH)
-        DisplayNameCheck.EMPTY, DisplayNameCheck.VALID -> pluralStringResource(
-            R.plurals.onboarding_name_hint,
-            DisplayName.MAX_LENGTH,
-            DisplayName.MIN_LENGTH,
-            DisplayName.MAX_LENGTH,
-        )
-    }
-    OutlinedTextField(
-        value = name,
-        onValueChange = onName,
-        modifier = Modifier.fillMaxWidth(),
-        label = { Text(stringResource(R.string.onboarding_name_label)) },
-        supportingText = { Text(message) },
-        isError = check == DisplayNameCheck.TOO_SHORT || check == DisplayNameCheck.TOO_LONG,
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-        shape = MaterialTheme.shapes.medium,
-        colors = fieldColors(),
-    )
-}
-
-/** A field that opens a list to choose one of [options] from. [hint] says why it is off when it is. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun <T> PickerField(
-    label: String,
-    chosen: String,
-    options: List<T>,
-    optionName: (T) -> String,
-    enabled: Boolean,
-    hint: String?,
-    onPick: (T) -> Unit,
-) {
-    var open by rememberSaveable { mutableStateOf(false) }
-    ExposedDropdownMenuBox(expanded = open && enabled, onExpandedChange = { open = it && enabled }) {
-        OutlinedTextField(
-            value = chosen,
-            onValueChange = {},
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled),
-            enabled = enabled,
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = open && enabled) },
-            supportingText = hint?.let { { Text(it) } },
-            singleLine = true,
-            shape = MaterialTheme.shapes.medium,
-            colors = fieldColors(),
-        )
-        ExposedDropdownMenu(
-            expanded = open && enabled,
-            onDismissRequest = { open = false },
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(optionName(option), style = MaterialTheme.typography.bodyLarge) },
-                    onClick = {
-                        onPick(option)
-                        open = false
-                    },
-                )
-            }
-        }
-    }
-}
-
-/**
- * The canvas's input: the surface colour inside a border. A field that is off keeps the colours of one
- * that is on, since Material's faded ones are too faint to read; words under it say that it is off.
- */
-@Composable
-private fun fieldColors(): TextFieldColors {
-    val scheme = MaterialTheme.colorScheme
-    return OutlinedTextFieldDefaults.colors(
-        focusedContainerColor = scheme.surface,
-        unfocusedContainerColor = scheme.surface,
-        disabledContainerColor = scheme.surface,
-        errorContainerColor = scheme.surface,
-        disabledTextColor = scheme.onSurface,
-        disabledLabelColor = scheme.onSurfaceVariant,
-        disabledBorderColor = scheme.outline,
-        disabledTrailingIconColor = scheme.onSurfaceVariant,
-        disabledSupportingTextColor = scheme.onSurfaceVariant,
-    )
 }
 
 // Made-up people and places for previews and screenshot tests: the codes have the real shape and name no

@@ -42,6 +42,7 @@ import io.ktor.http.isSuccess
 import io.ktor.utils.io.readAvailable
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.net.ConnectException
 import java.net.NoRouteToHostException
 import java.net.UnknownHostException
 import java.net.UnknownServiceException
@@ -50,6 +51,7 @@ import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLPeerUnverifiedException
 import java.util.Base64
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 
@@ -111,13 +113,27 @@ sealed interface PackFetch {
  *
  * @param baseUrl the server's address with no path and no slash at the end, such as `https://example.org`.
  *   Whether a plain `http://` one may connect is the network security config's to say, not this class's.
+ * A call the server most likely never handled is tried once more, after [retryWaitMillis] (#93): the hosted
+ * server sleeps when idle, and the first request after that can fail while it starts.
+ * - A 5xx whose body is not an `ApiError` (the Worker or Cloudflare answered, not the server), or a
+ *   connection that could not be made: any call is tried again.
+ * - A timeout, or a connection lost before the answer: the server may have done it. Only a call that can be
+ *   repeated is tried again: `GET`, `PUT`, `DELETE`, and `POST /v1/sightings`, whose ids keep a second
+ *   upload from counting anything twice. Creating an account and creating or joining a league are not.
+ * - No network on the phone, a 4xx, and a 5xx with an `ApiError` body are never tried again.
+ *
+ * [activity] says while a call has waited long or is on its retry.
+ *
  * @param downloadMillis how long a pack download may take in all. A few megabytes on a slow connection
  *   take longer than any other call; a download that stalls still fails after the client's socket timeout.
+ * @param retryWaitMillis how long to wait before the one retry
  */
 class ServerClient(
     private val http: HttpClient,
     private val baseUrl: String,
     private val downloadMillis: Long = DOWNLOAD_MILLIS,
+    private val activity: ServerActivity = ServerActivity(),
+    private val retryWaitMillis: Long = RETRY_WAIT_MILLIS,
 ) {
 
     /** `POST /v1/accounts`. The request carries nothing about the player: it is `{}`. */
@@ -194,24 +210,33 @@ class ServerClient(
         stateCode: String,
         heldVersion: String?,
         onProgress: (receivedBytes: Long, totalBytes: Long?) -> Unit = { _, _ -> },
-    ): ServerResult<PackFetch> = try {
-        http.prepareRequest {
-            method = HttpMethod.Get
-            url(baseUrl + ApiPaths.pack(stateCode))
-            header(HttpHeaders.Authorization, basic(credentials))
-            if (heldVersion != null) header(HttpHeaders.IfNoneMatch, "\"$heldVersion\"")
-            timeout { requestTimeoutMillis = downloadMillis }
-        }.execute { response ->
-            when {
-                response.status == HttpStatusCode.NotModified -> ServerResult.Ok(PackFetch.Unchanged)
-                !response.status.isSuccess() -> ServerResult.Failed(refusal(response.status, response.bodyAsText()))
-                else -> ServerResult.Ok(receive(response, onProgress))
+    ): ServerResult<PackFetch> = withRetry(HttpMethod.Get, ApiPaths.pack(stateCode)) { followed ->
+        // Once the file has started to come, a failure is not tried again: a download is never restarted.
+        var receiving = false
+        try {
+            http.prepareRequest {
+                method = HttpMethod.Get
+                url(baseUrl + ApiPaths.pack(stateCode))
+                header(HttpHeaders.Authorization, basic(credentials))
+                if (heldVersion != null) header(HttpHeaders.IfNoneMatch, "\"$heldVersion\"")
+                timeout { requestTimeoutMillis = downloadMillis }
+            }.execute { response ->
+                when {
+                    response.status == HttpStatusCode.NotModified -> Attempt(ServerResult.Ok(PackFetch.Unchanged))
+                    !response.status.isSuccess() -> failure(response.status, response.bodyAsText())
+                    else -> {
+                        receiving = true
+                        // The server is awake and sending: from here the screen shows the download's progress.
+                        followed.done()
+                        Attempt(ServerResult.Ok(receive(response, onProgress)))
+                    }
+                }
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IOException) {
+            Attempt(ServerResult.Failed(problemOf(e)), if (receiving) Reach.ANSWERED else reachOf(e))
         }
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: IOException) {
-        ServerResult.Failed(problemOf(e))
     }
 
     private suspend fun receive(response: HttpResponse, onProgress: (Long, Long?) -> Unit): PackFetch {
@@ -289,26 +314,48 @@ class ServerClient(
         credentials: Credentials?,
         body: String?,
         answer: KSerializer<T>?,
-    ): ServerResult<T> = try {
-        val response = http.request {
-            this.method = method
-            url(baseUrl + path)
-            if (credentials != null) header(HttpHeaders.Authorization, basic(credentials))
-            if (body != null) setBody(TextContent(body, ContentType.Application.Json))
+    ): ServerResult<T> = withRetry(method, path) {
+        try {
+            val response = http.request {
+                this.method = method
+                url(baseUrl + path)
+                if (credentials != null) header(HttpHeaders.Authorization, basic(credentials))
+                if (body != null) setBody(TextContent(body, ContentType.Application.Json))
+            }
+            val text = response.bodyAsText()
+            if (response.status.isSuccess()) Attempt(read(text, answer)) else failure(response.status, text)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IOException) {
+            // What OkHttp and Ktor throw: a name not found, timeouts (Ktor's are IOExceptions), a refused or
+            // broken connection, a failed TLS handshake, a policy refusal.
+            Attempt(ServerResult.Failed(problemOf(e)), reachOf(e))
         }
-        read(response, answer)
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: IOException) {
-        // What OkHttp and Ktor throw: a name not found, timeouts (Ktor's are IOExceptions), a refused or
-        // broken connection, a failed TLS handshake, a policy refusal.
-        ServerResult.Failed(problemOf(e))
+    }
+
+    /**
+     * Runs [attempt], and once more after [retryWaitMillis] when the server most likely never handled it, or
+     * may have and [method] on [path] is safe to repeat (#93). [activity] follows both tries and the wait.
+     */
+    private suspend fun <T> withRetry(
+        method: HttpMethod,
+        path: String,
+        attempt: suspend (ServerActivity.Call) -> Attempt<T>,
+    ): ServerResult<T> = activity.follow { call ->
+        val first = attempt(call)
+        val again = when (first.reach) {
+            Reach.ANSWERED -> false
+            Reach.NOT_HANDLED -> true
+            Reach.UNKNOWN -> repeatable(method, path)
+        }
+        if (!again) return@follow first.result
+        call.slow()
+        delay(retryWaitMillis)
+        attempt(call).result
     }
 
     @Suppress("UNCHECKED_CAST")
-    private suspend fun <T> read(response: HttpResponse, answer: KSerializer<T>?): ServerResult<T> {
-        val text = response.bodyAsText()
-        if (!response.status.isSuccess()) return ServerResult.Failed(refusal(response.status, text))
+    private fun <T> read(text: String, answer: KSerializer<T>?): ServerResult<T> {
         if (answer == null) return ServerResult.Ok(Unit as T)
         return try {
             ServerResult.Ok(ApiJson.decodeFromString(answer, text))
@@ -320,30 +367,80 @@ class ServerClient(
         }
     }
 
-    private fun refusal(status: HttpStatusCode, text: String): ServerProblem {
-        val error = try {
-            ApiJson.decodeFromString(ApiError.serializer(), text)
-        } catch (_: SerializationException) {
-            null
-        } catch (_: IllegalArgumentException) {
-            null
-        }
-        return when {
-            error != null -> ServerProblem.Refused(error.errorCode)
-            // A proxy in front of the server answered for it: the server itself did not.
-            status in GATEWAY_FAILURES -> ServerProblem.NoAnswer
-            else -> ServerProblem.Refused(code = null)
-        }
+    /**
+     * An answer that is not a success. A 5xx with no `ApiError` body is not the server's own: the Worker in
+     * front of it, or Cloudflare, answered while it was starting or could not start it (#93).
+     */
+    private fun failure(status: HttpStatusCode, text: String): Attempt<Nothing> {
+        val error = apiError(text)
+        val reach = if (error == null && status.value >= FIRST_SERVER_ERROR) Reach.NOT_HANDLED else Reach.ANSWERED
+        return Attempt(ServerResult.Failed(refusal(status, error)), reach)
+    }
+
+    private fun apiError(text: String): ApiError? = try {
+        ApiJson.decodeFromString(ApiError.serializer(), text)
+    } catch (_: SerializationException) {
+        null
+    } catch (_: IllegalArgumentException) {
+        null
+    }
+
+    private fun refusal(status: HttpStatusCode, error: ApiError?): ServerProblem = when {
+        error != null -> ServerProblem.Refused(error.errorCode)
+        // A proxy in front of the server answered for it: the server itself did not.
+        status in GATEWAY_FAILURES -> ServerProblem.NoAnswer
+        else -> ServerProblem.Refused(code = null)
+    }
+
+    /**
+     * How far a call that threw [e] may have got (#93). A failure trying again cannot help (no network, a
+     * refused address or certificate) counts as an answer. A connection never made ([ConnectException], Ktor's
+     * connect timeout included) or a TLS handshake cut short sent nothing. Anything else, such as a timeout
+     * waiting for the answer or a connection lost on the way, may have reached the server.
+     */
+    private fun reachOf(e: IOException): Reach = when {
+        problemOf(e) != ServerProblem.NoAnswer -> Reach.ANSWERED
+        e is ConnectException || e is SSLHandshakeException -> Reach.NOT_HANDLED
+        else -> Reach.UNKNOWN
+    }
+
+    /** One try of a call: what it gave, and how far it got. */
+    private class Attempt<out T>(val result: ServerResult<T>, val reach: Reach = Reach.ANSWERED)
+
+    /** How far a try may have got, which says whether to try it again (#93). */
+    private enum class Reach {
+        /** The server answered, or a second try could change nothing. Never tried again. */
+        ANSWERED,
+
+        /** The server never had it: no connection was made, or the Worker or Cloudflare answered instead. */
+        NOT_HANDLED,
+
+        /** Sent with no answer: it timed out or the connection broke, and the server may have done it. */
+        UNKNOWN,
     }
 
     private companion object {
         /** Ten minutes: a pack of a few megabytes at a slow mobile data rate, and then some. */
         const val DOWNLOAD_MILLIS = 10 * 60_000L
 
+        /** About two seconds before the one retry; a sleeping server takes some eight to start (#93). */
+        const val RETRY_WAIT_MILLIS = 2_000L
+
+        const val FIRST_SERVER_ERROR = 500
+
         /** How a weak `ETag` starts (RFC 9110); the server sends strong ones. */
         const val WEAK_TAG = "W/"
 
         val GATEWAY_FAILURES = setOf(HttpStatusCode.BadGateway, HttpStatusCode.ServiceUnavailable, HttpStatusCode.GatewayTimeout)
+
+        val REPEATABLE = setOf(HttpMethod.Get, HttpMethod.Put, HttpMethod.Delete)
+
+        /**
+         * Whether [method] on [path] may be sent twice: a second `GET`, `PUT` or `DELETE` does nothing the first
+         * did not, and the server keeps the first of each sighting by its id (#43).
+         */
+        fun repeatable(method: HttpMethod, path: String): Boolean =
+            method in REPEATABLE || (method == HttpMethod.Post && path == ApiPaths.SIGHTINGS)
 
         /** `Authorization: Basic`, the id as the user and the secret as the password. */
         fun basic(credentials: Credentials): String {

@@ -49,7 +49,8 @@ class ServerClientTest {
             requests += request
             answer(request)
         }
-        return ServerClient(serverHttpClient(engine, timeouts), BASE_URL)
+        // No wait before a retry: these tests are about what each answer means. ServerClientRetryTest has the retries.
+        return ServerClient(serverHttpClient(engine, timeouts), BASE_URL, retryWaitMillis = 0)
     }
 
     private fun MockRequestHandleScope.json(status: HttpStatusCode, body: String) =

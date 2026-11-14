@@ -18,6 +18,7 @@ import io.cosgriff.flywaybracket.data.db.BracketDao
 import io.cosgriff.flywaybracket.data.db.LeagueDao
 import io.cosgriff.flywaybracket.data.db.OutingDao
 import io.cosgriff.flywaybracket.data.db.SyncDao
+import io.cosgriff.flywaybracket.data.server.ServerActivity
 import io.cosgriff.flywaybracket.data.server.ServerClient
 import io.cosgriff.flywaybracket.data.server.serverEngine
 import io.cosgriff.flywaybracket.data.server.serverHttpClient
@@ -39,8 +40,12 @@ import javax.inject.Singleton
 object ServerModule {
     /** Making the client makes no call: nothing is sent until the player agrees (ADR 0001). */
     @Provides @Singleton
-    fun serverClient(): ServerClient =
-        ServerClient(serverHttpClient(serverEngine()), BuildConfig.SERVER_URL)
+    fun serverClient(activity: ServerActivity): ServerClient =
+        ServerClient(serverHttpClient(serverEngine()), BuildConfig.SERVER_URL, activity = activity)
+
+    /** Whether a call is waiting on the server to wake (#93), for the screens that wait on it. */
+    @Provides @Singleton
+    fun serverActivity(): ServerActivity = ServerActivity()
 
     /** In `no_backup`: the account stays on this phone, whatever a backup takes. */
     @Provides @Singleton

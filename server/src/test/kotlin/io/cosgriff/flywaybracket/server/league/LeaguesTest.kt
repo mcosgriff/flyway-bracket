@@ -534,7 +534,7 @@ abstract class LeaguesTest {
     // What a member sees
 
     @Test
-    fun `members by display name, with points and rank`() {
+    fun `members level on points are listed in the order they joined, with points and rank`() {
         val owner = newPlayer(displayName = "Kestrel")
         val league = create(owner)
         inLeague(leagues.join(newPlayer(displayName = "avocet"), checkNotNull(league.inviteCode)))
@@ -542,10 +542,11 @@ abstract class LeaguesTest {
 
         val members = checkNotNull(leagues.detail(owner, league.id)).members
 
-        assertEquals(listOf("avocet", "Bittern", "Kestrel"), members.map { it.displayName })
+        assertEquals(listOf("Kestrel", "avocet", "Bittern"), members.map { it.displayName })
         assertEquals(listOf(0, 0, 0), members.map { it.points })
+        assertEquals(listOf(0, 0, 0), members.map { it.rightPicks })
         assertEquals(listOf(1, 1, 1), members.map { it.rank })
-        assertEquals(listOf(false, false, true), members.map { it.you })
+        assertEquals(listOf(true, false, false), members.map { it.you })
     }
 
     @Test

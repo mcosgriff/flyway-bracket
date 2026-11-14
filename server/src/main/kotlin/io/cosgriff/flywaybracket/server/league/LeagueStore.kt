@@ -2,12 +2,16 @@ package io.cosgriff.flywaybracket.server.league
 
 import io.cosgriff.flywaybracket.api.MatchupSlot
 import io.cosgriff.flywaybracket.domain.bracket.BirdGroup
+import io.cosgriff.flywaybracket.domain.bracket.Decision
 import io.cosgriff.flywaybracket.domain.bracket.Field
 import io.cosgriff.flywaybracket.domain.bracket.FieldResult
+import io.cosgriff.flywaybracket.domain.bracket.Round
+import io.cosgriff.flywaybracket.domain.bracket.Tally
 import io.cosgriff.flywaybracket.domain.bracket.Team
 import io.cosgriff.flywaybracket.domain.league.CloseReason
 import io.cosgriff.flywaybracket.domain.league.LeaguePhase
 import io.cosgriff.flywaybracket.domain.league.LeagueStatus
+import io.cosgriff.flywaybracket.server.sighting.StoredSighting
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.LocalDate
@@ -52,8 +56,29 @@ data class LockedPlayer(val displayName: String?)
 data class StoredField(val seasonStart: LocalDate, val fixed: Boolean, val result: FieldResult)
 
 /**
- * The `leagues`, `league_members`, `league_fields`, `league_field_teams` and `league_picks` tables. Every
- * call blocks; call it off the request threads.
+ * A decided matchup as stored (#37), as it was decided: counts only, never who logged what.
+ *
+ * @property upper the common name of the bird drawn above
+ * @property winner [upper] or [lower]
+ */
+data class StoredResult(
+    val slot: MatchupSlot,
+    val upper: String,
+    val lower: String,
+    val upperTally: Tally,
+    val lowerTally: Tally,
+    val winner: String,
+    val reason: Decision.Reason,
+) {
+    init {
+        require(winner == upper || winner == lower) { "The winner plays in the matchup" }
+    }
+}
+
+/**
+ * The `leagues`, `league_members`, `league_fields`, `league_field_teams`, `league_picks`, `league_results`
+ * and `league_round_homes` tables, and the `sightings` table to read. Every call blocks; call it off the
+ * request threads.
  */
 interface LeagueStore {
     /** Runs [block] in one transaction: commits when it returns, rolls back when it throws. */
@@ -88,7 +113,7 @@ interface LeagueTransaction {
     /** Whether the player is in the league and has not left it. */
     fun isMember(leagueId: UUID, playerId: UUID): Boolean
 
-    /** The players in the league who have not left it. */
+    /** The players in the league who have not left it, in the order they joined, earliest first. */
     fun members(leagueId: UUID): List<StoredMember>
 
     /** The player in the league with this [StoredMember.key], unless they have left it. */
@@ -99,6 +124,9 @@ interface LeagueTransaction {
 
     /** The leagues stored as forming whose start is on or before [date]. */
     fun formingLeaguesStartingBy(date: LocalDate): List<UUID>
+
+    /** The leagues stored as running. */
+    fun runningLeagues(): List<UUID>
 
     /**
      * Adds a league with no players; [StoredLeague.players] is not read.
@@ -131,6 +159,28 @@ interface LeagueTransaction {
 
     /** Stores [picks] in place of every pick the player had in the league. Only for a member of a locked league. */
     fun savePicks(leagueId: UUID, playerId: UUID, picks: Map<MatchupSlot, String>)
+
+    /** The league's decided matchups, in slot order; empty before the first round is decided. */
+    fun results(leagueId: UUID): List<StoredResult>
+
+    /** Adds the results of a round just decided. Only for a locked league, and once per matchup. */
+    fun saveResults(leagueId: UUID, results: List<StoredResult>)
+
+    /** Each member's home county as it was when [round] began, null for none; empty until it is taken. */
+    fun roundHomes(leagueId: UUID, round: Round): Map<UUID, String?>
+
+    /** Stores the members' home counties as [round] begins. Only for a locked league. */
+    fun saveRoundHomes(leagueId: UUID, round: Round, homes: Map<UUID, String?>)
+
+    /** Forgets the home counties of [round], once it is decided. */
+    fun deleteRoundHomes(leagueId: UUID, round: Round)
+
+    /**
+     * The sightings of each of [playerIds] dated within [dates], a round's Monday to its Sunday, for deciding
+     * it (#37); a player with none is left out. Read in this transaction, so a round is decided from one
+     * moment's sightings.
+     */
+    fun sightings(playerIds: Collection<UUID>, dates: ClosedRange<LocalDate>): Map<UUID, List<StoredSighting>>
 }
 
 /** Teams in the order a [StoredField] holds them: by quarter from the top of the bracket, then by seed. */
@@ -190,7 +240,7 @@ private class PostgresLeagueTransaction(private val connection: Connection) : Le
     ) { }.isNotEmpty()
 
     override fun members(leagueId: UUID): List<StoredMember> =
-        query("$SELECT_MEMBER WHERE m.league_id = ? AND m.left_at IS NULL", leagueId, read = ::readMember)
+        query("$SELECT_MEMBER WHERE m.league_id = ? AND m.left_at IS NULL ORDER BY m.joined_at, m.member_key", leagueId, read = ::readMember)
 
     override fun memberByKey(leagueId: UUID, key: UUID): StoredMember? = query(
         "$SELECT_MEMBER WHERE m.league_id = ? AND m.member_key = ? AND m.left_at IS NULL",
@@ -206,6 +256,10 @@ private class PostgresLeagueTransaction(private val connection: Connection) : Le
     override fun formingLeaguesStartingBy(date: LocalDate): List<UUID> = query(
         "SELECT id FROM leagues WHERE phase = 'FORMING' AND season_start <= ? ORDER BY season_start, created_at, id",
         date,
+    ) { it.getObject(1, UUID::class.java) }
+
+    override fun runningLeagues(): List<UUID> = query(
+        "SELECT id FROM leagues WHERE phase = 'RUNNING' ORDER BY season_start, created_at, id",
     ) { it.getObject(1, UUID::class.java) }
 
     override fun insert(league: StoredLeague): Boolean = update(
@@ -308,6 +362,106 @@ private class PostgresLeagueTransaction(private val connection: Connection) : Le
             }
             insert.executeBatch()
         }
+    }
+
+    override fun results(leagueId: UUID): List<StoredResult> = query(
+        """
+        SELECT slot, upper_bird, lower_bird, upper_eligible, upper_logged, lower_eligible, lower_logged, winner, reason
+        FROM league_results WHERE league_id = ? ORDER BY slot
+        """.trimIndent(),
+        leagueId,
+    ) { row ->
+        StoredResult(
+            slot = MatchupSlot(row.getInt("slot")),
+            upper = row.getString("upper_bird"),
+            lower = row.getString("lower_bird"),
+            upperTally = Tally(eligible = row.getInt("upper_eligible"), logged = row.getInt("upper_logged")),
+            lowerTally = Tally(eligible = row.getInt("lower_eligible"), logged = row.getInt("lower_logged")),
+            winner = row.getString("winner"),
+            reason = Decision.Reason.valueOf(row.getString("reason")),
+        )
+    }
+
+    override fun saveResults(leagueId: UUID, results: List<StoredResult>) {
+        if (results.isEmpty()) return
+        connection.prepareStatement(
+            """
+            INSERT INTO league_results
+                (league_id, slot, upper_bird, lower_bird, upper_eligible, upper_logged, lower_eligible, lower_logged, winner, reason)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+        ).use { insert ->
+            results.forEach { result ->
+                insert.setObject(1, leagueId)
+                insert.setShort(2, result.slot.index.toShort())
+                insert.setString(3, result.upper)
+                insert.setString(4, result.lower)
+                insert.setInt(5, result.upperTally.eligible)
+                insert.setInt(6, result.upperTally.logged)
+                insert.setInt(7, result.lowerTally.eligible)
+                insert.setInt(8, result.lowerTally.logged)
+                insert.setString(9, result.winner)
+                insert.setString(10, result.reason.name)
+                insert.addBatch()
+            }
+            insert.executeBatch()
+        }
+    }
+
+    override fun roundHomes(leagueId: UUID, round: Round): Map<UUID, String?> = query(
+        "SELECT player_id, home_county FROM league_round_homes WHERE league_id = ? AND round = ?",
+        leagueId,
+        round.name,
+    ) { it.getObject(1, UUID::class.java) to it.getString(2) }.toMap()
+
+    override fun saveRoundHomes(leagueId: UUID, round: Round, homes: Map<UUID, String?>) {
+        if (homes.isEmpty()) return
+        connection.prepareStatement(
+            """
+            INSERT INTO league_round_homes (league_id, player_id, round, home_county) VALUES (?, ?, ?, ?)
+            ON CONFLICT (league_id, round, player_id) DO NOTHING
+            """.trimIndent(),
+        ).use { insert ->
+            homes.forEach { (playerId, homeCounty) ->
+                insert.setObject(1, leagueId)
+                insert.setObject(2, playerId)
+                insert.setString(3, round.name)
+                insert.setString(4, homeCounty)
+                insert.addBatch()
+            }
+            insert.executeBatch()
+        }
+    }
+
+    override fun deleteRoundHomes(leagueId: UUID, round: Round) {
+        update("DELETE FROM league_round_homes WHERE league_id = ? AND round = ?", leagueId, round.name)
+    }
+
+    override fun sightings(playerIds: Collection<UUID>, dates: ClosedRange<LocalDate>): Map<UUID, List<StoredSighting>> {
+        if (playerIds.isEmpty()) return emptyMap()
+        return connection.prepareStatement(
+            """
+            SELECT player_id, client_id, common_name, county_code, sighted_on FROM sightings
+            WHERE player_id = ANY (?) AND sighted_on BETWEEN ? AND ?
+            """.trimIndent(),
+        ).use { select ->
+            select.setArray(1, connection.createArrayOf("uuid", playerIds.toTypedArray()))
+            select.setObject(2, dates.start)
+            select.setObject(3, dates.endInclusive)
+            select.executeQuery().use { rows ->
+                buildList {
+                    while (rows.next()) {
+                        val sighting = StoredSighting(
+                            clientId = rows.getObject("client_id", UUID::class.java),
+                            commonName = rows.getString("common_name"),
+                            countyCode = rows.getString("county_code"),
+                            date = rows.getObject("sighted_on", LocalDate::class.java),
+                        )
+                        add(rows.getObject("player_id", UUID::class.java) to sighting)
+                    }
+                }
+            }
+        }.groupBy({ it.first }, { it.second })
     }
 
     override fun addMember(leagueId: UUID, playerId: UUID) {

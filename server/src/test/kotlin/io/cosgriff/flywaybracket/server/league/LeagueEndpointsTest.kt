@@ -13,16 +13,22 @@ import io.cosgriff.flywaybracket.api.LeagueSummary
 import io.cosgriff.flywaybracket.api.MatchupSlot
 import io.cosgriff.flywaybracket.api.PicksResponse
 import io.cosgriff.flywaybracket.api.ProfileResponse
+import io.cosgriff.flywaybracket.api.RoundResultsResponse
+import io.cosgriff.flywaybracket.api.SightingUpload
 import io.cosgriff.flywaybracket.api.Standing
+import io.cosgriff.flywaybracket.api.StandingsResponse
 import io.cosgriff.flywaybracket.api.SubmitPicksRequest
+import io.cosgriff.flywaybracket.api.UploadSightingsRequest
+import io.cosgriff.flywaybracket.domain.bracket.Decision
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.server.account.Accounts
 import io.cosgriff.flywaybracket.server.account.PlayerStore
 import io.cosgriff.flywaybracket.server.module
 import io.cosgriff.flywaybracket.server.pack.TEST_HOME_COUNTY
+import io.cosgriff.flywaybracket.server.pack.fieldPacks
 import io.cosgriff.flywaybracket.server.pack.noPacks
 import io.cosgriff.flywaybracket.server.pack.testCharts
-import io.cosgriff.flywaybracket.server.sighting.InMemorySightingStore
+import io.cosgriff.flywaybracket.server.sighting.SightingStore
 import io.cosgriff.flywaybracket.server.sighting.Sightings
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.basicAuth
@@ -44,6 +50,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
+import java.time.LocalDate
+import java.util.UUID
 
 /**
  * The league endpoints over HTTP, the same cases for each pair of stores: [InMemoryLeagueEndpointsTest]
@@ -54,7 +62,11 @@ abstract class LeagueEndpointsTest {
     /** A store holding no player and no league. */
     protected abstract fun players(): PlayerStore
 
-    protected abstract fun leagueStore(players: PlayerStore): LeagueStore
+    /** The leagues of [players]' players, holding none, reading the sightings [sightings] holds. */
+    protected abstract fun leagueStore(players: PlayerStore, sightings: SightingStore): LeagueStore
+
+    /** A store holding no sighting. */
+    protected abstract fun sightingStore(players: PlayerStore): SightingStore
 
     /** Wednesday 17 February 2027, noon in Denver. */
     private val clock = HandClock(Instant.parse("2027-02-17T19:00:00Z"))
@@ -62,7 +74,9 @@ abstract class LeagueEndpointsTest {
     private fun server(test: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         val players = players()
         val charts = testCharts()
-        val leagues = Leagues(leagueStore(players), charts, clock)
+        // The sightings the rounds are decided from are those the sighting endpoints took, in Fieldland.
+        val sightingStore = sightingStore(players)
+        val leagues = Leagues(leagueStore(players, sightingStore), charts, clock)
         val packs = noPacks()
         application {
             module(
@@ -70,7 +84,7 @@ abstract class LeagueEndpointsTest {
                 accounts = Accounts(players, leagues, charts),
                 leagues = leagues,
                 packs = packs,
-                sightings = Sightings(InMemorySightingStore(players), packs),
+                sightings = Sightings(sightingStore, fieldPacks(), clock),
                 version = "1.2.3",
             )
         }
@@ -296,6 +310,8 @@ abstract class LeagueEndpointsTest {
             client.get(ApiPaths.picks("league-1")),
             client.put(ApiPaths.picks("league-1")),
             client.get(ApiPaths.memberPicks("league-1", "member-1")),
+            client.get(ApiPaths.standings("league-1")),
+            client.get(ApiPaths.roundResults("league-1", Round.ROUND_OF_64)),
             client.delete(ApiPaths.membership("league-1")),
         )
 
@@ -493,7 +509,92 @@ abstract class LeagueEndpointsTest {
         putPicks(outsider, alone.id, emptyMap()).assertRefused(HttpStatusCode.Conflict, ApiErrorCode.BRACKET_NOT_READY)
     }
 
+    // Results and standings (#37)
+
+    @Test
+    fun `a decided round's results and the standings carry counts and points, never a sighting, a county or an id`() = server {
+        val owner = player()
+        val league = createLeague(owner).body<LeagueSummary>()
+        val others = (2..8).map { n -> player("Player $n").also { join(it, checkNotNull(league.inviteCode)) } }
+        val bracket = client.get(ApiPaths.bracket(league.id)) { signedBy(owner) }.body<BracketResponse>()
+        val upper = checkNotNull(bracket.matchups[0].upper)
+        val lower = checkNotNull(bracket.matchups[0].lower)
+        val gap = bracket.teams.single { it.commonName == lower }.seed - bracket.teams.single { it.commonName == upper }.seed
+        assertEquals(HttpStatusCode.OK, putPicks(owner, league.id, mapOf(MatchupSlot(0) to lower)).status)
+        // Tuesday 2 March in Denver: another player logs the lower bird in Plenty.
+        clock.now = Instant.parse("2027-03-02T19:00:00Z")
+        val clientId = UUID.randomUUID().toString()
+        val uploaded = post(
+            ApiPaths.SIGHTINGS,
+            others[0],
+            ApiJson.encodeToString(UploadSightingsRequest(listOf(SightingUpload(clientId, lower, PLENTY, LocalDate.of(2027, 3, 2))))),
+        )
+        assertEquals(HttpStatusCode.NoContent, uploaded.status)
+        client.get(ApiPaths.roundResults(league.id, Round.ROUND_OF_64)) { signedBy(owner) }
+            .assertRefused(HttpStatusCode.Conflict, ApiErrorCode.ROUND_NOT_DECIDED)
+
+        // Noon on Monday 8 March in Denver: round 1 is decided.
+        clock.now = Instant.parse("2027-03-08T19:00:00Z")
+        val response = client.get(ApiPaths.roundResults(league.id, Round.ROUND_OF_64)) { signedBy(owner) }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val results = response.body<RoundResultsResponse>()
+        assertEquals(Round.ROUND_OF_64, results.round)
+        assertEquals(MatchupSlot.all.filter { it.round == Round.ROUND_OF_64 }, results.matchups.map { it.slot })
+        val first = results.matchups[0]
+        assertEquals(upper to (8 to 0), first.upper.commonName to (first.upper.eligible to first.upper.logged))
+        assertEquals(lower to (8 to 1), first.lower.commonName to (first.lower.eligible to first.lower.logged))
+        assertEquals(lower, first.winner)
+        assertEquals(Decision.Reason.HIGHER_SHARE, first.reason)
+        assertEquals(1 to gap, first.roundPoints to first.upsetBonus)
+        // Another player's view: the same counts, and their own points, none.
+        val theirs = client.get(ApiPaths.roundResults(league.id, Round.ROUND_OF_64)) { signedBy(others[1]) }.body<RoundResultsResponse>()
+        assertEquals(first.copy(roundPoints = 0, upsetBonus = 0), theirs.matchups[0])
+
+        val standingsResponse = client.get(ApiPaths.standings(league.id)) { signedBy(others[1]) }
+        assertEquals(HttpStatusCode.OK, standingsResponse.status)
+        val standings = standingsResponse.body<StandingsResponse>().standings
+        assertEquals(Standing("Player One", points = 1 + gap, rank = 1, memberKey = standings[0].memberKey, rightPicks = 1), standings[0])
+        assertEquals(8, standings.size)
+        val members = client.get(ApiPaths.league(league.id)) { signedBy(others[1]) }.body<LeagueDetail>().members
+        assertEquals(standings, members)
+
+        // No sighting, county or account id of anyone, in either.
+        for (text in listOf(response.bodyAsText(), standingsResponse.bodyAsText())) {
+            listOf(clientId, PLENTY, COUNTY, owner.playerId, others[0].playerId, others[1].playerId, "2027-03-02").forEach { secret ->
+                assertFalse("$secret in $text", text.contains(secret, ignoreCase = true))
+            }
+        }
+    }
+
+    @Test
+    fun `results of a round not decided are 409, of no such round 400, and of a league the player is not in 404`() = server {
+        val owner = player()
+        val league = createLeague(owner).body<LeagueSummary>()
+        val outsider = player("Player Two")
+
+        client.get(ApiPaths.roundResults(league.id, Round.FINAL)) { signedBy(owner) }
+            .assertRefused(HttpStatusCode.Conflict, ApiErrorCode.ROUND_NOT_DECIDED)
+        listOf("SWEET_16", "round_of_64", "0").forEach { round ->
+            client.get(ApiPaths.roundResults(league.id, round)) { signedBy(owner) }
+                .assertRefused(HttpStatusCode.BadRequest, ApiErrorCode.INVALID_REQUEST)
+        }
+        client.get(ApiPaths.roundResults(league.id, Round.ROUND_OF_64)) { signedBy(outsider) }
+            .assertRefused(HttpStatusCode.NotFound, ApiErrorCode.LEAGUE_NOT_FOUND)
+        client.get(ApiPaths.standings(league.id)) { signedBy(outsider) }
+            .assertRefused(HttpStatusCode.NotFound, ApiErrorCode.LEAGUE_NOT_FOUND)
+        client.get(ApiPaths.standings("league-1")) { signedBy(owner) }
+            .assertRefused(HttpStatusCode.NotFound, ApiErrorCode.LEAGUE_NOT_FOUND)
+        assertEquals(
+            listOf(Standing("Player One", points = 0, rank = 1, memberKey = "", you = true)),
+            client.get(ApiPaths.standings(league.id)) { signedBy(owner) }.body<StandingsResponse>().standings.map { it.copy(memberKey = "") },
+        )
+    }
+
     private companion object {
         const val COUNTY = TEST_HOME_COUNTY
+
+        /** A county of Fieldland's made-up pack, which the sighting endpoints know. */
+        const val PLENTY = "XX-FD-001"
     }
 }

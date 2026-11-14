@@ -57,7 +57,8 @@ class SeasonStartJobTest {
 
         assertEquals(LeagueState.IN_SEASON, leagues.mine(owner).single().state)
         assertEquals(1, store.fieldSaves)
-        assertEquals(emptyList<UUID>(), leagues.dueToSettle())
+        // No longer due to start; due on every run while in season, for its rounds.
+        assertEquals(listOf(UUID.fromString(league.id)), leagues.dueToSettle())
         assertEquals(league.id, leagues.mine(owner).single().id)
     }
 

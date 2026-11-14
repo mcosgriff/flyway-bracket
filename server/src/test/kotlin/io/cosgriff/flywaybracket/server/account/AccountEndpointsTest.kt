@@ -45,7 +45,11 @@ abstract class AccountEndpointsTest {
     /** The leagues of [players]' players. */
     protected abstract fun leagueStore(players: PlayerStore): LeagueStore
 
-    protected fun server(creationsPerAddress: Int = 100, test: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
+    protected fun server(
+        creationsPerAddress: Int = 100,
+        clientAddressHeader: String? = null,
+        test: suspend ApplicationTestBuilder.() -> Unit,
+    ) = testApplication {
         val players = store()
         val packs = noPacks()
         val charts = testCharts()
@@ -59,15 +63,18 @@ abstract class AccountEndpointsTest {
                 packs = packs,
                 sightings = Sightings(InMemorySightingStore(players), packs),
                 version = "1.2.3",
+                clientAddressHeader = clientAddressHeader,
             )
         }
         test()
     }
 
-    protected suspend fun ApplicationTestBuilder.createAccount(body: String = "{}"): HttpResponse = client.post(ApiPaths.ACCOUNTS) {
-        contentType(ContentType.Application.Json)
-        setBody(body)
-    }
+    protected suspend fun ApplicationTestBuilder.createAccount(body: String = "{}", clientAddress: String? = null): HttpResponse =
+        client.post(ApiPaths.ACCOUNTS) {
+            contentType(ContentType.Application.Json)
+            if (clientAddress != null) header(CLIENT_ADDRESS_HEADER, clientAddress)
+            setBody(body)
+        }
 
     protected suspend fun ApplicationTestBuilder.newAccount(): CreateAccountResponse {
         val response = createAccount()
@@ -287,5 +294,39 @@ abstract class AccountEndpointsTest {
         createAccount()
 
         assertEquals(ProfileResponse(), profile(account))
+    }
+
+    @Test
+    fun `behind a trusted proxy, the limit counts each caller's address from its header`() =
+        server(creationsPerAddress = 1, clientAddressHeader = CLIENT_ADDRESS_HEADER) {
+            assertEquals(HttpStatusCode.Created, createAccount(clientAddress = FIRST_ADDRESS).status)
+            createAccount(clientAddress = FIRST_ADDRESS).assertRefused(HttpStatusCode.TooManyRequests, ApiErrorCode.RATE_LIMITED)
+
+            assertEquals(HttpStatusCode.Created, createAccount(clientAddress = SECOND_ADDRESS).status)
+        }
+
+    @Test
+    fun `behind a trusted proxy, a request without the header counts the connection's address`() =
+        server(creationsPerAddress = 1, clientAddressHeader = CLIENT_ADDRESS_HEADER) {
+            assertEquals(HttpStatusCode.Created, createAccount().status)
+            createAccount().assertRefused(HttpStatusCode.TooManyRequests, ApiErrorCode.RATE_LIMITED)
+
+            assertEquals(HttpStatusCode.Created, createAccount(clientAddress = FIRST_ADDRESS).status)
+        }
+
+    @Test
+    fun `with no trusted proxy, an address header a caller sends is ignored`() = server(creationsPerAddress = 1) {
+        assertEquals(HttpStatusCode.Created, createAccount(clientAddress = FIRST_ADDRESS).status)
+
+        // Another made-up address in the header does not get the caller a new allowance.
+        createAccount(clientAddress = SECOND_ADDRESS).assertRefused(HttpStatusCode.TooManyRequests, ApiErrorCode.RATE_LIMITED)
+    }
+
+    private companion object {
+        const val CLIENT_ADDRESS_HEADER = "X-Flyway-Client-Ip"
+
+        // Documentation addresses (RFC 5737): made up.
+        const val FIRST_ADDRESS = "192.0.2.10"
+        const val SECOND_ADDRESS = "198.51.100.20"
     }
 }

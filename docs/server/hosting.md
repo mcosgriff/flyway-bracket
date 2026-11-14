@@ -25,6 +25,7 @@ On Cloudflare the Worker passes them to the container:
 | --- | --- |
 | `DATABASE_URL`, `DATABASE_USER`, `DATABASE_PASSWORD` | Worker secrets, set by hand ([below](#4-the-database-secrets)) |
 | `PACKS_DIR` | `/packs`, fixed in `worker/src/index.ts`: an empty directory in the image ([Packs](#packs-not-served-yet)) |
+| `CLIENT_IP_HEADER` | `X-Flyway-Client-Ip`, fixed in `worker/src/index.ts` ([The caller's address](#the-callers-address)) |
 | `PORT` | The image's default, 8080 |
 
 ## One-time setup by the owner
@@ -120,6 +121,19 @@ server keeps two things in memory: the limit on account creation (10 per address
 would both run the job. The job is safe to run twice, since each league is settled under its lock, but it
 is wasted work.
 
+## The caller's address
+
+Behind the Worker the server's connections all come from Cloudflare, so the connection's address is the
+same for every player. The limit on account creation (10 per address per hour, [api.md](api.md#account))
+would then count every player together. So the Worker sets `X-Flyway-Client-Ip` on every request to the
+caller's address, from Cloudflare's `CF-Connecting-IP`, replacing any value the caller sent, and passes
+`CLIENT_IP_HEADER=X-Flyway-Client-Ip` to the server, which then counts that address instead. Only the
+Worker can reach the container, so a caller cannot choose the value the server sees.
+
+The server uses the address for that limit only: counted in memory, forgotten when the hour ends, never
+stored and never logged. Without `CLIENT_IP_HEADER`, as on a developer's machine, the server ignores the
+header and counts the connection's address.
+
 ## Sleep and the hourly wake
 
 The container stops after 10 minutes with no request (`sleepAfter` in `worker/src/index.ts`), and while it
@@ -151,10 +165,6 @@ Packs will be served once that permission is given and the server can read them 
 
 ## Not done yet
 
-- **The account creation limit sees one address.** Behind the Worker the server sees the address the
-  container's traffic comes from, not the phone's, so the 10-per-hour limit counts every player together
-  ([api.md](api.md#account)). The server must read the caller's address from a header the Worker sets
-  before testers sign up in numbers.
 - **Backups.** Neon's free plan keeps only a short restore window. The plan is a scheduled GitHub Actions
   job that runs `pg_dump` against the direct URL and keeps a few weeks of dumps in Cloudflare R2.
 - **Waiting for CI.** The deploy does not wait for `ci.yml` on the same commit, as `release.yml` does; the

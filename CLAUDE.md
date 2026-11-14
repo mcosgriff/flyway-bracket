@@ -134,7 +134,9 @@ the `CODECOV_TOKEN` secret.
     code from `:domain`), `PlayerStore` the `players` table (`PostgresPlayerStore`; tests also use an
     in-memory one), `AccountRoutes` the endpoints and the HTTP Basic sign-in. The secret is kept only as
     an Argon2id hash (`Argon2idHasher`, Bouncy Castle), compared in constant time; an unknown id is
-    checked against a hash too. Account creation is limited per address (`FixedWindowRateLimiter`).
+    checked against a hash too. Account creation is limited per address (`FixedWindowRateLimiter`);
+    the address comes from the header `CLIENT_IP_HEADER` names when a trusted proxy sets it (the
+    Worker), else from the connection, and is never stored or logged.
     `AccountEndpointsTest` holds the HTTP cases once and runs them on both stores.
   - `server/league` — leagues. `Leagues` applies `domain/league`'s rules; `LeagueStore` the `leagues` and
     `league_members` tables inside one transaction (`PostgresLeagueStore`; tests also use an in-memory

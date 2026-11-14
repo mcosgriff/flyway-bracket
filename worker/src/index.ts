@@ -1,6 +1,7 @@
 // The front of the hosted league server (#16, docs/server/hosting.md). Every request to
-// api.flywaybracket.cosgriff.io reaches this Worker, which hands it unchanged to the one container that
-// runs the Ktor server (server/Dockerfile). The Worker reads nothing in a request and logs nothing of it.
+// api.flywaybracket.cosgriff.io reaches this Worker, which hands it to the one container that runs the
+// Ktor server (server/Dockerfile), adding only the caller's address (CLIENT_IP_HEADER). The Worker reads
+// nothing else in a request and logs nothing of it.
 
 import { Container, getContainer } from "@cloudflare/containers";
 import type { DurableObject } from "cloudflare:workers";
@@ -27,6 +28,12 @@ const PACKS_DIR = "/packs";
 // opens its port only after all three.
 const START_TIMEOUT_MS = 90_000;
 
+// Behind this Worker the server sees the Worker's address, not the phone's. So the Worker puts the caller's
+// address, from Cloudflare's CF-Connecting-IP, in this header on every request, replacing any the caller
+// sent, and tells the server (CLIENT_IP_HEADER) to read it. The server uses it only to count account
+// creations in memory; it never stores or logs it.
+const CLIENT_IP_HEADER = "X-Flyway-Client-Ip";
+
 export class FlywayServer extends Container<Env> {
   // The server's PORT default (ServerConfig.DEFAULT_PORT).
   defaultPort = 8080;
@@ -43,6 +50,7 @@ export class FlywayServer extends Container<Env> {
       DATABASE_USER: env.DATABASE_USER,
       DATABASE_PASSWORD: env.DATABASE_PASSWORD,
       PACKS_DIR,
+      CLIENT_IP_HEADER,
     };
   }
 
@@ -67,9 +75,22 @@ function server(env: Env) {
   return getContainer(env.SERVER, INSTANCE);
 }
 
+// The request with CLIENT_IP_HEADER set to the caller's address, or removed when Cloudflare gave none, so a
+// value the caller sent never reaches the server.
+function withClientAddress(request: Request): Request {
+  const headers = new Headers(request.headers);
+  const address = request.headers.get("CF-Connecting-IP");
+  if (address) {
+    headers.set(CLIENT_IP_HEADER, address);
+  } else {
+    headers.delete(CLIENT_IP_HEADER);
+  }
+  return new Request(request, { headers });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    return server(env).fetch(request);
+    return server(env).fetch(withClientAddress(request));
   },
 
   // Wakes the server so a league's dates pass on time when no one is using the app.

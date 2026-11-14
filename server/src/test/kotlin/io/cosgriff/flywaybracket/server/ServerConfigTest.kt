@@ -65,6 +65,31 @@ class ServerConfigTest {
     }
 
     @Test
+    fun `no client address header unless one is named`() {
+        assertEquals(null, ServerConfig.fromEnvironment(environment).clientAddressHeader)
+        assertEquals(null, ServerConfig.fromEnvironment(environment + ("CLIENT_IP_HEADER" to " ")).clientAddressHeader)
+    }
+
+    @Test
+    fun `reads the client address header`() {
+        val config = ServerConfig.fromEnvironment(environment + ("CLIENT_IP_HEADER" to "X-Flyway-Client-Ip"))
+
+        assertEquals("X-Flyway-Client-Ip", config.clientAddressHeader)
+    }
+
+    @Test
+    fun `a client address header that is not a header name is refused`() {
+        listOf("X Flyway", "X-Flyway:Ip", "X-Flyway\u0000Ip").forEach { name ->
+            val failure = assertThrows(name, ConfigException::class.java) {
+                ServerConfig.fromEnvironment(environment + ("CLIENT_IP_HEADER" to name))
+            }
+
+            assertEquals(emptyList<String>(), failure.missing)
+            assertEquals(listOf("CLIENT_IP_HEADER"), failure.invalid)
+        }
+    }
+
+    @Test
     fun `neither the failure nor the config prints the password`() {
         val failure = assertThrows(ConfigException::class.java) {
             ServerConfig.fromEnvironment(environment - "DATABASE_URL")

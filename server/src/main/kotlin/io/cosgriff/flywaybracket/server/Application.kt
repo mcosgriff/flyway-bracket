@@ -44,6 +44,8 @@ import kotlinx.coroutines.withContext
  * @param packs the state packs, for listing and downloading
  * @param sightings taking and deleting the sightings players upload
  * @param version what the health check reports
+ * @param clientAddressHeader the header that holds the caller's address, set by a trusted proxy, for the
+ *   account creation limit; null to use the connection's address (`ServerConfig.clientAddressHeader`)
  */
 fun Application.module(
     database: DatabaseCheck,
@@ -52,6 +54,7 @@ fun Application.module(
     packs: Packs,
     sightings: Sightings,
     version: String,
+    clientAddressHeader: String? = null,
 ) {
     install(ContentNegotiation) { json(ApiJson) }
     install(CallLogging) {
@@ -89,7 +92,7 @@ fun Application.module(
             val answers = withContext(Dispatchers.IO) { database.answers() }
             call.respond(HealthResponse(version = version, database = answers))
         }
-        accountRoutes(accounts)
+        accountRoutes(accounts, clientAddressHeader)
         leagueRoutes(leagues)
         packRoutes(packs)
         sightingRoutes(sightings)

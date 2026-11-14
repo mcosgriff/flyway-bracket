@@ -7,6 +7,9 @@ import io.cosgriff.flywaybracket.api.ApiError
 import io.cosgriff.flywaybracket.api.ApiErrorCode
 import io.cosgriff.flywaybracket.api.ApiJson
 import io.cosgriff.flywaybracket.api.CreateAccountResponse
+import io.cosgriff.flywaybracket.api.LeagueState
+import io.cosgriff.flywaybracket.api.LeagueSummary
+import io.cosgriff.flywaybracket.api.ProfileResponse
 import io.cosgriff.flywaybracket.data.account.AccountStore
 import io.cosgriff.flywaybracket.data.account.StoredAccount
 import io.cosgriff.flywaybracket.data.server.ServerClient
@@ -80,6 +83,7 @@ class AccountRepositoryTest {
                             JSON,
                         )
                         Answer.NoNetwork -> throw UnknownHostException("server.example")
+                        is Answer.Profile -> respond(ApiJson.encodeToString(ProfileResponse.serializer(), next.profile), HttpStatusCode.OK, JSON)
                     }
                 },
             ),
@@ -97,6 +101,8 @@ class AccountRepositoryTest {
         data class Refused(val code: ApiErrorCode, val status: HttpStatusCode) : Answer
 
         data object NoNetwork : Answer
+
+        data class Profile(val profile: ProfileResponse) : Answer
     }
 
     private class MemoryAccountStore : AccountStore {
@@ -245,6 +251,19 @@ class AccountRepositoryTest {
         assertEquals(ServerResult.Failed(ServerProblem.NoNetwork), accounts.deleteAccount())
         assertTrue(accounts.hasAccount().first())
         assertEquals(PLAYER_ID, store.account?.playerId)
+    }
+
+    @Test
+    fun `the profile is asked for only with an account, and gives the player's league`() = runBlocking {
+        assertEquals(ServerResult.Failed(ServerProblem.Refused(ApiErrorCode.UNAUTHORIZED)), accounts.profile())
+        assertEquals(emptyList<HttpRequestData>(), requests)
+
+        accounts.createAccount()
+        val league = LeagueSummary(id = "league-1", name = "Test League", players = 9, capacity = 20, state = LeagueState.IN_SEASON)
+        answer = { Answer.Profile(ProfileResponse(displayName = "Wren Example", league = league)) }
+
+        assertEquals(ServerResult.Ok(ProfileResponse(displayName = "Wren Example", league = league)), accounts.profile())
+        assertEquals(HttpMethod.Get, requests.last().method)
     }
 
     @Test

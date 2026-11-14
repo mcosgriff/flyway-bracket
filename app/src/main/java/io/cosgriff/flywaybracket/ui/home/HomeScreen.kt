@@ -50,8 +50,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.cosgriff.flywaybracket.R
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.domain.bracket.Season
+import io.cosgriff.flywaybracket.ui.components.DownloadFailureText
+import io.cosgriff.flywaybracket.ui.components.DownloadProgressLine
 import io.cosgriff.flywaybracket.ui.components.FlywayBottomBar
+import io.cosgriff.flywaybracket.ui.components.MeteredDownloadDialog
 import io.cosgriff.flywaybracket.ui.components.TopLevel
+import io.cosgriff.flywaybracket.ui.components.failureMessage
+import io.cosgriff.flywaybracket.ui.components.fileSizeText
 import io.cosgriff.flywaybracket.ui.components.lengthText
 import io.cosgriff.flywaybracket.ui.outing.CountyFallback
 import io.cosgriff.flywaybracket.ui.theme.FlywayDimens
@@ -98,6 +103,9 @@ fun HomeScreen(
         onNavigate = onNavigate,
         onStartOuting = viewModel::onStartOuting,
         onDismissPackMissing = viewModel::onPackMissingDismissed,
+        onDownloadPack = viewModel::onDownloadPack,
+        onConfirmMetered = viewModel::onMeteredConfirmed,
+        onDismissMetered = viewModel::onMeteredDismissed,
         onOpenSettings = onOpenSettings,
         onSendNow = viewModel::onSendNow,
     )
@@ -106,6 +114,9 @@ fun HomeScreen(
 /**
  * @param onStartOuting the start button: starts an outing, or continues the one in progress
  * @param onDismissPackMissing closes the note that the home county's pack is missing
+ * @param onDownloadPack downloads the offered pack of the home county's state
+ * @param onConfirmMetered the player said yes to a large download on a metered connection
+ * @param onDismissMetered the player said not now to it
  * @param onOpenSettings the gear in the header (#44)
  * @param onSendNow Send now, on the note that sightings have not been sent (#43)
  */
@@ -117,6 +128,9 @@ fun HomeContent(
     onStartOuting: () -> Unit,
     modifier: Modifier = Modifier,
     onDismissPackMissing: () -> Unit = {},
+    onDownloadPack: () -> Unit = {},
+    onConfirmMetered: () -> Unit = {},
+    onDismissMetered: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     onSendNow: () -> Unit = {},
 ) {
@@ -133,6 +147,7 @@ fun HomeContent(
             verticalArrangement = Arrangement.spacedBy(FlywayDimens.space4),
         ) {
             Header(region = state.region, onRegion = { onNavigate(TopLevel.Packs) }, onSettings = onOpenSettings)
+            state.packOffer?.let { PackOfferCard(it, onDownloadPack) }
             if (state.tournament != null) {
                 TournamentHero(state.tournament, onViewBracket = { onNavigate(TopLevel.Bracket) })
             } else {
@@ -154,6 +169,46 @@ fun HomeContent(
             },
             onDismiss = onDismissPackMissing,
         )
+    }
+    state.askMetered?.let { MeteredDownloadDialog(it, onConfirm = onConfirmMetered, onDismiss = onDismissMetered) }
+}
+
+/**
+ * The server has the home county's pack and the phone does not: offers it, with its size. While it
+ * downloads, how far it has come; if it failed, why.
+ */
+@Composable
+private fun PackOfferCard(offer: PackOffer, onDownload: () -> Unit) {
+    val colors = FlywayTheme.colors
+    Surface(color = colors.pickContainer, contentColor = colors.ink, shape = MaterialTheme.shapes.large) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = FlywayDimens.space4, vertical = FlywayDimens.space3),
+            verticalArrangement = Arrangement.spacedBy(FlywayDimens.space2),
+        ) {
+            Column(modifier = Modifier.semantics(mergeDescendants = true) {}) {
+                Text(stringResource(R.string.home_pack_offer_title, offer.state), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = stringResource(R.string.home_pack_offer_body, fileSizeText(offer.sizeBytes)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.inkMuted,
+                )
+            }
+            val progress = offer.progress
+            if (progress != null) {
+                DownloadProgressLine(progress, color = colors.pick, trackColor = colors.surfaceMuted, textColor = colors.inkMuted)
+            } else {
+                Button(
+                    onClick = onDownload,
+                    modifier = Modifier.heightIn(min = FlywayDimens.tapMin),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.primary, contentColor = colors.onPrimary),
+                ) {
+                    Text(stringResource(R.string.home_pack_offer_download), style = MaterialTheme.typography.labelLarge)
+                }
+            }
+            offer.failure?.failureMessage?.let { DownloadFailureText(it, color = colors.danger) }
+        }
     }
 }
 
@@ -482,6 +537,18 @@ internal val previewState = HomeState(
         OutingRow(2, "Standley Lake", previewToday.minusDays(1), Duration.ofMinutes(48), species = 9),
     ),
 )
+
+/** Just after the first run: the server has the home county's pack (a made-up state) and the phone does not. */
+internal val previewPackOffer = HomeState(
+    region = HomeRegion(county = "Lark Hollow", stateAbbreviation = "ZA"),
+    packOffer = PackOffer(stateCode = "US-ZA", state = "Alder", sizeBytes = 1_480_000),
+)
+
+@Preview
+@Composable
+private fun HomePackOfferPreview() = FlywayTheme(darkTheme = false) {
+    HomeContent(previewPackOffer, previewToday, onNavigate = {}, onStartOuting = {})
+}
 
 @Preview
 @Composable

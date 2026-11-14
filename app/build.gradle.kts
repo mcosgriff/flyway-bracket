@@ -69,7 +69,8 @@ android {
 
     buildFeatures {
         compose = true
-        // BuildConfig.VERSION_NAME, for Settings' About section (#44).
+        // BuildConfig.VERSION_NAME, for Settings' About section (#44); BuildConfig.DEBUG keeps the Packs
+        // screen's file picker to debug builds (#39).
         buildConfig = true
     }
 
@@ -121,7 +122,7 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.junit)
     testImplementation(libs.kotlinx.coroutines.test)
-    // Stands in for the league server in the Settings tests (#44).
+    // Stands in for the league server in the Settings tests (#44) and the pack download tests (#39).
     testImplementation(libs.ktor.client.mock)
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)

@@ -27,6 +27,7 @@ import io.cosgriff.flywaybracket.domain.pack.StatePackCodec
 import io.cosgriff.flywaybracket.domain.pack.testStatePack
 import io.cosgriff.flywaybracket.domain.place.CountyTableParser
 import io.cosgriff.flywaybracket.ui.FakeCountyLocator
+import io.cosgriff.flywaybracket.ui.FakePackServer
 import io.cosgriff.flywaybracket.ui.outing.CountyFallback
 import io.ktor.client.engine.mock.MockEngine
 import java.io.File
@@ -170,14 +171,19 @@ class HomeViewModelTest {
             val inProgress = outings.start("Sample Marsh", "US-ZZ-001")
             outings.addOrBump(inProgress.id, "Made-up Heron")
 
+            val packs = PackRepository(File(context.filesDir, "home_test_packs"))
+            val server = FakePackServer(packs, settings, scope, account = false)
             val state = withTimeout(10_000) {
                 HomeViewModel(
                     outings,
                     settings,
                     counties,
-                    PackRepository(File(context.filesDir, "home_test_packs")),
+                    packs,
                     FakeCountyLocator(),
                     clock,
+                    server.downloads,
+                    server.accounts,
+                    { false },
                     sync(db, settings, clock, account = false),
                     RecordingScheduler(),
                 )
@@ -257,7 +263,12 @@ class HomeViewModelTest {
             outings.end()
             val scheduler = RecordingScheduler()
             val sync = sync(db, settings, clock, account = true)
-            fun home() = HomeViewModel(outings, settings, BundledCounties(context), PackRepository(File(context.filesDir, "home_unsent_packs")), FakeCountyLocator(), clock, sync, scheduler)
+            val packs = PackRepository(File(context.filesDir, "home_unsent_packs"))
+            val server = FakePackServer(packs, settings, scope, account = false)
+            fun home() = HomeViewModel(
+                outings, settings, BundledCounties(context), packs, FakeCountyLocator(), clock,
+                server.downloads, server.accounts, { false }, sync, scheduler,
+            )
 
             // Waiting for a day exactly: no note yet.
             clock.now = Instant.parse("2027-03-11T08:00:00Z")
@@ -308,7 +319,20 @@ class HomeViewModelTest {
                 if (installTestland) packs.install(StatePackCodec.encode(testStatePack()))
                 val clock = Clock.fixed(Instant.parse("2027-04-18T18:00:00Z"), zone)
                 val outings = OutingRepository(db.outings(), clock)
-                val home = HomeViewModel(outings, settings, BundledCounties(context), packs, locator, clock, sync(db, settings, clock, account = false), RecordingScheduler())
+                val server = FakePackServer(packs, settings, scope, account = false)
+                val home = HomeViewModel(
+                    outings,
+                    settings,
+                    BundledCounties(context),
+                    packs,
+                    locator,
+                    clock,
+                    server.downloads,
+                    server.accounts,
+                    { false },
+                    sync(db, settings, clock, account = false),
+                    RecordingScheduler(),
+                )
                 withTimeout(10_000) { block(home, outings, settings) }
             } finally {
                 stopViewModels()
@@ -469,4 +493,66 @@ class HomeViewModelTest {
             assertNull(outings.inProgress().first())
         }
     }
+
+    /** Home with the home county in Testland, Testland's pack on the made-up server, and [block] to run. */
+    private fun offering(account: Boolean, installTestland: Boolean = false, block: suspend (HomeViewModel, FakePackServer, PackRepository) -> Unit) =
+        runBlocking {
+            val context: Context = ApplicationProvider.getApplicationContext()
+            val db = Room.inMemoryDatabaseBuilder<FlywayDatabase>(context).build()
+            val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+            try {
+                val file = File(context.filesDir, "home_offer_test.preferences_pb").apply { delete() }
+                val settings = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+                settings.setHomeCountyCode("XX-TS-002")
+                val packs = PackRepository(File(context.filesDir, "home_offer_test_packs").apply { deleteRecursively() })
+                if (installTestland) packs.install(StatePackCodec.encode(testStatePack()))
+                val server = FakePackServer(packs, settings, scope, account = account)
+                server.hold(testStatePack())
+                val clock = Clock.fixed(Instant.parse("2027-04-18T18:00:00Z"), zone)
+                val home = HomeViewModel(
+                    OutingRepository(db.outings(), clock), settings, BundledCounties(context), packs, FakeCountyLocator(), clock,
+                    server.downloads, server.accounts, { false }, sync(db, settings, clock, account = false), RecordingScheduler(),
+                )
+                withTimeout(10_000) { block(home, server, packs) }
+            } finally {
+                stopViewModels()
+                scope.cancel()
+                db.close()
+            }
+        }
+
+    @Test
+    fun `the home county's state is a county code without its last part`() {
+        assertEquals("US-CO", stateCodeOf("US-CO-059"))
+    }
+
+    @Test
+    fun `Home offers the home county's pack when the server has it and the phone does not, and downloads it`() =
+        offering(account = true) { home, _, packs ->
+            val offer = home.state.first { it.packOffer != null }.packOffer
+            assertEquals("XX-TS", offer?.stateCode)
+            assertEquals("Testland", offer?.state)
+
+            home.onDownloadPack()
+
+            // Installed, the offer goes.
+            packs.installed().first { it.isNotEmpty() }
+            assertNull(home.state.first { it.packOffer == null }.packOffer)
+        }
+
+    @Test
+    fun `with no account Home asks the server nothing and offers nothing`() =
+        offering(account = false) { home, server, _ ->
+            home.state.first { it.region != null || it.recentOutings.isEmpty() }
+            assertNull(home.state.value.packOffer)
+            assertEquals(emptyList<Any>(), server.requests)
+        }
+
+    @Test
+    fun `with the pack on the phone Home offers nothing and asks nothing`() =
+        offering(account = true, installTestland = true) { home, server, _ ->
+            home.state.first()
+            assertNull(home.state.value.packOffer)
+            assertEquals(emptyList<Any>(), server.requests)
+        }
 }

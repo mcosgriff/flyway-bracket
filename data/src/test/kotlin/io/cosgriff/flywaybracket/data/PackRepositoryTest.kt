@@ -53,11 +53,19 @@ class PackRepositoryTest {
     fun `an installed pack is listed with the size of its file, and saved under its state's code`() = runBlocking {
         val result = packs.install(testlandBytes)
 
-        val expected = InstalledPack(testland, testlandBytes.size.toLong())
+        val expected = InstalledPack(testland, testlandBytes.size.toLong(), packVersion(testlandBytes))
         assertEquals(PackInstall.Installed(expected), result)
         assertEquals(listOf(expected), installed())
         assertEquals(listOf("XX-TS.fbpack"), directory.list()?.toList())
         assertTrue(File(directory, "XX-TS.fbpack").readBytes().contentEquals(testlandBytes))
+    }
+
+    @Test
+    fun `a pack's version is the SHA-256 of its file, as the server names it, and is read again from the file`() = runBlocking {
+        packs.install(testlandBytes)
+        // The SHA-256 of the empty file, in lowercase hex, so the encoding is fixed.
+        assertEquals("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", packVersion(ByteArray(0)))
+        assertEquals(packVersion(testlandBytes), PackRepository(directory).installed().first().single().version)
     }
 
     @Test

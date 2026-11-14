@@ -33,6 +33,7 @@ fun PrivacyList() {
         R.string.consent_sent_profile,
         R.string.consent_sent_leagues,
         R.string.consent_sent_sightings,
+        R.string.consent_sent_packs,
         R.string.consent_never_sent,
     )
     PrivacyCard(R.string.consent_seen_title, R.string.consent_seen_body, R.string.consent_not_seen_body)

@@ -131,7 +131,7 @@ class AccountRepository(
         return server.profile(current.credentials)
     }
 
-    /** The account's id and secret, for another call that needs them (#41); null with no account. */
+    /** The account's id and secret, for another call that needs them (#39, #41); null with no account. */
     internal suspend fun credentials(): Credentials? = loaded()?.credentials
 
     private suspend fun loaded(): StoredAccount? {

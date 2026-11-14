@@ -40,13 +40,17 @@ import io.cosgriff.flywaybracket.ui.theme.FlywayDimens
 import io.cosgriff.flywaybracket.ui.theme.FlywayTheme
 
 /**
- * Stands before League and Bracket (#38): while the phone has no account, the consent page shows in
- * their place; once it has one, [content]. "Not now" goes Home, and nothing is sent (ADR 0001).
+ * Stands before League and Bracket (#38), and before a pack download (#39): while the phone has no
+ * account, the consent page shows in their place; once it has one, [content]. "Not now" sends nothing
+ * (ADR 0001).
+ *
+ * @param onNotNow what "Not now" does: by default it goes Home
  */
 @Composable
 fun ConsentScreen(
     place: TopLevel,
     onNavigate: (TopLevel) -> Unit,
+    onNotNow: () -> Unit = { onNavigate(TopLevel.Home) },
     viewModel: ConsentViewModel = hiltViewModel(),
     content: @Composable () -> Unit,
 ) {
@@ -59,7 +63,7 @@ fun ConsentScreen(
             place = place,
             onNavigate = onNavigate,
             onContinue = viewModel::onContinue,
-            onNotNow = { onNavigate(TopLevel.Home) },
+            onNotNow = onNotNow,
         )
         // The store is read in a moment; nothing is drawn until then, so the page doesn't flash.
         null -> Unit

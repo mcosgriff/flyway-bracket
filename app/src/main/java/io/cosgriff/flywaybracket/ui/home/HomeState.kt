@@ -1,6 +1,9 @@
 package io.cosgriff.flywaybracket.ui.home
 
 import androidx.compose.runtime.Immutable
+import io.cosgriff.flywaybracket.data.DownloadProgress
+import io.cosgriff.flywaybracket.data.PackDownload
+import io.cosgriff.flywaybracket.ui.components.MeteredAsk
 import io.cosgriff.flywaybracket.domain.bracket.Round
 import io.cosgriff.flywaybracket.domain.bracket.Season
 import java.time.Duration
@@ -23,8 +26,29 @@ data class HomeState(
     val askLocation: Boolean = false,
     /** A new outing is waiting for the phone's location to find its county (#27). */
     val findingCounty: Boolean = false,
+    /** The home county's pack, offered when the server has it and the phone does not (#39). */
+    val packOffer: PackOffer? = null,
+    /** The offered pack is over 5 MB, the connection is metered, and Home asks first (#39). */
+    val askMetered: MeteredAsk? = null,
     /** Sightings have waited more than a day to reach the league server (#43): Home offers to send them now. */
     val sightingsUnsent: Boolean = false,
+)
+
+/**
+ * The server's pack of the home county's state, which the phone does not have.
+ *
+ * @property state the state's name
+ * @property sizeBytes the size of its file
+ * @property progress how far its download has come, or null when it is not downloading
+ * @property failure why the last download installed nothing, or null
+ */
+@Immutable
+data class PackOffer(
+    val stateCode: String,
+    val state: String,
+    val sizeBytes: Long,
+    val progress: DownloadProgress? = null,
+    val failure: PackDownload? = null,
 )
 
 /** A county by its name without "County" and its state's postal abbreviation: `Jefferson`, `CO`. */

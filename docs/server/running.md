@@ -14,8 +14,8 @@ answers `201` with a `playerId` and a `secret`. Later calls send them as HTTP Ba
 `curl -u "<playerId>:<secret>" http://localhost:8080/v1/account`. A shell's history keeps that command, so
 use only an account made for the test.
 
-The plan for hosting is the server on Cloudflare Containers and its database on Neon's Postgres (issue
-#16). This page is for a developer's own machine.
+The hosted server runs on Cloudflare Containers, with its database on Neon's Postgres (issue #16):
+[hosting.md](hosting.md) says how. This page is for a developer's own machine.
 
 ## Configuration
 
@@ -112,7 +112,7 @@ the Neon CLI, and `uv` for the converter script.
 
 The production database's credentials never go in a file in the repository, and stay on a laptop no
 longer than needed. They are set as Worker secrets (`wrangler secret put`) when the server is deployed
-(#16; `docs/server/hosting.md` will say how).
+([hosting.md](hosting.md#4-the-database-secrets) says how).
 
 ## Start the server
 

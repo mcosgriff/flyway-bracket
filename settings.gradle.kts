@@ -20,3 +20,5 @@ dependencyResolutionManagement {
 rootProject.name = "flyway-bracket"
 
 include(":app", ":data", ":domain")
+// A developer's command-line tool; the app does not depend on it.
+include(":tools:packbuilder")

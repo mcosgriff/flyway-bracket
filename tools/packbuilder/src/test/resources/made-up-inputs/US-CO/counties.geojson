@@ -1,0 +1,36 @@
+{
+  "type": "FeatureCollection",
+  "name": "cb_2023_us_county_20m",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "STATEFP": "08", "COUNTYFP": "001", "GEOID": "08001", "NAME": "Alder" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[-105.0, 39.0], [-104.0, 39.0], [-104.0, 40.0], [-105.0, 40.0], [-105.0, 39.0]],
+          [[-104.6, 39.4], [-104.4, 39.4], [-104.4, 39.6], [-104.6, 39.6], [-104.6, 39.4]]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "STATEFP": "08", "COUNTYFP": "003", "GEOID": "08003", "NAME": "Birch" },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [[[-104.0, 39.0], [-103.0, 39.0], [-103.0, 40.0], [-104.0, 40.0], [-104.0, 39.0]]],
+          [[[-102.5, 39.0], [-102.0, 39.0], [-102.0, 39.5], [-102.5, 39.5], [-102.5, 39.0]]]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "STATEFP": "56", "COUNTYFP": "001", "GEOID": "56001", "NAME": "Elsewhere" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-108.0, 42.0], [-107.0, 42.0], [-107.0, 43.0], [-108.0, 43.0], [-108.0, 42.0]]]
+      }
+    }
+  ]
+}

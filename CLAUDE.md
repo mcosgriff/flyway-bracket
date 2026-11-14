@@ -24,16 +24,22 @@ Packs and Outing are placeholders (`NotBuiltYetContent`). No database, no networ
 a warning as on an error (`warningsAsErrors`), and there is no baseline: fix a warning, or suppress that
 one case in `app/lint.xml` with a comment saying why.
 
-Not set up yet, from the playbook's new-app checklist: screenshot and accessibility tests (Roborazzi and
-the Accessibility Test Framework), coverage, release-please and the release workflow, dependency
-verification and review, `:data`.
+Not set up yet, from the playbook's new-app checklist: dependency verification
+(`gradle/verification-metadata.xml`), the release keystore and its secrets in the `release` environment,
+the `CODECOV_TOKEN` secret, `:data`.
 
 ## Commands
 
 - `./gradlew :domain:test` — fast pure-Kotlin tests. Run often.
-- `./gradlew build` — everything: unit tests and lint.
+- `./gradlew build` — everything: unit tests, screenshot and accessibility tests, and lint.
+- `./gradlew :app:recordRoborazziDebug` — re-record the reference screenshots (`app/src/test/screenshots/`)
+  after a change meant to alter a screen; look at every image it changes.
+- `./gradlew koverHtmlReportCoverage` — coverage of `:domain` and `:app`; CI sends the XML to Codecov.
 - `./gradlew :app:installDebug` — install on a connected phone (debug app id
   `io.cosgriff.flywaybracket.debug`).
+- Release: merge the PR `release-please` keeps open (version and changelog come from Conventional Commits);
+  it tags `vX.Y.Z` and starts `release.yml`, which builds the signed APK after approval in the `release`
+  environment. No release can be built until that environment has its signing secrets.
 
 ## Modules
 
@@ -51,7 +57,7 @@ settle.
 
 - **applicationId `io.cosgriff.flywaybracket` must never change. The release signing key must never
   change** once the first release is out.
-- **No trackers, analytics, crash reporting or ads.** CI scans the release APK with Exodus Privacy
+- **No trackers, analytics, crash reporting or ads.** CI and `release.yml` scan the release APK with Exodus Privacy
   (`.github/scripts/exodus-scan.sh`): a tracker fails, and so does a permission not in
   `.github/privacy/permissions.txt` (or one listed that the APK no longer asks for). A new permission means
   updating that list and explaining it in the app.
@@ -106,6 +112,9 @@ Values live in `ui/theme/`; don't type a color, radius or size into a screen.
 - A screen is a `…Content` composable (plain state and callbacks) wrapped by a `…Screen` that reads the
   ViewModel, so it can be previewed and screenshot-tested. A `…Content` that needs today takes it as a
   parameter, never `LocalDate.now()`.
+- **Every screen gets a screenshot test** in `ScreensScreenshotTest` (`compose.shoot(...)`), light and
+  dark. It also runs the Accessibility Test Framework, where a warning fails; suppress a deliberate finding
+  for that one kind of element, with a comment saying why.
 - **All wording lives in `res/values/strings.xml`**, named `<screen>_<what>`. Composables use
   `stringResource` / `pluralStringResource`.
 - Never format a figure or date with `Locale.US` or `String.format` for display.

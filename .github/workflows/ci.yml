@@ -58,7 +58,7 @@ jobs:
       # merged report goes to Codecov.
       - name: Unit tests
         if: steps.changes.outputs.code == 'true'
-        run: ./gradlew :domain:test testDebugUnitTest koverXmlReportCoverage
+        run: ./gradlew :domain:test :api:test testDebugUnitTest koverXmlReportCoverage
 
       # Coverage only: a failed upload doesn't fail the build. CODECOV_TOKEN is a repository secret, so
       # a pull request from a fork uploads nothing.

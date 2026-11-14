@@ -3,6 +3,8 @@ package io.cosgriff.flywaybracket.server
 import io.cosgriff.flywaybracket.api.ApiJson
 import io.cosgriff.flywaybracket.api.ApiPaths
 import io.cosgriff.flywaybracket.api.HealthResponse
+import io.cosgriff.flywaybracket.server.account.Accounts
+import io.cosgriff.flywaybracket.server.account.PostgresPlayerStore
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.server.testing.testApplication
@@ -77,7 +79,7 @@ class DatabaseTest {
 
     @Test
     fun `health says the database answers`() = testApplication {
-        application { module(database, version = "1.2.3") }
+        application { module(database, Accounts(PostgresPlayerStore(database.dataSource)), version = "1.2.3") }
 
         val health = ApiJson.decodeFromString<HealthResponse>(client.get(ApiPaths.HEALTH).bodyAsText())
 

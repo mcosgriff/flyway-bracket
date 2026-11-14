@@ -5,6 +5,9 @@ import io.cosgriff.flywaybracket.api.ApiErrorCode
 import io.cosgriff.flywaybracket.api.ApiJson
 import io.cosgriff.flywaybracket.api.ApiPaths
 import io.cosgriff.flywaybracket.api.HealthResponse
+import io.cosgriff.flywaybracket.server.account.Accounts
+import io.cosgriff.flywaybracket.server.account.accountRoutes
+import io.cosgriff.flywaybracket.server.account.installSignIn
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -29,11 +32,18 @@ import kotlinx.coroutines.withContext
  * and the routes.
  *
  * @param database asked by the health check
+ * @param accounts the players, for creating accounts and for checking who signed a request
  * @param version what the health check reports
  */
-fun Application.module(database: DatabaseCheck, version: String) {
+fun Application.module(database: DatabaseCheck, accounts: Accounts, version: String) {
     install(ContentNegotiation) { json(ApiJson) }
-    install(CallLogging) { format(::requestLogLine) }
+    install(CallLogging) {
+        // The line has no colors to show, and with colors on the plugin swaps out System.err for its own
+        // stream when the server starts.
+        disableDefaultColors()
+        format(::requestLogLine)
+    }
+    installSignIn(accounts)
     install(StatusPages) {
         // A body that is not the JSON its type asks for. The cause is not logged and not sent back: its
         // message quotes the body.
@@ -61,6 +71,7 @@ fun Application.module(database: DatabaseCheck, version: String) {
             val answers = withContext(Dispatchers.IO) { database.answers() }
             call.respond(HealthResponse(version = version, database = answers))
         }
+        accountRoutes(accounts)
     }
 }
 

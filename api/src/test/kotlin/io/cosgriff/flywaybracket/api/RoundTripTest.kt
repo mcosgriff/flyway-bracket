@@ -76,6 +76,12 @@ class RoundTripTest {
     }
 
     @Test
+    fun `reading a profile`() {
+        roundTrip(ProfileResponse(displayName = "Player One", homeCounty = "US-ZZ-001", league = summary))
+        assertEquals("{}", roundTrip(ProfileResponse()))
+    }
+
+    @Test
     fun `creating and joining a league`() {
         val json = roundTrip(
             CreateLeagueRequest(

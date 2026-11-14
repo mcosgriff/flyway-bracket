@@ -3,7 +3,16 @@
 The league server is the `:server` module: Ktor on Netty, with Postgres behind it. It is not part of the
 app, and the app does not call it yet. What it may be sent is decided by
 [ADR 0001](../adr/0001-server-and-network.md); its endpoints are listed in [api.md](api.md). Today it has
-one: `GET /v1/health`.
+the health check (`GET /v1/health`) and anonymous accounts (`POST /v1/accounts`, and `GET`, `PATCH` and
+`DELETE /v1/account`).
+
+```sh
+curl -X POST -H 'Content-Type: application/json' -d '{}' http://localhost:8080/v1/accounts
+```
+
+answers `201` with a `playerId` and a `secret`. Later calls send them as HTTP Basic credentials:
+`curl -u "<playerId>:<secret>" http://localhost:8080/v1/account`. A shell's history keeps that command, so
+use only an account made for the test.
 
 Where the server is hosted is not decided (issue #16). This page is for a developer's own machine.
 

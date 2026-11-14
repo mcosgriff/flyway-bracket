@@ -6,6 +6,8 @@ import io.cosgriff.flywaybracket.api.ApiJson
 import io.cosgriff.flywaybracket.api.ApiPaths
 import io.cosgriff.flywaybracket.api.HealthResponse
 import io.cosgriff.flywaybracket.api.UpdateProfileRequest
+import io.cosgriff.flywaybracket.server.account.Accounts
+import io.cosgriff.flywaybracket.server.account.InMemoryPlayerStore
 import io.ktor.client.request.basicAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -32,7 +34,7 @@ class ApplicationTest {
     /** The server, plus routes only these tests have: one reads a body, one fails, one shows its log line. */
     private fun server(databaseAnswers: Boolean = true, test: suspend ApplicationTestBuilder.() -> Unit) = testApplication {
         application {
-            module(database = { databaseAnswers }, version = "1.2.3")
+            module(database = { databaseAnswers }, accounts = Accounts(InMemoryPlayerStore()), version = "1.2.3")
             routing {
                 post(READS_A_BODY) {
                     call.receive<UpdateProfileRequest>()

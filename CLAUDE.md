@@ -23,8 +23,10 @@ the player's settings, and the bundled table of states and counties (`assets/pla
 Colorado only). `:app` has the theme, the bottom bar, the first-run screen (display name and home county,
 saved in the settings) and the Home screen; Bracket, League, Packs and Outing are placeholders
 (`NotBuiltYetContent`). Home reads its region from the settings and its season figures and recent outings
-from the database; no screen saves an outing yet. No network, no server.
-`./gradlew build` is green (Gradle 9.9.1, AGP 9.5.1, lint included). Keep it green; lint fails the build on
+from the database; no screen saves an outing yet. The app makes no network call. `:server` starts,
+migrates its Postgres and answers a health check; it has no game endpoint yet and is hosted nowhere.
+`./gradlew build` is green (Gradle 9.9.1, AGP 9.5.1, lint included; it needs Docker for `:server:test`).
+Keep it green; lint fails the build on
 a warning as on an error (`warningsAsErrors`, in `:app` and `:data`), and there is no baseline: fix a
 warning, or suppress that one case in `app/lint.xml` with a comment saying why.
 
@@ -41,6 +43,11 @@ the `CODECOV_TOKEN` secret.
 - `./gradlew :data:testDebugUnitTest` — the database, migration and settings tests, on the JVM (Robolectric).
 - `./gradlew :tools:packbuilder:run --args="US-CO"` — build a state pack from the files in `packs-local/`
   (`docs/packs.md`); `:tools:packbuilder:test` runs its tests on made-up inputs.
+- `./gradlew :server:test` — the server's tests. Those that need a database start a real Postgres with
+  Testcontainers, so Docker must be running; without it they fail.
+- `./gradlew :server:run` — start the server against a local Postgres. It reads `DATABASE_URL`,
+  `DATABASE_USER`, `DATABASE_PASSWORD` and `PORT` from the environment (`docs/server/running.md`).
+- `./gradlew :server:installDist && docker build -t flyway-bracket-server server` — the server's image.
 - `./gradlew koverHtmlReportCoverage` — coverage of `:domain`, `:api`, `:data` and `:app`; CI sends the XML to
   Codecov.
 - `./gradlew :app:installDebug` — install on a connected phone (debug app id
@@ -65,7 +72,7 @@ the `CODECOV_TOKEN` secret.
 - `:api` — pure Kotlin, no Android: the messages the app and the server exchange (`kotlinx.serialization`
   JSON, read and written with `ApiJson`), `ApiPaths` (every path, under `/v1/`), `ApiErrorCode` and
   `MatchupSlot` (a bracket's 63 matchups, numbered by round, then from the top). Depends on `:domain`.
-  Nothing calls it yet. `docs/server/api.md` lists the endpoints; change the two together. A field the app
+  The app does not call it yet; `:server` answers with it. `docs/server/api.md` lists the endpoints; change the two together. A field the app
   sends must be in ADR 0001's table first. Test: `./gradlew :api:test`.
 - `:data` — what the app saves on the phone, mapped to and from `:domain` types. Depends on `:domain`.
   - `data/db` — `FlywayDatabase` (Room 3), its entities and DAOs. Each version's schema is exported to
@@ -79,6 +86,23 @@ the `CODECOV_TOKEN` secret.
 - `:tools:packbuilder` — a JVM command-line tool, not part of the app: builds a state pack from eBird bar
   chart downloads and Census county outlines in `packs-local/` (`docs/packs.md`). Depends on `:domain`.
   Left out of the coverage report and of the dependency graph sent to GitHub.
+- `:server` — the league server, not part of the app: Ktor 3 on Netty, Postgres through JDBC and
+  HikariCP. Depends on `:domain` and `:api`; **`:app` must never depend on it.** `docs/server/running.md`.
+  - `Application.module` is the whole server: JSON with `ApiJson`, paths from `ApiPaths`, every failure
+    an `ApiError` from `:api` (never a copy of those types, never wording).
+  - `ServerConfig` — configuration comes only from environment variables. No secret in the repository;
+    `server/.env.example` holds made-up values.
+  - `Database` — the connection pool; at start it applies the SQL in
+    `server/src/main/resources/db/migration` with the Flyway migration library (the shared word is a
+    coincidence). A merged migration is never edited; a schema change is a new `V<n>__<what>.sql` with a
+    test in `DatabaseTest`.
+  - The log has a request's status, method and path, never its body, query or headers: the
+    `Authorization` header carries the player's secret.
+  - Logging is `slf4j-simple`, not Logback: a server dependency's licence must be on the allow-list in
+    `.github/dependency-review-config.yml`, like the app's.
+  - `server/Dockerfile` — a small image that runs as a user that is not root. CI builds it and pushes
+    nothing. Left out of the coverage report; its runtime classpath is in the dependency graph sent to
+    GitHub.
 - `site/` — not a Gradle module: the user guide for players. Markdown in `site/pages/`, built with pandoc
   (`site/build.sh`), checked by `site/check.py` and pa11y, published to GitHub Pages by `pages.yml`. No
   JavaScript, nothing from another host. A page about something not built yet has `beta: true`; remove it
@@ -94,7 +118,7 @@ Add `:baselineprofile` once the screens settle.
   (`.github/scripts/exodus-scan.sh`): a tracker fails, and so does a permission not in
   `.github/privacy/permissions.txt` (or one listed that the APK no longer asks for). A new permission means
   updating that list and explaining it in the app.
-- **Network: none yet; the plan is `docs/adr/0001-server-and-network.md`.** One server, the project's own,
+- **Network: none yet in the app; the plan is `docs/adr/0001-server-and-network.md`.** One server, the project's own,
   over HTTPS; anonymous device accounts; nothing sent before the player says yes. The ADR lists every
   field sent: change it before sending anything else.
 - **eBird data never goes in the repo** (eBird's terms of use). Tests and previews use made-up figures.

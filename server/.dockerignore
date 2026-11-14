@@ -1,0 +1,3 @@
+# The image takes only what `./gradlew :server:installDist` wrote. In particular, never a `.env` file.
+*
+!build/install/server

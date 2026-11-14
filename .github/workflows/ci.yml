@@ -39,7 +39,7 @@ jobs:
             echo "$changed"
             if ! echo "$changed" | grep -qvE '(\.md$|^docs/|^site/|^LICENSE$)'; then
               code=false
-              echo "::notice::Docs-only change: tests, lint, builds and the Exodus scan skipped."
+              echo "::notice::Docs-only change: tests, lint, builds, the server image and the Exodus scan skipped."
             fi
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
@@ -71,6 +71,24 @@ jobs:
           files: build/reports/kover/reportCoverage.xml
           disable_search: true
           fail_ci_if_error: false
+
+      # The league server (:server). Its database tests start a real Postgres with Testcontainers, on the
+      # runner's Docker. It is not part of the app and is left out of the coverage report.
+      - name: Server tests
+        if: steps.changes.outputs.code == 'true'
+        run: ./gradlew :server:test
+
+      # Proves the server's image builds. It is not pushed anywhere.
+      - name: Server image
+        if: steps.changes.outputs.code == 'true'
+        run: |
+          ./gradlew :server:installDist
+          docker build --tag flyway-bracket-server:ci server
+          # The image must not run as root.
+          user="$(docker image inspect --format '{{.Config.User}}' flyway-bracket-server:ci)"
+          case "$user" in
+            ''|root|0|0:*|root:*) echo "::error::The server image runs as root (USER is '$user')."; exit 1 ;;
+          esac
 
       - name: Android lint
         if: steps.changes.outputs.code == 'true'

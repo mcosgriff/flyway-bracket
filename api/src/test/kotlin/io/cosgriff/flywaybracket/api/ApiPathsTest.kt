@@ -7,6 +7,7 @@ import org.junit.Test
 
 class ApiPathsTest {
     private val all = listOf(
+        ApiPaths.HEALTH,
         ApiPaths.ACCOUNTS,
         ApiPaths.ACCOUNT,
         ApiPaths.LEAGUES,

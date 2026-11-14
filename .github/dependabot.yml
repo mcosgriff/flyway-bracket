@@ -26,6 +26,19 @@ updates:
         patterns:
           - "*"
 
+  # pa11y, the accessibility check of the user guide (site/package.json). Nothing here ships in the app
+  # or on the site.
+  - package-ecosystem: npm
+    directory: "/site"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 5
+    groups:
+      site-checks:
+        patterns:
+          - "*"
+
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

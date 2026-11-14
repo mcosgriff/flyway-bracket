@@ -24,8 +24,8 @@ jobs:
           persist-credentials: false
           fetch-depth: 2  # the PR's merge commit and its first parent, the base branch's tip
 
-      # A pull request that only changes docs (Markdown, docs/, LICENSE) skips the steps below and passes
-      # in seconds. The job still runs, so a ruleset can require the `build` check: a paths filter on the
+      # A pull request that only changes docs (Markdown, docs/, site/, LICENSE) skips the steps below and
+      # passes in seconds; pages.yml builds and checks the user guide in site/. The job still runs, so a ruleset can require the `build` check: a paths filter on the
       # trigger would leave a required check waiting forever. Pushes to main and manual runs always do
       # everything.
       - name: Docs-only change?
@@ -37,7 +37,7 @@ jobs:
           if [ "$EVENT" = pull_request ]; then
             changed="$(git diff --name-only HEAD^1 HEAD)"
             echo "$changed"
-            if ! echo "$changed" | grep -qvE '(\.md$|^docs/|^LICENSE$)'; then
+            if ! echo "$changed" | grep -qvE '(\.md$|^docs/|^site/|^LICENSE$)'; then
               code=false
               echo "::notice::Docs-only change: tests, lint, builds and the Exodus scan skipped."
             fi

@@ -25,7 +25,31 @@
     <string name="nav_league">League</string>
     <string name="nav_packs">Packs</string>
 
+    <!-- First run -->
+    <string name="onboarding_title">Welcome</string>
+    <string name="onboarding_name_label">Display name</string>
+    <!-- The count is the second number, the most characters a name may have. -->
+    <plurals name="onboarding_name_hint">
+        <item quantity="one">%1$d to %2$d character</item>
+        <item quantity="other">%1$d to %2$d characters</item>
+    </plurals>
+    <plurals name="onboarding_name_too_short">
+        <item quantity="one">Too short. Use at least %d character.</item>
+        <item quantity="other">Too short. Use at least %d characters.</item>
+    </plurals>
+    <plurals name="onboarding_name_too_long">
+        <item quantity="one">Too long. Use %d character or fewer.</item>
+        <item quantity="other">Too long. Use %d characters or fewer.</item>
+    </plurals>
+    <string name="onboarding_state_label">State</string>
+    <string name="onboarding_county_label">Home county</string>
+    <string name="onboarding_county_needs_state">Choose a state first.</string>
+    <string name="onboarding_explanation">The people in your league see your name. Your home county decides which birds count for you.</string>
+    <string name="onboarding_continue">Continue</string>
+
     <!-- Home -->
+    <!-- The home county and its state's abbreviation: "Jefferson Co., CO". -->
+    <string name="home_region_county">%1$s Co., %2$s</string>
     <string name="home_tournament_overline">%1$s tournament · Round %2$d of %3$d</string>
     <!-- Follows the points figure. The count is the second number: picks decided so far. -->
     <plurals name="home_points_caption">

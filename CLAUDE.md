@@ -58,6 +58,8 @@ the `CODECOV_TOKEN` secret.
   Testcontainers, so Docker must be running; without it they fail.
 - `./gradlew :server:run` — start the server against a local Postgres. It reads `DATABASE_URL`,
   `DATABASE_USER`, `DATABASE_PASSWORD` and `PORT` from the environment (`docs/server/running.md`).
+- `uv run server/neon-env.py .env.local` — write `server/.env` from the credentials `neon` pulled, for a
+  run against a Neon development branch, never `production` (`docs/server/running.md`).
 - `./gradlew :server:installDist && docker build -t flyway-bracket-server server` — the server's image.
 - `./gradlew koverHtmlReportCoverage` — coverage of `:domain`, `:api`, `:data` and `:app`; CI sends the XML to
   Codecov.

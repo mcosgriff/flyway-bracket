@@ -14,7 +14,8 @@ answers `201` with a `playerId` and a `secret`. Later calls send them as HTTP Ba
 `curl -u "<playerId>:<secret>" http://localhost:8080/v1/account`. A shell's history keeps that command, so
 use only an account made for the test.
 
-Where the server is hosted is not decided (issue #16). This page is for a developer's own machine.
+The plan for hosting is the server on Cloudflare Containers and its database on Neon's Postgres (issue
+#16). This page is for a developer's own machine.
 
 ## Configuration
 
@@ -28,8 +29,9 @@ The server reads five environment variables and nothing else: no config file, no
 | `PORT` | The port to listen on, 1 to 65535 | 8080 |
 | `PACKS_DIR` | The directory that holds the state packs ([State packs](#state-packs)); it must exist | The server does not start |
 
-`server/.env.example` holds made-up values that fit the local Postgres below. A real value never goes in
-the repository: `.env` is ignored by git.
+`server/.env.example` holds made-up values that fit the local Postgres below. For a Neon database,
+`server/neon-env.py` writes `server/.env` instead ([A Neon database](#a-neon-database-development-branch)).
+A real value never goes in the repository: `.env` is ignored by git.
 
 ## A local Postgres
 
@@ -45,6 +47,72 @@ docker run --name flywaybracket-db --rm -d -p 5432:5432 \
 ```
 
 `docker stop flywaybracket-db` stops it and, because of `--rm`, deletes its data.
+
+## A Neon database (development branch)
+
+The hosted server's database is Postgres on Neon (#16). To run the server on your machine against Neon
+instead of Docker, use a development branch of the project's Neon database. These steps need Node.js for
+the Neon CLI, and `uv` for the converter script.
+
+1. Install Neon's CLI and sign in. `neon login` finishes in the browser.
+
+   ```sh
+   npm i -g neon@latest
+   neon login
+   ```
+
+2. Link this checkout to the Neon project. Run it from the repo root of an up-to-date checkout. The org
+   ID and the project ID are in the Neon console.
+
+   ```sh
+   neon init -y --org-id <org-id> --project-id <project-id>
+   chmod 600 .env.local
+   ```
+
+   It writes `.neon`, the link, and `.env.local`, the database's credentials. Git ignores both. It also
+   writes `neon.ts`, `package.json`, `package-lock.json` and `node_modules/`. The Ktor server does not use
+   them; delete them:
+
+   ```sh
+   rm -r neon.ts package.json package-lock.json node_modules
+   ```
+
+   `--agent <tool>` also installs Neon's plugin into that coding agent's user configuration. It is optional.
+
+3. Work on a development branch, never on `production`. The server applies its migrations when it starts,
+   so a run against `production` would change the live database of the beta.
+
+   ```sh
+   neon checkout dev --create
+   ```
+
+   The next time, `neon checkout dev` is enough. Each checkout pulls `.env.local` again, for that branch.
+
+4. Write `server/.env` from `.env.local`. The script refuses to replace an existing `server/.env`, so
+   delete that first.
+
+   ```sh
+   uv run server/neon-env.py .env.local
+   ```
+
+   Neon gives two URLs: a pooled one (its host ends in `-pooler`) and a direct one. The script takes the
+   direct one. Flyway's migrations and the server's prepared statements need a session of their own, and
+   the server keeps its own pool of connections. The script writes the JDBC URL with `sslmode=require`, the
+   user and the password to `server/.env`, readable only by you (mode 600). It prints no value.
+
+5. Start the server and check it.
+
+   ```sh
+   set -a; . server/.env; set +a; ./gradlew :server:run
+   curl -s http://localhost:8080/v1/health
+   ```
+
+   The health check shows `"database":true`. Neon's free compute stops when nobody uses it, so the first
+   request after a pause is slower.
+
+The production database's credentials never go in a file in the repository, and stay on a laptop no
+longer than needed. They are set as Worker secrets (`wrangler secret put`) when the server is deployed
+(#16; `docs/server/hosting.md` will say how).
 
 ## Start the server
 

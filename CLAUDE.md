@@ -25,8 +25,8 @@ the first-run screen (display name and home county, saved in the settings), the 
 screen, which adds a pack from a `.fbpack` file the player chooses (downloading is #39); Bracket, League
 and Outing are placeholders (`NotBuiltYetContent`). Home reads its region from the settings and its season
 figures and recent outings from the database; no screen saves an outing yet. The app makes no network call.
-`:server` starts, migrates its Postgres and answers a health check; it has no game endpoint yet and is
-hosted nowhere.
+`:server` starts, migrates its Postgres, answers a health check and has anonymous device accounts (create,
+read, change and delete the profile); it has no league, pick or sighting endpoint yet and is hosted nowhere.
 `./gradlew build` is green (Gradle 9.9.1, AGP 9.5.1, lint included; it needs Docker for `:server:test`).
 Keep it green; lint fails the build on
 a warning as on an error (`warningsAsErrors`, in `:app` and `:data`), and there is no baseline: fix a
@@ -68,7 +68,8 @@ the `CODECOV_TOKEN` secret.
     `testImplementation(testFixtures(project(":domain")))`.
   - `domain/bracket` — `Round`, `Team`, `Matchup`, `Seeding`, `MatchupRule`, `PickScore`.
   - `domain/player` — `PlayerSettings` (display name, home county code), `DisplayName` (the name's rule).
-  - `domain/place` — `CountyTable` (states and counties to choose a home county from), `CountyTableParser`.
+  - `domain/place` — `CountyTable` (states and counties to choose a home county from), `CountyTableParser`,
+    `CountyCode` (the shape of a county code, which the server checks a home county against).
   - `domain/outing` — `Outing`, `Sighting`, `OutingLog`, and Home's season figures (`speciesSince`,
     `outingsSince`, `newLifersSince`).
 - `:api` — pure Kotlin, no Android: the messages the app and the server exchange (`kotlinx.serialization`
@@ -101,8 +102,15 @@ the `CODECOV_TOKEN` secret.
     `server/src/main/resources/db/migration` with the Flyway migration library (the shared word is a
     coincidence). A merged migration is never edited; a schema change is a new `V<n>__<what>.sql` with a
     test in `DatabaseTest`.
+  - `server/account` — anonymous device accounts. `Accounts` holds the rules (display name and county
+    code from `:domain`), `PlayerStore` the `players` table (`PostgresPlayerStore`; tests also use an
+    in-memory one), `AccountRoutes` the endpoints and the HTTP Basic sign-in. The secret is kept only as
+    an Argon2id hash (`Argon2idHasher`, Bouncy Castle), compared in constant time; an unknown id is
+    checked against a hash too. Account creation is limited per address (`FixedWindowRateLimiter`).
+    `AccountEndpointsTest` holds the HTTP cases once and runs them on both stores.
   - The log has a request's status, method and path, never its body, query or headers: the
-    `Authorization` header carries the player's secret.
+    `Authorization` header carries the player's secret. `InMemoryAccountEndpointsTest` reads the log and
+    fails if a secret or that header shows up.
   - Logging is `slf4j-simple`, not Logback: a server dependency's licence must be on the allow-list in
     `.github/dependency-review-config.yml`, like the app's.
   - `server/Dockerfile` — a small image that runs as a user that is not root. CI builds it and pushes

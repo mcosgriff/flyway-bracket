@@ -4,8 +4,8 @@ What the app and the server say to each other. The types are in the `:api` modul
 (`api/src/main/kotlin/io/cosgriff/flywaybracket/api/`), which both sides compile against; this page lists
 the endpoints that carry them. Change the two together.
 
-The server (`:server`, [running.md](running.md)) answers the health check and nothing else yet, and the
-app makes no network call. The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
+The server (`:server`, [running.md](running.md)) answers the health check and the account endpoints, and
+the app makes no network call yet. The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
 new field sent to the server needs a change to that record first.
 
 ## Rules for every call
@@ -42,7 +42,7 @@ null) and must treat it as a general failure.
 | `SEASON_START_NOT_A_MONDAY` | 422 | A season starts on a Monday |
 | `TIME_ZONE_UNKNOWN` | 422 | The time zone is not an IANA zone the server knows |
 | `DISPLAY_NAME_INVALID` | 422 | The display name is empty, too long or not allowed |
-| `COUNTY_UNKNOWN` | 422 | The county code is not a county of any pack |
+| `COUNTY_UNKNOWN` | 422 | A home county that is not a well-formed county code, or a sighting's county that is not a county of any pack |
 | `BIRD_UNKNOWN` | 422 | A sighting's bird is not one the server knows, or a pick is not one of its matchup's two birds |
 | `PICKS_LOCKED` | 409 | The season has started; picks can no longer change |
 | `PICKS_INCOMPLETE` | 422 | Fewer than 63 picks, or a later-round pick of a bird not picked to reach that matchup |
@@ -73,15 +73,41 @@ list only the codes an endpoint adds to these.
 
 | Endpoint | Request | Response | Errors it adds |
 | --- | --- | --- | --- |
-| `POST /v1/accounts` | `CreateAccountRequest` | `CreateAccountResponse` | none |
+| `POST /v1/accounts` | `CreateAccountRequest` | 201, `CreateAccountResponse` | none |
+| `GET /v1/account` | none | `ProfileResponse` | none |
 | `PATCH /v1/account` | `UpdateProfileRequest` | 204 | `DISPLAY_NAME_INVALID`, `COUNTY_UNKNOWN` |
 | `DELETE /v1/account` | none | 204 | none |
 
 - `CreateAccountRequest` has no fields. ADR 0001: the request that creates an account carries nothing
-  about the player. The display name and the home county are sent with `PATCH /v1/account` when the player
-  sets or changes them; a field left out is not changed.
-- `CreateAccountResponse` is the only message that carries the secret.
-- `DELETE /v1/account` removes the player's name, picks and sightings, and cannot be undone.
+  about the player. A field sent with it anyway is not kept. The display name and the home county are sent
+  with `PATCH /v1/account` when the player sets or changes them; a field left out is not changed.
+- `CreateAccountResponse` is the only message that carries the secret. The id is a UUID; the secret is 32
+  random bytes in URL-safe Base64 with no padding (43 characters).
+- **The secret is never stored.** The server keeps an Argon2id hash of it (19 MiB, two passes, one lane:
+  OWASP's lowest recommended setting), as a PHC string in `players.secret_hash`. Argon2id rather than
+  bcrypt: it is memory-hard, so a stolen table is costly to search on a GPU, and it reads the whole
+  secret where bcrypt stops at 72 bytes.
+- **A refusal takes the same time** whether the secret was nearly right or not, and whether the id names a
+  player or not: hashes are compared in constant time, and an unknown id is checked against a hash all the
+  same. A missing, malformed or non-Basic `Authorization` header is `UNAUTHORIZED` too, never
+  `INVALID_REQUEST`; the 401 carries `WWW-Authenticate: Basic`.
+- **Account creation is limited** to 10 per address per hour, in fixed windows counted from the hour.
+  The 11th answers 429 `RATE_LIMITED`. The addresses are counted in memory and forgotten when the window
+  ends; they are not stored with the account or logged. Behind a proxy the server sees the proxy's address:
+  where it is hosted is not decided (#16), and the proxy's forwarded address must be read then.
+- `GET /v1/account` is the asking player's own profile: their display name and home county, each absent
+  until set, and `league`, the league they are in. `league` is always absent today: the server has no
+  leagues yet.
+- `PATCH /v1/account` checks both fields before it changes either. The display name follows the app's rule
+  (`DisplayName` in `:domain`): 2 to 24 characters after trimming, stored trimmed. The home county must be
+  a well-formed county code (`CountyCode` in `:domain`, such as `US-CO-059`), otherwise `COUNTY_UNKNOWN`; it
+  need not be a county of a pack the server holds.
+- `DELETE /v1/account` cannot be undone. Today it deletes the player's row (id, secret hash, display name,
+  home county), which is all the server holds. Once the server has leagues, picks and sightings, it also
+  deletes the player's picks and sightings and takes them out of their league; their results in a finished
+  season stay, under no name, as "a former player". After it, the id and secret are `UNAUTHORIZED`.
+- **A home county change and rounds.** The server stores only the current home county. A change is meant to
+  count for rounds that have not started; that is for the issue that decides rounds on the server.
 
 ## Leagues
 

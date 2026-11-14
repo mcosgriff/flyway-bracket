@@ -26,3 +26,19 @@ data class CreateAccountResponse(val playerId: String, val secret: String)
  */
 @Serializable
 data class UpdateProfileRequest(val displayName: String? = null, val homeCounty: String? = null)
+
+/**
+ * What the server holds about the asking player, as `GET /v1/account` returns it. Only that player is
+ * ever given it: the home county is not shown to anyone else (ADR 0001).
+ *
+ * @property displayName null until the player sets it.
+ * @property homeCounty null until the player sets it.
+ * @property league the league the player is in, or null when they are in none. Always null until the
+ *   server has leagues.
+ */
+@Serializable
+data class ProfileResponse(
+    val displayName: String? = null,
+    val homeCounty: String? = null,
+    val league: LeagueSummary? = null,
+)

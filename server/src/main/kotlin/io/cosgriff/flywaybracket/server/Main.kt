@@ -1,5 +1,7 @@
 package io.cosgriff.flywaybracket.server
 
+import io.cosgriff.flywaybracket.server.account.Accounts
+import io.cosgriff.flywaybracket.server.account.PostgresPlayerStore
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
@@ -10,10 +12,11 @@ fun main() {
     val config = ServerConfig.fromEnvironment(System.getenv())
     val database = Database.connect(config)
     database.migrate()
+    val accounts = Accounts(PostgresPlayerStore(database.dataSource))
 
     embeddedServer(Netty, port = config.port) {
         monitor.subscribe(ApplicationStopped) { database.close() }
-        module(database, ServerVersion.current)
+        module(database, accounts, ServerVersion.current)
     }.start(wait = true)
 }
 

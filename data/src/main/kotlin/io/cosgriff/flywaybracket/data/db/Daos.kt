@@ -45,6 +45,10 @@ interface OutingDao {
     @Query("UPDATE outings SET placeName = :placeName WHERE endedAt IS NULL")
     suspend fun renameInProgress(placeName: String): Int
 
+    /** Moves the outing in progress to another county, if there is one. Returns the number of outings moved. */
+    @Query("UPDATE outings SET countyCode = :countyCode WHERE endedAt IS NULL")
+    suspend fun setCountyInProgress(countyCode: String): Int
+
     /** Ends the outing in progress, if there is one. Returns the number of outings ended. */
     @Query("UPDATE outings SET endedAt = :at WHERE endedAt IS NULL")
     suspend fun endInProgress(at: Long): Int

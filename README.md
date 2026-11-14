@@ -53,13 +53,22 @@ What exists:
 - The [user guide](https://mcosgriff.github.io/flyway-bracket/), a small website built from `site/` and
   served by GitHub Pages. Its pages about things the app cannot do yet are marked "Coming in the beta".
 
-What does not exist yet: downloading bird packs, the bracket
-screens, leagues, and the server that leagues need.
+- The league server (`server/`, [`docs/server/api.md`](docs/server/api.md)): anonymous accounts, and
+  creating, joining, auto-joining and leaving leagues. The app does not talk to it yet.
+
+What does not exist yet: downloading bird packs, the bracket screens, the League screen, and the app's side
+of the server.
 
 ## How the game works
 
-- **Leagues.** A league is a group of players. Anyone can create one. A player without a league is added to
-  an open one.
+- **Leagues.** A league is a group of players, at most 64, who play one bracket together. Anyone can
+  create one, open or invite-only, with a name, a time zone and a start on a Monday at least a week
+  ahead; others join it with its 8-character invite code. A player is in one league at a time. A player
+  without a league is added to the open league that starts first and has room, or to a new one starting
+  on the second Monday from today. Joining closes when the season starts. A bracket needs at least 8
+  players: a league short of 8 when its start date arrives starts a week later, up to four times, and is
+  then closed. A player can leave at any time; after the start, their picks stop scoring and they no
+  longer count toward any matchup.
 - **Seasons.** Two tournaments a year, spring and fall. Each seeds its own field of 64 birds in four
   quarters of 16.
 - **Calendar.** A league's season starts on a Monday and runs six rounds, one a week, Monday through

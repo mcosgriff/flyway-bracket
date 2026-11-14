@@ -28,7 +28,8 @@ flow: Outing, the Add sighting sheet and Summary, in the county found from the p
 placeholders (`NotBuiltYetContent`). Home reads its region from the settings and its season figures and
 recent outings from the database, and starts or continues an outing. The app makes no network call.
 `:server` starts, migrates its Postgres, answers a health check and has anonymous device accounts (create,
-read, change and delete the profile); it has no league, pick or sighting endpoint yet and is hosted nowhere.
+read, change and delete the profile) and leagues (create, join, auto-join, leave, read); it has no pick or
+sighting endpoint yet and is hosted nowhere.
 `./gradlew build` is green (Gradle 9.9.1, AGP 9.5.1, lint included; it needs Docker for `:server:test`).
 Keep it green; lint fails the build on
 a warning as on an error (`warningsAsErrors`, in `:app` and `:data`), and there is no baseline: fix a
@@ -70,6 +71,8 @@ the `CODECOV_TOKEN` secret.
     `testImplementation(testFixtures(project(":domain")))`.
   - `domain/bracket` — `Round`, `Team`, `Matchup`, `Seeding`, `MatchupRule`, `PickScore`.
   - `domain/player` — `PlayerSettings` (display name, home county code), `DisplayName` (the name's rule).
+  - `domain/league` — `LeagueName`, `SeasonStart`, `LeagueLifecycle` (capacity, the postponed start,
+    `LeaguePhase`) and `Standings` (ranks).
   - `domain/place` — `CountyTable` (states and counties to choose a home county from), `CountyTableParser`,
     `CountyCode` (the shape of a county code, which the server checks a home county against).
   - `domain/outing` — `Outing`, `Sighting`, `OutingLog`, and Home's season figures (`speciesSince`,
@@ -110,6 +113,12 @@ the `CODECOV_TOKEN` secret.
     an Argon2id hash (`Argon2idHasher`, Bouncy Castle), compared in constant time; an unknown id is
     checked against a hash too. Account creation is limited per address (`FixedWindowRateLimiter`).
     `AccountEndpointsTest` holds the HTTP cases once and runs them on both stores.
+  - `server/league` — leagues. `Leagues` applies `domain/league`'s rules; `LeagueStore` the `leagues` and
+    `league_members` tables inside one transaction (`PostgresLeagueStore`; tests also use an in-memory
+    one). Nothing runs when a league's date passes: a league is settled for today when read, and saved
+    under its row lock before any change to its players. Locks: at most one player per transaction,
+    before any league; a count read after its lock, in a statement of its own. `LeaguesTest` holds the
+    rules' cases and `LeagueEndpointsTest` the HTTP ones, each run on both stores.
   - The log has a request's status, method and path, never its body, query or headers: the
     `Authorization` header carries the player's secret. `InMemoryAccountEndpointsTest` reads the log and
     fails if a secret or that header shows up.
@@ -158,6 +167,11 @@ Add `:baselineprofile` once the screens settle.
   - A round covers every `TimeBin` that any of its seven days falls in. A bird is expected for a round
     when it is expected in any bin the round covers.
   - Seeding looks at every bin the six rounds cover.
+  - A league holds at most 64 players (`LeagueLifecycle.MAX_PLAYERS`); a player is in one forming or
+    running league at a time. Joining closes when the season starts.
+  - A new league's start is a Monday at least 7 days ahead, in its time zone (`SeasonStart`).
+  - A bracket needs 8 players when the season starts (`LeagueLifecycle.MIN_PLAYERS`). Short of 8 on the
+    start date, the start moves back a week, up to four times; then the league is closed.
 - **Round names are neutral** (`ROUND_OF_16`, `QUARTERFINAL`, `SEMIFINAL`, `FINAL`). "Sweet 16",
   "Elite 8" and "Final Four" are NCAA trademarks: not in code, strings or store text.
 - **No Android auto-backup** (`allowBackup=false`, `fullBackupContent=false`, data extraction rules exclude

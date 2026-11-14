@@ -30,10 +30,12 @@ sealed interface ProfileUpdate {
  * Anonymous device accounts (ADR 0001): an id and a secret, and nothing that names a person. Every call
  * blocks on the database and on the hash; call it off the request threads.
  *
+ * @param leagues the player's league, shown with their profile and left when they delete their account
  * @param creationLimit counts account creations by the caller's address
  */
 class Accounts(
     private val players: PlayerStore,
+    private val leagues: PlayerLeagues,
     private val creationLimit: RateLimiter = FixedWindowRateLimiter(CREATIONS_PER_ADDRESS, CREATION_WINDOW),
     private val hasher: SecretHasher = Argon2idHasher(),
     private val random: SecureRandom = SecureRandom(),
@@ -61,12 +63,10 @@ class Accounts(
         return if (id != null && stored != null && matches) SignedInPlayer(id) else null
     }
 
-    /**
-     * The player's profile, or null when the account was deleted after the request was signed.
-     * [ProfileResponse.league] is null: the server has no leagues yet.
-     */
-    fun profile(player: SignedInPlayer): ProfileResponse? =
-        players.profile(player.id)?.let { ProfileResponse(displayName = it.displayName, homeCounty = it.homeCounty) }
+    /** The player's profile and league, or null when the account was deleted after the request was signed. */
+    fun profile(player: SignedInPlayer): ProfileResponse? = players.profile(player.id)?.let {
+        ProfileResponse(displayName = it.displayName, homeCounty = it.homeCounty, league = leagues.current(player.id))
+    }
 
     /**
      * Checks both fields before changing either. A display name is stored trimmed. A home county need
@@ -83,8 +83,13 @@ class Accounts(
         return if (players.update(player.id, displayName, homeCounty)) ProfileUpdate.Updated else ProfileUpdate.NoSuchPlayer
     }
 
-    /** Deletes the player. Cannot be undone: nothing else proves who they were. */
+    /**
+     * Deletes the player. Cannot be undone: nothing else proves who they were. They leave their leagues
+     * first, as leaving would take them out, so that a league whose start has arrived is settled with them
+     * still counted; then deleting the row deletes their league places with it.
+     */
     fun delete(player: SignedInPlayer) {
+        leagues.leaveAll(player.id)
         players.delete(player.id)
     }
 

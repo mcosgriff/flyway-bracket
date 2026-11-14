@@ -33,8 +33,9 @@ data class UpdateProfileRequest(val displayName: String? = null, val homeCounty:
  *
  * @property displayName null until the player sets it.
  * @property homeCounty null until the player sets it.
- * @property league the league the player is in, or null when they are in none. Always null until the
- *   server has leagues.
+ * @property league the league the player is in, or null when they are in none: the one forming or in
+ *   season, else their latest finished or closed one. [LeagueState.CLOSED] tells them their league never
+ *   started for want of players.
  */
 @Serializable
 data class ProfileResponse(

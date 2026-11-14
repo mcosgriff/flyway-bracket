@@ -23,6 +23,8 @@ data class HomeState(
     val askLocation: Boolean = false,
     /** A new outing is waiting for the phone's location to find its county (#27). */
     val findingCounty: Boolean = false,
+    /** Sightings have waited more than a day to reach the league server (#43): Home offers to send them now. */
+    val sightingsUnsent: Boolean = false,
 )
 
 /** A county by its name without "County" and its state's postal abbreviation: `Jefferson`, `CO`. */

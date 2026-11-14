@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -105,6 +107,15 @@ class SightingSyncTest {
         // Queued when the outing ended, 30 minutes after it started.
         assertEquals(SyncQueueState(due = 1, waitingSince = started + Duration.ofMinutes(30)), fixture.sync.queueState().first())
         assertEquals(OutingSendState.WAITING, fixture.sync.outing(outing).first())
+    }
+
+    @Test
+    fun `a sighting is late once it has waited more than a day`() {
+        val since = Instant.parse("2027-03-10T08:00:00Z")
+        val waiting = SyncQueueState(due = 1, waitingSince = since)
+        assertFalse(waiting.isLate(since + Duration.ofHours(24)))
+        assertTrue(waiting.isLate(since + Duration.ofHours(24) + Duration.ofSeconds(1)))
+        assertFalse(SyncQueueState(due = 0, waitingSince = null).isLate(since + Duration.ofDays(9)))
     }
 
     @Test

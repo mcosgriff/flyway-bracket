@@ -17,6 +17,7 @@ import io.cosgriff.flywaybracket.data.server.ServerResult
 import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendar
 import io.cosgriff.flywaybracket.domain.bracket.SeasonCalendarResult
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
@@ -52,7 +53,15 @@ enum class OutingSendState {
  * @property waitingSince since when the longest-waiting of them has waited; null when none is due. An upload
  *   waits from when it was queued or from when the player's league was set, whichever is later.
  */
-data class SyncQueueState(val due: Int, val waitingSince: Instant?)
+data class SyncQueueState(val due: Int, val waitingSince: Instant?) {
+    /** Whether something due has waited longer than [LATE_AFTER] at [now]: Home then offers to send it. */
+    fun isLate(now: Instant): Boolean = waitingSince != null && Duration.between(waitingSince, now) > LATE_AFTER
+
+    companion object {
+        /** How long a sighting waits before Home says it has not been sent. */
+        val LATE_AFTER: Duration = Duration.ofDays(1)
+    }
+}
 
 /** What a run of [SightingSync.run] gave. */
 data class SyncRun(

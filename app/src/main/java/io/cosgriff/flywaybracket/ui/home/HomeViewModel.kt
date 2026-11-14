@@ -9,6 +9,8 @@ import io.cosgriff.flywaybracket.data.CountyLocator
 import io.cosgriff.flywaybracket.data.OutingRepository
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
+import io.cosgriff.flywaybracket.data.sync.SightingSync
+import io.cosgriff.flywaybracket.data.sync.SyncScheduler
 import io.cosgriff.flywaybracket.domain.outing.OutingLog
 import io.cosgriff.flywaybracket.domain.outing.newLifersSince
 import io.cosgriff.flywaybracket.domain.outing.outingsSince
@@ -37,7 +39,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Home's figures, from the outings saved on the phone (#25), and its region, from the home county in the
  * player's settings (#23). Start outing continues the outing in progress, or starts one (#26) in the
  * county the phone is in, found from its approximate location, else in the home county (#27). The league
- * and tournament parts stay empty until there is something to read them from.
+ * and tournament parts stay empty until there is something to read them from. A note says when sightings
+ * have waited more than a day to reach the league server, and Send now sends them (#43).
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -47,6 +50,8 @@ class HomeViewModel @Inject constructor(
     private val packs: PackRepository,
     private val locator: CountyLocator,
     clock: Clock,
+    sync: SightingSync,
+    private val scheduler: SyncScheduler,
 ) : ViewModel() {
     private val starting = MutableStateFlow(Starting())
     private val opened = Channel<OpenOuting>(Channel.BUFFERED)
@@ -56,7 +61,8 @@ class HomeViewModel @Inject constructor(
         settings.settings(),
         outings.inProgress(),
         starting,
-    ) { logs, player, inProgress, start ->
+        sync.queueState(),
+    ) { logs, player, inProgress, start, queue ->
         homeState(
             finished = logs,
             today = LocalDate.now(clock),
@@ -67,6 +73,7 @@ class HomeViewModel @Inject constructor(
             packMissing = start.packMissing,
             askLocation = start.askLocation,
             findingCounty = start.findingCounty,
+            sightingsUnsent = queue.isLate(clock.instant()),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_AFTER_MILLIS), HomeState())
 
@@ -105,6 +112,11 @@ class HomeViewModel @Inject constructor(
     /** The player left the location page with Back: no outing starts, and the page comes back next time. */
     fun onLocationCancelled() {
         starting.update { it.copy(askLocation = false) }
+    }
+
+    /** Send now, on the note that sightings have not been sent: sends them as soon as the phone is online (#43). */
+    fun onSendNow() {
+        scheduler.syncNow()
     }
 
     fun onPackMissingDismissed() {

@@ -4,11 +4,21 @@ import android.content.Context
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room3.Room
 import androidx.test.core.app.ApplicationProvider
+import io.cosgriff.flywaybracket.data.AccountRepository
+import io.cosgriff.flywaybracket.data.BracketRepository
 import io.cosgriff.flywaybracket.data.BundledCounties
 import io.cosgriff.flywaybracket.data.CountyFix
 import io.cosgriff.flywaybracket.data.OutingRepository
 import io.cosgriff.flywaybracket.data.PackRepository
 import io.cosgriff.flywaybracket.data.SettingsRepository
+import io.cosgriff.flywaybracket.data.account.AccountStore
+import io.cosgriff.flywaybracket.data.account.StoredAccount
+import io.cosgriff.flywaybracket.data.db.BracketEntity
+import io.cosgriff.flywaybracket.data.db.SyncStateEntity
+import io.cosgriff.flywaybracket.data.server.ServerClient
+import io.cosgriff.flywaybracket.data.server.serverHttpClient
+import io.cosgriff.flywaybracket.data.sync.SightingSync
+import io.cosgriff.flywaybracket.data.sync.SyncScheduler
 import io.cosgriff.flywaybracket.data.db.FlywayDatabase
 import io.cosgriff.flywaybracket.domain.outing.Outing
 import io.cosgriff.flywaybracket.domain.outing.OutingLog
@@ -18,6 +28,7 @@ import io.cosgriff.flywaybracket.domain.pack.testStatePack
 import io.cosgriff.flywaybracket.domain.place.CountyTableParser
 import io.cosgriff.flywaybracket.ui.FakeCountyLocator
 import io.cosgriff.flywaybracket.ui.outing.CountyFallback
+import io.ktor.client.engine.mock.MockEngine
 import java.io.File
 import java.time.Clock
 import java.time.Duration
@@ -160,7 +171,16 @@ class HomeViewModelTest {
             outings.addOrBump(inProgress.id, "Made-up Heron")
 
             val state = withTimeout(10_000) {
-                HomeViewModel(outings, settings, counties, PackRepository(File(context.filesDir, "home_test_packs")), FakeCountyLocator(), clock)
+                HomeViewModel(
+                    outings,
+                    settings,
+                    counties,
+                    PackRepository(File(context.filesDir, "home_test_packs")),
+                    FakeCountyLocator(),
+                    clock,
+                    sync(db, settings, clock, account = false),
+                    RecordingScheduler(),
+                )
                     .state.first { it.recentOutings.isNotEmpty() }
             }
 
@@ -170,9 +190,98 @@ class HomeViewModelTest {
             assertEquals(listOf(OutingRow(finished.id, "Test Pond", today, Duration.ZERO, species = 2)), state.recentOutings)
             assertTrue(state.outingInProgress)
         } finally {
+            stopViewModels()
             scope.cancel()
             db.close()
         }
+    }
+
+    /**
+     * Lets the view models' figures stop, as they do [HomeViewModel.STOP_AFTER_MILLIS] after Home is left, so
+     * none reads the database once it is closed.
+     */
+    private fun stopViewModels() {
+        scheduler.advanceTimeBy(HomeViewModel.STOP_AFTER_MILLIS + 1)
+        scheduler.runCurrent()
+    }
+
+    /** Records what Home asks of the background sync (#43). */
+    private class RecordingScheduler : SyncScheduler {
+        var syncedNow = 0
+
+        override fun sendSoon() = Unit
+
+        override fun syncNow() {
+            syncedNow++
+        }
+
+        override fun keepRefreshing(seasonRunning: Boolean) = Unit
+    }
+
+    private class MemoryAccountStore(var account: StoredAccount?) : AccountStore {
+        override suspend fun read() = account
+
+        override suspend fun write(account: StoredAccount) {
+            this.account = account
+        }
+
+        override suspend fun clear() {
+            account = null
+        }
+    }
+
+    /** The background sync over [db], with a server that is never reached: these tests make no call. */
+    private fun sync(db: FlywayDatabase, settings: SettingsRepository, clock: Clock, account: Boolean): SightingSync {
+        val server = ServerClient(serverHttpClient(MockEngine { error("no call is expected") }), "https://server.example")
+        val store = MemoryAccountStore(StoredAccount("00000000-0000-4000-8000-000000000001", "test-secret-not-real").takeIf { account })
+        val accounts = AccountRepository(server, store, settings)
+        return SightingSync(server, accounts, BracketRepository(server, accounts, db.brackets(), db.outings(), clock), db.sync(), clock)
+    }
+
+    @Test
+    fun `Home says when sightings have waited more than a day, and Send now sends them`() = runBlocking {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val db = Room.inMemoryDatabaseBuilder<FlywayDatabase>(context).build()
+        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        try {
+            val file = File(context.filesDir, "home_unsent_test.preferences_pb").apply { delete() }
+            val settings = SettingsRepository(PreferenceDataStoreFactory.create(scope = scope) { file })
+            // A made-up league in season since 1 March, learned the day before.
+            val league = "test-league-1"
+            db.brackets().upsert(BracketEntity(league, false, "2027-03-01", "UTC", picksLocked = true, picksUnsent = false, picksNotice = null))
+            db.sync().saveState(SyncStateEntity(leagueId = league, leagueSince = Instant.parse("2027-03-09T08:00:00Z").toEpochMilli()))
+            val clock = MovableClock(Instant.parse("2027-03-10T08:00:00Z"), zone)
+            val outings = OutingRepository(db.outings(), clock)
+            val outing = outings.start("Test Pond", "US-ZZ-001")
+            outings.addOrBump(outing.id, "Test Warbler")
+            outings.end()
+            val scheduler = RecordingScheduler()
+            val sync = sync(db, settings, clock, account = true)
+            fun home() = HomeViewModel(outings, settings, BundledCounties(context), PackRepository(File(context.filesDir, "home_unsent_packs")), FakeCountyLocator(), clock, sync, scheduler)
+
+            // Waiting for a day exactly: no note yet.
+            clock.now = Instant.parse("2027-03-11T08:00:00Z")
+            assertFalse(withTimeout(10_000) { home().state.first { it.recentOutings.isNotEmpty() } }.sightingsUnsent)
+
+            clock.now = Instant.parse("2027-03-11T09:00:00Z")
+            val later = home()
+            assertTrue(withTimeout(10_000) { later.state.first { it.recentOutings.isNotEmpty() } }.sightingsUnsent)
+            later.onSendNow()
+            assertEquals(1, scheduler.syncedNow)
+        } finally {
+            stopViewModels()
+            scope.cancel()
+            db.close()
+        }
+    }
+
+    /** A clock the test moves by hand. */
+    private class MovableClock(var now: Instant, private val zone: ZoneId) : Clock() {
+        override fun getZone(): ZoneId = zone
+
+        override fun withZone(zone: ZoneId): Clock = MovableClock(now, zone)
+
+        override fun instant(): Instant = now
     }
 
     /**
@@ -199,8 +308,10 @@ class HomeViewModelTest {
                 if (installTestland) packs.install(StatePackCodec.encode(testStatePack()))
                 val clock = Clock.fixed(Instant.parse("2027-04-18T18:00:00Z"), zone)
                 val outings = OutingRepository(db.outings(), clock)
-                withTimeout(10_000) { block(HomeViewModel(outings, settings, BundledCounties(context), packs, locator, clock), outings, settings) }
+                val home = HomeViewModel(outings, settings, BundledCounties(context), packs, locator, clock, sync(db, settings, clock, account = false), RecordingScheduler())
+                withTimeout(10_000) { block(home, outings, settings) }
             } finally {
+                stopViewModels()
                 scope.cancel()
                 db.close()
             }

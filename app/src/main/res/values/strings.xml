@@ -143,6 +143,9 @@
     <string name="home_pack_missing_cancel">Not now</string>
     <!-- The start button while a new outing waits for the phone's location. -->
     <string name="home_finding_county">Finding your county…</string>
+    <!-- Home's note when sightings have waited more than a day to reach the league server (#43). -->
+    <string name="home_unsent">Some sightings haven\'t been sent to the league server for over a day.</string>
+    <string name="home_unsent_send">Send now</string>
 
     <!-- Location: the page before Android's location prompt, the first time an outing is started -->
     <string name="location_overline">Before your first outing</string>
@@ -251,6 +254,10 @@
     <string name="summary_count">× %1$d</string>
     <string name="summary_empty">No birds were logged on this outing.</string>
     <string name="summary_done">Done</string>
+    <!-- Whether the outing's sightings have reached the league server (#43). -->
+    <string name="summary_sent">Sent to the league server.</string>
+    <string name="summary_waiting">Not sent yet. It goes when the phone is online.</string>
+    <string name="summary_on_phone">Kept on this phone. Only sightings inside your league\'s season are sent.</string>
 
     <!-- Consent: League and Bracket show it first, until the player has an account. The words say what
          docs/adr/0001-server-and-network.md says; change the two together. -->

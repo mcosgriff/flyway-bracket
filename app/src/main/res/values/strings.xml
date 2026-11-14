@@ -1,5 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Flyway Bracket</string>
-    <string name="home_tagline">The migration bracket</string>
+
+    <!-- Shared -->
+    <string name="action_back">Back</string>
+    <!-- A whole number on its own, written in the phone's digits. -->
+    <string name="figure">%1$d</string>
+    <string name="duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="duration_minutes">%1$d min</string>
+    <string name="season_spring">Spring</string>
+    <string name="season_fall">Fall</string>
+    <string name="not_built_body">This screen is not built yet.</string>
+
+    <!-- Bottom bar -->
+    <string name="nav_home">Home</string>
+    <string name="nav_bracket">Bracket</string>
+    <string name="nav_league">League</string>
+    <string name="nav_packs">Packs</string>
+
+    <!-- Home -->
+    <string name="home_tournament_overline">%1$s tournament · Round %2$d of %3$d</string>
+    <!-- Follows the points figure. The count is the second number: picks decided so far. -->
+    <plurals name="home_points_caption">
+        <item quantity="one">bracket points · %1$d of %2$d pick right</item>
+        <item quantity="other">bracket points · %1$d of %2$d picks right</item>
+    </plurals>
+    <plurals name="home_picks_not_seen">
+        <item quantity="one">%d of your birds still needs a sighting this week.</item>
+        <item quantity="other">%d of your birds still need sightings this week.</item>
+    </plurals>
+    <string name="home_view_bracket">View bracket</string>
+    <string name="home_no_league_title">No league yet</string>
+    <string name="home_no_league_body">Join a league to fill in a bracket. You can log outings without one.</string>
+    <string name="home_find_league">Find a league</string>
+    <string name="home_start_outing">Start outing</string>
+    <plurals name="home_league_caption">
+        <item quantity="one">Your league · %d player</item>
+        <item quantity="other">Your league · %d players</item>
+    </plurals>
+    <string name="home_stat_species">Species this season</string>
+    <string name="home_stat_lifers">New lifers</string>
+    <string name="home_stat_outings">Outings</string>
+    <string name="home_recent_title">Recent outings</string>
+    <string name="home_recent_empty">No outings yet. Start one to log your first birds.</string>
+    <string name="home_outing_today">Today</string>
+    <!-- The day, then how long the outing lasted: "Today · 1 h 12 min". -->
+    <string name="home_outing_when">%1$s · %2$s</string>
+    <plurals name="home_outing_species">
+        <item quantity="one">%d species</item>
+        <item quantity="other">%d species</item>
+    </plurals>
+
+    <!-- Outing -->
+    <string name="outing_title">Outing</string>
 </resources>

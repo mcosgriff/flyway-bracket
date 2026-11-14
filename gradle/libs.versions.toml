@@ -3,10 +3,12 @@
 [versions]
 agp = "9.5.1"
 kotlin = "2.4.21"
+serialization = "1.12.0"
 
 core-ktx = "1.19.1"
 activity-compose = "1.13.0"
 lifecycle = "2.11.0"
+navigation3 = "1.2.1"
 compose-bom = "2026.09.00"
 splashscreen = "1.2.0"
 
@@ -17,6 +19,11 @@ androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "splashscreen" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+
+androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "navigation3" }
+androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
+androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycle" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 compose-ui = { module = "androidx.compose.ui:ui" }
@@ -30,3 +37,4 @@ junit = { module = "junit:junit", version.ref = "junit" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

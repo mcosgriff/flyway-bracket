@@ -1,5 +1,8 @@
 package io.cosgriff.flywaybracket.domain.bracket
 
+/** A year has two tournaments, one for each migration. Each seeds its own field. */
+enum class Season { SPRING, FALL }
+
 /**
  * The six rounds of a 64-bird bracket, one per week. A right pick is worth [points], doubling each
  * round.

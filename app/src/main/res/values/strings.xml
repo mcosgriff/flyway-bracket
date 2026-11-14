@@ -601,8 +601,11 @@
     <string name="league_create_time_zone">Time zone</string>
     <string name="league_create_change_time_zone">Change the time zone</string>
     <string name="league_create_players">Players</string>
-    <!-- The fewest players a bracket needs, then the most a league holds. -->
-    <string name="league_create_players_value">%1$d to start · %2$d maximum</string>
+    <!-- The fewest players a bracket needs, then the most a league holds, which is the count. -->
+    <plurals name="league_create_players_value">
+        <item quantity="one">%1$d to start · %2$d maximum</item>
+        <item quantity="other">%1$d to start · %2$d maximum</item>
+    </plurals>
     <string name="league_create_open">Open to solo players</string>
     <string name="league_create_open_body">Empty spots go to players with no league.</string>
     <string name="league_create_field_title">How the field is built</string>

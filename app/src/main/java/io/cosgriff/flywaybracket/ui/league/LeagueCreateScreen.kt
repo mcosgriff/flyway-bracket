@@ -252,7 +252,12 @@ private fun Choices(state: CreateLeagueState, onStart: () -> Unit, onZone: () ->
             HorizontalDivider(thickness = FlywayDimens.border, color = colors.divider)
             ChoiceRow(
                 label = stringResource(R.string.league_create_players),
-                value = stringResource(R.string.league_create_players_value, LeagueLifecycle.MIN_PLAYERS, LeagueLifecycle.MAX_PLAYERS),
+                value = pluralStringResource(
+                    R.plurals.league_create_players_value,
+                    LeagueLifecycle.MAX_PLAYERS,
+                    LeagueLifecycle.MIN_PLAYERS,
+                    LeagueLifecycle.MAX_PLAYERS,
+                ),
             )
             HorizontalDivider(thickness = FlywayDimens.border, color = colors.divider)
             Row(

@@ -326,6 +326,14 @@ private fun CodeCard(join: JoinState, actions: LeagueActions) {
 @Composable
 private fun LeagueBody(league: LeagueView, actions: LeagueActions) {
     Header(league, actions.onLeave)
+    if (league.leaving) {
+        Text(
+            text = stringResource(R.string.league_leaving),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
+    }
     league.problem?.let { Problem(it, onRetry = actions.onRetry) }
     when (league.phase) {
         LeaguePhase.FORMING -> {

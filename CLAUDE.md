@@ -36,6 +36,8 @@ the `CODECOV_TOKEN` secret.
 - `./gradlew :app:recordRoborazziDebug` — re-record the reference screenshots (`app/src/test/screenshots/`)
   after a change meant to alter a screen; look at every image it changes.
 - `./gradlew :data:testDebugUnitTest` — the database, migration and settings tests, on the JVM (Robolectric).
+- `./gradlew :tools:packbuilder:run --args="US-CO"` — build a state pack from the files in `packs-local/`
+  (`docs/packs.md`); `:tools:packbuilder:test` runs its tests on made-up inputs.
 - `./gradlew koverHtmlReportCoverage` — coverage of `:domain`, `:api`, `:data` and `:app`; CI sends the XML to
   Codecov.
 - `./gradlew :app:installDebug` — install on a connected phone (debug app id
@@ -68,6 +70,9 @@ the `CODECOV_TOKEN` secret.
   - Tests run on the JVM under Robolectric; Gradle resolves its Android jar (root `build.gradle.kts`).
 - `:app` — Compose UI, theme, navigation (Navigation 3, `@Serializable` `NavKey` routes in
   `ui/FlywayNavHost.kt`). Hilt: `FlywayApp` is the application, `MainActivity` an entry point.
+- `:tools:packbuilder` — a JVM command-line tool, not part of the app: builds a state pack from eBird bar
+  chart downloads and Census county outlines in `packs-local/` (`docs/packs.md`). Depends on `:domain`.
+  Left out of the coverage report and of the dependency graph sent to GitHub.
 - `site/` — not a Gradle module: the user guide for players. Markdown in `site/pages/`, built with pandoc
   (`site/build.sh`), checked by `site/check.py` and pa11y, published to GitHub Pages by `pages.yml`. No
   JavaScript, nothing from another host. A page about something not built yet has `beta: true`; remove it

@@ -55,10 +55,11 @@ jobs:
         if: steps.changes.outputs.code == 'true'
 
       # The unit tests, the screenshot and accessibility tests among them, with Kover measuring them; the
-      # merged report goes to Codecov.
+      # merged report goes to Codecov. The pack builder's tests run too; it is a developer's tool, not part
+      # of the app, and is left out of the coverage report.
       - name: Unit tests
         if: steps.changes.outputs.code == 'true'
-        run: ./gradlew :domain:test :api:test testDebugUnitTest koverXmlReportCoverage
+        run: ./gradlew :domain:test :api:test :tools:packbuilder:test testDebugUnitTest koverXmlReportCoverage
 
       # Coverage only: a failed upload doesn't fail the build. CODECOV_TOKEN is a repository secret, so
       # a pull request from a fork uploads nothing.

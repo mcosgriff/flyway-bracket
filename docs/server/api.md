@@ -5,7 +5,7 @@ What the app and the server say to each other. The types are in the `:api` modul
 the endpoints that carry them. Change the two together.
 
 The server (`:server`, [running.md](running.md)) answers the health check, the account endpoints, the
-league endpoints, a league's bracket, the pack endpoints and the sighting endpoints, and the app calls the account endpoints,
+league endpoints, a league's bracket and picks, the pack endpoints and the sighting endpoints, and the app calls the account endpoints,
 after the player agrees (#38). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
 new field sent to the server needs a change to that record first.
 
@@ -31,7 +31,8 @@ new field sent to the server needs a change to that record first.
 A refused call answers with a 4xx or 5xx status and one body, `ApiError(code, detail)`. `code` is the name
 of an `ApiErrorCode`. The app turns the code into words from `strings.xml`; `detail` is for logs and is
 never shown. An app older than the server may meet a code it does not know (`ApiError.errorCode` is then
-null) and must treat it as a general failure.
+null) and must treat it as a general failure. A refusal of picks also carries `slot`, the `MatchupSlot` of
+the first pick that cannot stand; no other refusal has it.
 
 | Code | Status | Meaning |
 | --- | --- | --- |
@@ -49,11 +50,13 @@ null) and must treat it as a general failure.
 | `TIME_ZONE_UNKNOWN` | 422 | The time zone is not an IANA zone the server knows |
 | `DISPLAY_NAME_INVALID` | 422 | The display name is empty, too long or not allowed |
 | `COUNTY_UNKNOWN` | 422 | A home county that is not a well-formed county code, or a sighting's county that is not a county of any pack |
-| `BIRD_UNKNOWN` | 422 | A sighting's bird is named in no county's chart of any pack, or a pick is not one of its matchup's two birds |
+| `BIRD_UNKNOWN` | 422 | A sighting's bird is named in no county's chart of any pack, or a pick's bird cannot play in its matchup (`slot` is the first) |
 | `SIGHTING_DATE_IN_FUTURE` | 422 | A sighting's date is more than one day after today at UTC+14 |
 | `SIGHTING_NOT_FOUND` | 404 | The player has no sighting with this id; another player's is not told apart from none |
 | `PICKS_LOCKED` | 409 | The season has started; picks can no longer change |
-| `PICKS_INCOMPLETE` | 422 | Fewer than 63 picks, or a later-round pick of a bird not picked to reach that matchup |
+| `PICKS_INCOMPLETE` | 422 | A later-round pick of a bird not picked to win every earlier matchup on its path; `slot` is the first |
+| `PICKS_HIDDEN` | 409 | Another member's picks, asked for before picks lock |
+| `MEMBER_NOT_FOUND` | 404 | The league has no member with this key, or that member has left |
 | `BRACKET_NOT_READY` | 409 | The league has no bracket yet |
 | `ROUND_NOT_DECIDED` | 409 | The round is not decided yet |
 | `PACK_NOT_FOUND` | 404 | The server holds no pack for this state |
@@ -62,7 +65,7 @@ null) and must treat it as a general failure.
 
 A path the server does not have answers 404, a method it does not have on that path 405, and a body that
 is not JSON 415. All three carry `INVALID_REQUEST`: the status tells them apart. A 404 an endpoint gives
-itself (`LEAGUE_NOT_FOUND`, `INVITE_CODE_UNKNOWN`, `PACK_NOT_FOUND`, `SIGHTING_NOT_FOUND`) carries its own code. `detail` is empty for
+itself (`LEAGUE_NOT_FOUND`, `MEMBER_NOT_FOUND`, `INVITE_CODE_UNKNOWN`, `PACK_NOT_FOUND`, `SIGHTING_NOT_FOUND`) carries its own code. `detail` is empty for
 these and for bad JSON, so that an error never repeats what was sent.
 
 Every endpoint can return `RATE_LIMITED` and `SERVER_ERROR`. Every endpoint except `POST /v1/accounts` and `GET /v1/health` can
@@ -119,9 +122,9 @@ list only the codes an endpoint adds to these.
   need not be a county of a pack the server holds.
 - `DELETE /v1/account` cannot be undone. The player first leaves every league they are in, as
   `DELETE …/membership` would; then their row (id, secret hash, display name, home county) is deleted, and
-  their league places and their sightings with it (the tables' foreign keys are `ON DELETE CASCADE`).
-  Once the server has picks, it also deletes those; their results in a finished season stay, under no
-  name, as "a former player". After it, the id and secret
+  their league places, their picks and their sightings with it (the tables' foreign keys are
+  `ON DELETE CASCADE`). Their results in a finished season are for the issue that scores picks (#37) to
+  keep, under no name, as "a former player". After it, the id and secret
   are `UNAUTHORIZED`.
 - **A home county change and rounds.** The server stores only the current home county. A change is meant to
   count for rounds that have not started; that is for the issue that decides rounds on the server.
@@ -178,14 +181,17 @@ The rules are `domain/league` in `:domain` (#32); the server applies them.
 - `GET /v1/leagues` lists the leagues the player is in and has not left, latest start first: at most one
   forming or in season, and any finished or closed.
 - `GET /v1/leagues/{leagueId}` is for members only; any other player gets `LEAGUE_NOT_FOUND`.
-  `LeagueDetail.members` and `StandingsResponse` are lists of `Standing`: display name, points, rank, and
-  whether the row is the asking player, best rank first, then by name. A `Standing` has no account id, no
-  county and no sightings. Players level on points share a rank (10, 7, 7, 3 points rank 1, 2, 2, 4).
+  `LeagueDetail.members` and `StandingsResponse` are lists of `Standing`: display name, points, rank, the
+  member's key, and whether the row is the asking player, best rank first, then by name. A `Standing` has no
+  account id, no county and no sightings. The **member key** (`Standing.memberKey`) is a random UUID the
+  server makes when the player joins the league, one per membership: it names the member in
+  [`GET …/members/{memberKey}/picks`](#bracket-and-picks), so that no player ever sees another's account id. Players level on points share a rank (10, 7, 7, 3 points rank 1, 2, 2, 4).
   Points are 0 until the server scores picks.
 - `DELETE …/membership` is the player leaving the league. Before the season starts, or from a closed
-  league, they are taken out as if they had never joined, and can join again. After it starts they are
-  kept, marked as left: their picks stop scoring, they no longer count toward any matchup, and they are
-  not in the members or the count. Either way they are free to join another league.
+  league, they are taken out as if they had never joined, picks and all, and can join again with a new
+  member key and no picks. After it starts they are kept, marked as left, with their picks: those stop
+  scoring (#37 reads the mark), they no longer count toward any matchup, and they are not in the members
+  or the count, nor found by their member key. Either way they are free to join another league.
 
 ## Bracket and picks
 
@@ -194,6 +200,7 @@ The rules are `domain/league` in `:domain` (#32); the server applies them.
 | `GET /v1/leagues/{leagueId}/bracket` | none | `BracketResponse` | `LEAGUE_NOT_FOUND`, `BRACKET_NOT_READY` |
 | `GET /v1/leagues/{leagueId}/picks` | none | `PicksResponse` | `LEAGUE_NOT_FOUND` |
 | `PUT /v1/leagues/{leagueId}/picks` | `SubmitPicksRequest` | `PicksResponse` | `LEAGUE_NOT_FOUND`, `BRACKET_NOT_READY`, `PICKS_LOCKED`, `PICKS_INCOMPLETE`, `BIRD_UNKNOWN` |
+| `GET /v1/leagues/{leagueId}/members/{memberKey}/picks` | none | `PicksResponse` | `LEAGUE_NOT_FOUND`, `MEMBER_NOT_FOUND`, `PICKS_HIDDEN` |
 
 - `GET …/bracket` is for members only; any other player gets `LEAGUE_NOT_FOUND`. `BracketResponse.teams`
   is the 64 birds by quarter from the top of the bracket, then by seed; `matchups` is all 63 by slot. A
@@ -203,15 +210,14 @@ The rules are `domain/league` in `:domain` (#32); the server applies them.
 - **Preview.** Before the season starts the bracket is a preview (`preview` is `true`), seeded from the
   members as they are now, so players can fill in picks. It is seeded again whenever it is asked for, and
   stored when it differs from the last: a member joined or left, or changed home county. Picks made against
-  the earlier preview are then dropped for the matchups whose birds changed (once the server holds picks,
-  #35). From 48 hours before the start the field is fixed and `preview` is absent. Joining still closes
-  only at the start, but a late joiner's county no longer changes the field. A league whose start moves
-  back a week is previewed again for its new start.
+  the earlier preview are then dropped, every member's, in the same transaction: the pick of each matchup
+  whose birds changed, and every later pick that named the bird a dropped pick had win
+  (`BracketPicks.withoutChanged` in `:domain`). From 48 hours before the start the field is fixed and
+  `preview` is absent. Joining still closes only at the start, but a late joiner's county no longer changes
+  the field. A league whose start moves back a week is previewed again for its new start.
 - `BRACKET_NOT_READY` when there is no field: before the start, the members' home counties give fewer than
   64 candidates (a member with no home county, or one in no pack, counts for none); or the league closed
   before its season started.
-- `PUT …/picks` replaces the player's whole bracket: 63 picks, one per slot. `GET …/picks` returns the
-  asking player's own picks.
 - **Matchup slots.** A matchup is a `MatchupSlot`: one number, 0 to 62, counted by round, then by position
   from the top of the bracket. In JSON it is a bare number; as a key of `picks`, that number in quotes.
 
@@ -226,6 +232,33 @@ The rules are `domain/league` in `:domain` (#32); the server applies them.
 
   The winners of positions `2p` and `2p + 1` of a round meet at position `p` of the next, the winner of
   the even one drawn above.
+
+### Picks
+
+The rules are `BracketPicks` in `:domain` (`domain/bracket`, #35); the server applies them to the bracket
+`GET …/bracket` shows.
+
+- **Saving as the player goes.** `PUT …/picks` replaces every pick the player had in the league with the
+  ones sent, one bird per slot, the common name as the bracket gives it. Any number from none to 63 is
+  accepted, so the app can save after each pick; a matchup with no pick scores nothing. The answer is the
+  picks as stored.
+- **Consistent.** A pick must name a bird that can play in its matchup: one of the field's birds drawn into
+  that part of the bracket (`BIRD_UNKNOWN` otherwise). A bird picked to win a matchup after the first round
+  must also be picked to win every earlier matchup on its path (`PICKS_INCOMPLETE` otherwise). The picks
+  are checked in slot order and the first that cannot stand is refused, its slot in `ApiError.slot`;
+  nothing is stored then. Before the field is fixed they are checked against the preview as it is now,
+  seeded again first if the members changed.
+- **The lock.** Picks lock when the season starts: midnight at the start of its first Monday in the
+  league's time zone (`SeasonCalendar.picksLockOn`). From then on `PUT …/picks` is `PICKS_LOCKED`, and
+  `PicksResponse.locked` is `true`. A league whose start moved back a week locks at its new start; one that
+  closed is `BRACKET_NOT_READY`.
+- `GET …/picks` returns the asking player's own picks at any time, by slot; none before the first `PUT`.
+  Before the field is fixed it first brings the preview up to date, as `GET …/bracket` does, so the picks
+  it returns are sound for the bracket the player sees.
+- **Another member's picks** are `GET …/members/{memberKey}/picks`, with the key from that member's
+  `Standing`. They are hidden until the lock (`PICKS_HIDDEN`), so that no player can copy another's (ADR
+  0001); a player's own key works at any time. A key that is not one of the league's current members',
+  an account id included, is `MEMBER_NOT_FOUND`.
 
 ### The field
 
@@ -349,5 +382,4 @@ Also open, for the server issues:
 
 - Whether the app may download packs before the player has an account. Both pack endpoints need one
   (#33); outings work with no account, and the app makes no network call before the player agrees.
-- Seeing other players' picks once they lock, and how many birds each player logged in a round. ADR 0001
-  allows both; issue #29 lists no type for either.
+- How many birds each player logged in a round. ADR 0001 allows it; issue #29 lists no type for it.

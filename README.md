@@ -105,7 +105,9 @@ of the server.
   on the field is fixed: a late joiner's county no longer changes it. A player whose home county is in no
   pack the server holds is left out of seeding, and is told so.
 - **Picks.** A right pick scores 1, 2, 4, 8, 16 and 32 points by round. Calling an upset adds the gap
-  between the two seeds.
+  between the two seeds. Picks can be saved a few at a time until they lock; a matchup with no pick scores
+  nothing. A bird picked to win a later matchup must be picked to win every earlier one on its way there.
+  Other players' picks are hidden until they lock.
 - **Matchups.** Friends in one league can live far apart, so a bird is judged only among *eligible*
   players: those for whom the bird is expected that week, in their home county or a county where they
   logged an outing. The bird with the higher share of eligible players who logged it wins. A tie goes to

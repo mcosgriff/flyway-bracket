@@ -5,7 +5,7 @@ What the app and the server say to each other. The types are in the `:api` modul
 the endpoints that carry them. Change the two together.
 
 The server (`:server`, [running.md](running.md)) answers the health check and the account endpoints, and
-the app makes no network call yet. The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
+the app calls the account endpoints, after the player agrees (#38). The other endpoints are built in the server issues. What the app may send is decided by [ADR 0001](../adr/0001-server-and-network.md); a
 new field sent to the server needs a change to that record first.
 
 ## Rules for every call

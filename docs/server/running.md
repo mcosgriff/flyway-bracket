@@ -1,7 +1,7 @@
 # Running the server
 
 The league server is the `:server` module: Ktor on Netty, with Postgres behind it. It is not part of the
-app, and the app does not call it yet. What it may be sent is decided by
+app; the app calls its account endpoints once the player agrees (#38). What it may be sent is decided by
 [ADR 0001](../adr/0001-server-and-network.md); its endpoints are listed in [api.md](api.md). Today it has
 the health check (`GET /v1/health`) and anonymous accounts (`POST /v1/accounts`, and `GET`, `PATCH` and
 `DELETE /v1/account`).

@@ -24,8 +24,10 @@ Colorado only) and the state packs on the phone (`PackRepository`). `:app` has t
 the first-run screen (display name and home county, saved in the settings), the Home screen and the Packs
 screen, which adds a pack from a `.fbpack` file the player chooses (downloading is #39), and the outing
 flow: Outing, the Add sighting sheet and Summary, in the home county (GPS is #27). Bracket and League are
-placeholders (`NotBuiltYetContent`). Home reads its region from the settings and its season figures and
-recent outings from the database, and starts or continues an outing. The app makes no network call.
+placeholders (`NotBuiltYetContent`) behind the consent page. Home reads its region from the settings and
+its season figures and recent outings from the database, and starts or continues an outing. The app's only
+network calls are the account endpoints (`data/server/ServerClient`, `AccountRepository`, #38), made after
+the player agrees on the consent page.
 `:server` starts, migrates its Postgres, answers a health check and has anonymous device accounts (create,
 read, change and delete the profile); it has no league, pick or sighting endpoint yet and is hosted nowhere.
 `./gradlew build` is green (Gradle 9.9.1, AGP 9.5.1, lint included; it needs Docker for `:server:test`).
@@ -87,6 +89,14 @@ the `CODECOV_TOKEN` secret.
     (checked with `StatePackCodec.decode` first), list, delete, `chartFor(countyCode)` and
     `countyAt(longitude, latitude)`. The files are parsed once and kept in memory.
   - `data/di/DataModule` — Hilt: provides the database, its DAOs, the DataStore and the repositories.
+  - `data/server/ServerClient` — the league server's account endpoints, with `:api`'s messages and
+    `ApiJson` (no content negotiation), on Ktor's CIO engine. Results are `ServerResult`; a failure is a
+    `ServerProblem`: `NoNetwork`, `NoAnswer` or `Refused(ApiErrorCode?)`. The address is the build
+    setting `BuildConfig.SERVER_URL` (`-PflywayServerUrl`, `-PflywayDebugServerUrl`; a debug build
+    defaults to `http://10.0.2.2:8080`). Tests use Ktor's mock engine; none reaches a server.
+  - `AccountRepository` — create, delete, `hasAccount()`, and the profile sent when the display name or
+    home county changes. `data/account/EncryptedAccountStore` keeps the id and secret in `no_backup`,
+    AES-GCM under an Android Keystore key. Provided by `data/di/ServerModule`.
   - Tests run on the JVM under Robolectric; Gradle resolves its Android jar (root `build.gradle.kts`).
 - `:app` — Compose UI, theme, navigation (Navigation 3, `@Serializable` `NavKey` routes in
   `ui/FlywayNavHost.kt`). Hilt: `FlywayApp` is the application, `MainActivity` an entry point.
@@ -132,9 +142,13 @@ Add `:baselineprofile` once the screens settle.
   (`.github/scripts/exodus-scan.sh`): a tracker fails, and so does a permission not in
   `.github/privacy/permissions.txt` (or one listed that the APK no longer asks for). A new permission means
   updating that list and explaining it in the app.
-- **Network: none yet in the app; the plan is `docs/adr/0001-server-and-network.md`.** One server, the project's own,
-  over HTTPS; anonymous device accounts; nothing sent before the player says yes. The ADR lists every
-  field sent: change it before sending anything else.
+- **Network: the account calls only, as `docs/adr/0001-server-and-network.md` decides.** One server, the
+  project's own, over HTTPS (Ktor's CIO engine in `:data`; a release build refuses a plain-HTTP address and
+  the manifest's network security config allows none); anonymous device accounts, their id and secret
+  encrypted under an Android Keystore key; nothing sent before the player says yes on the consent page,
+  whose words follow the ADR. The ADR lists every field sent: change it, and the consent page, before
+  sending anything else. Errors reach the screen as words from `strings.xml` by `ApiError` code, never the
+  server's text.
 - **eBird data never goes in the repo** (eBird's terms of use). Tests and previews use made-up figures.
   Local downloads go in `packs-local/`, which is ignored. Shipping data derived from eBird needs the
   Cornell Lab's permission, not yet obtained.

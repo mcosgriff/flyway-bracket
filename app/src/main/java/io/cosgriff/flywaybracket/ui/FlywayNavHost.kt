@@ -9,6 +9,10 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import io.cosgriff.flywaybracket.R
+import io.cosgriff.flywaybracket.domain.bracket.DrawPosition
+import io.cosgriff.flywaybracket.domain.bracket.Round
+import io.cosgriff.flywaybracket.ui.bracket.BracketScreen
+import io.cosgriff.flywaybracket.ui.bracket.MatchupScreen
 import io.cosgriff.flywaybracket.ui.components.NotBuiltYetContent
 import io.cosgriff.flywaybracket.ui.components.TopLevel
 import io.cosgriff.flywaybracket.ui.consent.ConsentScreen
@@ -42,6 +46,9 @@ import kotlinx.serialization.Serializable
 
 /** A finished outing, by its id (#26). */
 @Serializable data class SummaryRoute(val outingId: Long) : NavKey
+
+/** One matchup of the player's bracket, from the Bracket tab after picks lock (#42). */
+@Serializable data class MatchupRoute(val leagueId: String, val round: Round, val position: Int) : NavKey
 
 /** Settings, from the gear on Home (#44). */
 @Serializable data object SettingsRoute : NavKey
@@ -97,7 +104,12 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
             // Both need the server: the consent page comes first until the phone has an account (#38).
             entry<BracketRoute> {
                 ConsentScreen(place = TopLevel.Bracket, onNavigate = navigate) {
-                    NotBuiltYetContent(title = R.string.nav_bracket, place = TopLevel.Bracket, onNavigate = navigate)
+                    BracketScreen(
+                        onNavigate = navigate,
+                        onOpenMatchup = { leagueId, at ->
+                            if (backStack.lastOrNull() !is MatchupRoute) backStack.add(MatchupRoute(leagueId, at.round, at.position))
+                        },
+                    )
                 }
             }
             entry<LeagueRoute> {
@@ -122,6 +134,9 @@ fun FlywayNavHost(needsOnboarding: Boolean) {
             }
             entry<SummaryRoute> { route ->
                 SummaryScreen(outingId = route.outingId, onDone = back)
+            }
+            entry<MatchupRoute> { route ->
+                MatchupScreen(leagueId = route.leagueId, at = DrawPosition(route.round, route.position), onBack = back)
             }
             entry<SettingsRoute> {
                 SettingsScreen(onBack = back, onOpenLicences = { if (backStack.lastOrNull() != LicencesRoute) backStack.add(LicencesRoute) })

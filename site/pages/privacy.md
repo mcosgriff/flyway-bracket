@@ -23,6 +23,10 @@ has to reach one place.
 
 The app will talk to one server, the project's own. It will talk to nothing else.
 
+The server runs on Cloudflare, which also handles the secure connection, so everything the app sends
+passes through Cloudflare. The server's database is stored by Neon, on Amazon Web Services in Oregon, USA
+(region us-west-2).
+
 Nothing is sent before you say yes. The first time you open the League or Bracket tab, a page says what
 will be sent and asks you. Until you agree, the app makes no connection.
 
@@ -80,7 +84,7 @@ They cannot see your county. They cannot see your individual sightings.
 The server knows your home county. It knows the county and the date of each sighting. That is less exact
 than a location, but it is still information about you.
 
-Like any server, it also sees the internet address of each connection.
+Like any server, it also sees the internet address of each connection, and so does Cloudflare.
 
 ## Deleting your account
 

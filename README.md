@@ -214,6 +214,9 @@ fetches your league's bracket and results, and sends your picks as you make them
 download bird packs. Sightings are sent in the background.
 
 - The app talks to one server, the project's own, over HTTPS, and to nothing else.
+- The server runs on Cloudflare, which also handles the secure connection, so everything the app sends
+  passes through Cloudflare. The server's database is stored by Neon, on Amazon Web Services in Oregon,
+  USA (region us-west-2). How it is hosted: [`docs/server/hosting.md`](docs/server/hosting.md).
 - Nothing is sent before you say yes. Outings work with no account. When you open League or Bracket, or
   ask for bird packs, without an account, a page says what will be sent and asks. "Not now" sends nothing.
 - Downloading a bird pack asks the server for its list of packs and for the pack of one state. To update a

@@ -331,6 +331,8 @@
     <string name="consent_sent_sightings">Each bird you log: its name, the county, the date, and a random code the phone makes for it, so it is never counted twice and can be deleted.</string>
     <string name="consent_sent_packs">The state of each bird pack you download, and the version of it you already have, so an unchanged pack is not sent again.</string>
     <string name="consent_never_sent">Never sent: your exact location, the time of day you saw a bird, or the place names you type.</string>
+    <string name="consent_hosts_title">Where the server runs</string>
+    <string name="consent_hosts_body">The server runs on Cloudflare, which also handles the secure connection, so everything the app sends passes through Cloudflare. The server\'s database is stored by Neon, on Amazon Web Services in Oregon, USA (region us-west-2).</string>
     <string name="consent_seen_title">What other players see</string>
     <string name="consent_seen_body">Your display name, your picks once they lock, your points, and how many birds you logged in a round.</string>
     <string name="consent_not_seen_body">Not your county, and not your sightings.</string>

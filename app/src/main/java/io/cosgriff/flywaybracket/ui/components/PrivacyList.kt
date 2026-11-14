@@ -21,8 +21,8 @@ import io.cosgriff.flywaybracket.ui.theme.FlywayDimens
 import io.cosgriff.flywaybracket.ui.theme.FlywayTheme
 
 /**
- * What the league server is sent, what other players see, and how deleting works, in the words of
- * ADR 0001: one card each. The consent page (#38) and Settings (#44) show the same list, so the two never
+ * What the league server is sent, where it runs, what other players see, and how deleting works, in the
+ * words of ADR 0001: one card each. The consent page (#38) and Settings (#44) show the same list, so the two never
  * say different things.
  */
 @Composable
@@ -36,6 +36,7 @@ fun PrivacyList() {
         R.string.consent_sent_packs,
         R.string.consent_never_sent,
     )
+    PrivacyCard(R.string.consent_hosts_title, R.string.consent_hosts_body)
     PrivacyCard(R.string.consent_seen_title, R.string.consent_seen_body, R.string.consent_not_seen_body)
     PrivacyCard(R.string.consent_delete_title, R.string.consent_delete_body, R.string.consent_lost_body)
 }

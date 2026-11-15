@@ -2,6 +2,8 @@ package io.cosgriff.flywaybracket.ui.outing
 
 import android.content.Context
 import androidx.compose.runtime.snapshots.Snapshot
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.room3.Room
 import androidx.test.core.app.ApplicationProvider
 import io.cosgriff.flywaybracket.data.BundledCounties
@@ -26,7 +28,9 @@ import java.time.LocalTime
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -63,8 +67,17 @@ class OutingViewModelTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
     }
 
+    /** The view models a test made, stopped before [db] closes. */
+    private val viewModels = mutableListOf<ViewModel>()
+
+    private fun <T : ViewModel> kept(viewModel: T): T = viewModel.also { viewModels += it }
+
     @After
     fun close() {
+        // A view model's flows keep reading the database for a while after the test's last look at them. Cancel
+        // them and wait until they have stopped, then close the database: a query left running would fail on
+        // the closed pool, and kotlinx-coroutines-test would report it in whichever test runs a coroutine next.
+        runBlocking { viewModels.forEach { it.viewModelScope.coroutineContext.job.cancelAndJoin() } }
         Dispatchers.resetMain()
         db.close()
     }
@@ -152,7 +165,7 @@ class OutingViewModelTest {
     fun `the view model shows the outing in progress and changes it`() = runBlocking {
         val id = outings.start("Test Pond", "US-ZZ-001").id
         outings.addOrBump(id, "Test Warbler")
-        val outing = OutingViewModel(outings, counties, packs(), clock)
+        val outing = kept(OutingViewModel(outings, counties, packs(), clock))
         withTimeout(10_000) {
             val shown = outing.state.first { it.sightings.isNotEmpty() }.sightings.single()
             assertEquals(Duration.ofMinutes(42), outing.elapsed.first { it > Duration.ZERO })
@@ -176,7 +189,7 @@ class OutingViewModelTest {
     @Test
     fun `finishing ends the outing and leads to its summary`() = runBlocking {
         val id = outings.start("Test Pond", "US-ZZ-001").id
-        val outing = OutingViewModel(outings, counties, packs(), clock)
+        val outing = kept(OutingViewModel(outings, counties, packs(), clock))
         withTimeout(10_000) {
             outing.onFinish()
             assertEquals(OutingExit.Finished(id), outing.exit.first())
@@ -188,7 +201,7 @@ class OutingViewModelTest {
     @Test
     fun `discarding deletes the outing and closes the screen`() = runBlocking {
         outings.start("Test Pond", "US-ZZ-001")
-        val outing = OutingViewModel(outings, counties, packs(), clock)
+        val outing = kept(OutingViewModel(outings, counties, packs(), clock))
         withTimeout(10_000) {
             outing.onDiscard()
             assertEquals(OutingExit.Closed, outing.exit.first())
@@ -199,7 +212,7 @@ class OutingViewModelTest {
 
     @Test
     fun `with no outing in progress the screen closes`() = runBlocking {
-        val outing = OutingViewModel(outings, counties, packs(), clock)
+        val outing = kept(OutingViewModel(outings, counties, packs(), clock))
         assertEquals(OutingExit.Closed, withTimeout(10_000) { outing.exit.first() })
     }
 
@@ -227,7 +240,7 @@ class OutingViewModelTest {
         val packs = PackRepository(File(context.filesDir, "outing_county_test_packs").apply { deleteRecursively() })
         packs.install(StatePackCodec.encode(testStatePack()))
         val id = outings.start("", "XX-TS-002").id
-        val outing = OutingViewModel(outings, counties, packs, clock)
+        val outing = kept(OutingViewModel(outings, counties, packs, clock))
         withTimeout(10_000) {
             val choices = outing.countyChoices.first { it.isNotEmpty() }
             assertEquals(listOf("East Square", "Twin Islands", "West Square"), choices.single().counties.map { it.name })
@@ -245,7 +258,7 @@ class OutingViewModelTest {
         packs.install(StatePackCodec.encode(testStatePack()))
         // West Square has a warbler from May and a sparrow all year; the clock is in May.
         val id = outings.start("", "XX-TS-001").id
-        val adding = AddSightingViewModel(outings, packs, counties, clock)
+        val adding = kept(AddSightingViewModel(outings, packs, counties, clock))
         withTimeout(10_000) {
             assertEquals(listOf("Test Sparrow", "Test Warbler"), adding.state.first { it.birds.isNotEmpty() }.birds.map { it.name })
             adding.onQuery("warb")

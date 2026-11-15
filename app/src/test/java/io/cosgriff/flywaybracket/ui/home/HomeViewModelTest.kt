@@ -2,6 +2,7 @@ package io.cosgriff.flywaybracket.ui.home
 
 import android.content.Context
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.lifecycle.viewModelScope
 import androidx.room3.Room
 import androidx.test.core.app.ApplicationProvider
 import io.cosgriff.flywaybracket.data.AccountRepository
@@ -51,8 +52,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -272,7 +275,7 @@ class HomeViewModelTest {
                     RecordingScheduler(),
                     leagues(db, settings, clock),
                     brackets(db, settings, clock),
-                )
+                ).kept()
                     .state.first { it.recentOutings.isNotEmpty() }
             }
 
@@ -288,13 +291,21 @@ class HomeViewModelTest {
         }
     }
 
+    /** The view models a test made, stopped by [stopViewModels] before its database closes. */
+    private val viewModels = mutableListOf<HomeViewModel>()
+
+    private fun HomeViewModel.kept(): HomeViewModel = also { viewModels += it }
+
     /**
-     * Lets the view models' figures stop, as they do [HomeViewModel.STOP_AFTER_MILLIS] after Home is left, so
-     * none reads the database once it is closed.
+     * Cancels the view models' coroutines and waits until they have stopped, so none reads the database once it
+     * is closed: not only the figures, which stop by themselves [HomeViewModel.STOP_AFTER_MILLIS] after Home is
+     * left, but also what a view model starts once, such as refreshing the league. A query left running would
+     * fail on the closed pool, and kotlinx-coroutines-test would report it in whichever test runs a coroutine
+     * next.
      */
-    private fun stopViewModels() {
-        scheduler.advanceTimeBy(HomeViewModel.STOP_AFTER_MILLIS + 1)
-        scheduler.runCurrent()
+    private suspend fun stopViewModels() {
+        viewModels.forEach { it.viewModelScope.coroutineContext.job.cancelAndJoin() }
+        viewModels.clear()
     }
 
     /** Records what Home asks of the background sync (#43). */
@@ -366,7 +377,7 @@ class HomeViewModelTest {
             fun home() = HomeViewModel(
                 outings, settings, BundledCounties(context), packs, FakeCountyLocator(), clock,
                 server.downloads, server.accounts, { false }, sync, scheduler, leagues(db, settings, clock), brackets(db, settings, clock),
-            )
+            ).kept()
 
             // Waiting for a day exactly: no note yet.
             clock.now = Instant.parse("2027-03-11T08:00:00Z")
@@ -432,7 +443,7 @@ class HomeViewModelTest {
                     RecordingScheduler(),
                     leagues(db, settings, clock),
                     brackets(db, settings, clock),
-                )
+                ).kept()
                 withTimeout(10_000) { block(home, outings, settings) }
             } finally {
                 stopViewModels()
@@ -613,7 +624,7 @@ class HomeViewModelTest {
                     OutingRepository(db.outings(), clock), settings, BundledCounties(context), packs, FakeCountyLocator(), clock,
                     server.downloads, server.accounts, { false }, sync(db, settings, clock, account = false), RecordingScheduler(),
                     leagues(db, settings, clock), brackets(db, settings, clock),
-                )
+                ).kept()
                 withTimeout(10_000) { block(home, server, packs) }
             } finally {
                 stopViewModels()

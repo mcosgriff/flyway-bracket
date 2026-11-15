@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/mcosgriff/flyway-bracket/compare/v0.1.0...v0.2.0) (2026-11-15)
+
+
+### Features
+
+* retry once and say the server is waking during a cold start ([#94](https://github.com/mcosgriff/flyway-bracket/issues/94)) ([305d790](https://github.com/mcosgriff/flyway-bracket/commit/305d7907dae116d9e047535b0cf5b021103b0ede))
+
 ## 0.1.0 (2026-11-14)
 
 

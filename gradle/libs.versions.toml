@@ -1,9 +1,9 @@
 # Versions follow the Android App Playbook's Toolchain table (checked 2026-11-10).
 # Keep AGP current with Android Studio's AGP Upgrade Assistant; Dependabot moves the rest.
 [versions]
-agp = "9.5.1"
+agp = "9.5.2"
 kotlin = "2.4.21"
-ksp = "2.3.13"
+ksp = "2.3.14"
 coroutines = "1.11.0"
 serialization = "1.12.0"
 
@@ -31,7 +31,7 @@ postgresql = "42.7.14"
 # module. It shares a word with this app's name by coincidence.
 flyway = "13.12.2"
 # Argon2id, the hash the server keeps of each player's secret (Bouncy Castle Licence, the MIT text).
-bouncycastle = "1.86"
+bouncycastle = "1.87"
 # The server's log output. Not Logback: its licences (EPL, LGPL) are not on the allow-list.
 slf4j = "2.0.20"
 # Test only: the server's tests start a real Postgres in Docker.
@@ -42,10 +42,10 @@ junit = "4.13.2"
 # (`@Config(sdk = [35])`). Robolectric would fetch that jar itself at test time; Gradle resolves and caches
 # it instead (root build.gradle.kts). Each Robolectric release names its own builds of them, so these move
 # together: on a Robolectric upgrade, take the version from its `AndroidSdk` list.
-robolectric = "4.17"
+robolectric = "4.18"
 robolectric-androidAll-sdk35 = "15-robolectric-13954326-i7"
 # Screenshot tests on the JVM through Robolectric: test only, nothing of it ships.
-roborazzi = "1.78.0"
+roborazzi = "1.79.0"
 androidx-test-junit = "1.3.0"
 # Test coverage for Codecov (CI only; nothing of it ships).
 kover = "0.9.11"
